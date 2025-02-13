@@ -1,5 +1,15 @@
 package com.dynamictecnologies.notificationmanager
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.foundation.background
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Divider
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.TopAppBarDefaults
 import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -49,7 +59,7 @@ fun MyApp(content: @Composable () -> Unit) {
 fun AppListScreen() {
     val context = LocalContext.current
     var apps by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
-    var selectedApp by remember { mutableStateOf<String?>(null) }
+    var selectedApp by remember { mutableStateOf<AppInfo?>(null) }
     var showAppList by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -58,68 +68,153 @@ fun AppListScreen() {
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Notification Manager") }
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showAppList = !showAppList }
-            ) {
-                Text("Seleccionar app")
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Notification Manager") }
+                )
             }
-        }
-    ) { paddingValues ->
-        Box(modifier = Modifier
-            .fillMaxSize()
-            .padding(paddingValues)) {
-            Column(modifier = Modifier.align(Alignment.Center)) {
-                if (selectedApp == null) {
-                    Text(
-                        text = "Seleccionar una aplicación",
-                        modifier = Modifier.padding(16.dp)
-                    )
-                } else {
-                    Text(
-                        text = "Aplicación seleccionada: $selectedApp",
-                        modifier = Modifier.padding(16.dp)
-                    )
+        ) { paddingValues ->
+            // Contenido principal
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    selectedApp?.let { currentApp ->
+                        // Solo se muestra cuando selectedApp no es null
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "Aplicación seleccionada",
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Image(
+                                    bitmap = currentApp.icon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(60.dp)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = currentApp.name,
+                                    style = MaterialTheme.typography.headlineSmall
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                OutlinedButton(
+                                    onClick = { showAppList = true }
+                                ) {
+                                    Text("Cambiar aplicación")
+                                }
+                            }
+                        }
+                    } ?: run {
+                        // Se muestra cuando selectedApp es null
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "Selecciona una aplicación",
+                                    style = MaterialTheme.typography.headlineSmall
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Button(
+                                    onClick = { showAppList = true },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("Ver aplicaciones instaladas")
+                                }
+                            }
+                        }
+                    }
                 }
             }
+        }
 
-            AnimatedVisibility(
-                visible = showAppList,
-                enter = fadeIn(),
-                exit = fadeOut(),
-                modifier = Modifier.align(Alignment.Center)
+        // Modal de lista de aplicaciones con fondo oscuro
+        AnimatedVisibility(
+            visible = showAppList,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f))
             ) {
-                Surface(
+                Card(
                     modifier = Modifier
-                        .fillMaxWidth(0.9f)
-                        .heightIn(max = 500.dp)
-                        .padding(16.dp),
-                    shape = MaterialTheme.shapes.medium,
-                    shadowElevation = 8.dp
+                        .fillMaxWidth()
+                        .fillMaxHeight(0.9f)
+                        .align(Alignment.BottomCenter),
+                    shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                 ) {
-                    LazyColumn {
-                        items(apps) { app ->
-                            Row(
-                                modifier = Modifier
-                                    .clickable {
-                                        selectedApp = app.name
-                                        showAppList = false
-                                    }
-                                    .padding(16.dp)
-                            ) {
-                                Image(
-                                    bitmap = app.icon,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(40.dp)
+                    Column {
+                        TopAppBar(
+                            title = { Text("Aplicaciones instaladas") },
+                            navigationIcon = {
+                                IconButton(onClick = { showAppList = false }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Cerrar"
+                                    )
+                                }
+                            },
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            )
+                        )
+
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(vertical = 8.dp)
+                        ) {
+                            items(apps) { app ->
+                                ListItem(
+                                    headlineContent = { Text(app.name) },
+                                    leadingContent = {
+                                        Image(
+                                            bitmap = app.icon,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(40.dp)
+                                        )
+                                    },
+                                    modifier = Modifier
+                                        .clickable {
+                                            selectedApp = app
+                                            showAppList = false
+                                        }
+                                        .padding(horizontal = 16.dp)
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(text = app.name)
+                                Divider(
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    color = MaterialTheme.colorScheme.outlineVariant
+                                )
                             }
                         }
                     }
