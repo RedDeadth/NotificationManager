@@ -21,6 +21,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -46,10 +48,15 @@ fun MyApp(content: @Composable () -> Unit) {
 @Composable
 fun AppListScreen() {
     val context = LocalContext.current
-    val packageManager = remember { context.packageManager }
-    val apps = remember { getInstalledApps(packageManager) }
+    var apps by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
     var selectedApp by remember { mutableStateOf<String?>(null) }
     var showAppList by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        apps = withContext(Dispatchers.IO) {
+            getInstalledApps(context.packageManager)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -90,8 +97,8 @@ fun AppListScreen() {
             ) {
                 Surface(
                     modifier = Modifier
-                        .fillMaxWidth(0.8f)
-                        .heightIn(max = 400.dp)
+                        .fillMaxWidth(0.9f)
+                        .heightIn(max = 500.dp)
                         .padding(16.dp),
                     shape = MaterialTheme.shapes.medium,
                     shadowElevation = 8.dp
@@ -128,9 +135,12 @@ fun getInstalledApps(packageManager: PackageManager): List<AppInfo> {
     val apps = mutableListOf<AppInfo>()
     val packages = packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
     for (packageInfo in packages) {
-        val appName = packageInfo.loadLabel(packageManager).toString()
-        val appIcon = packageInfo.loadIcon(packageManager).toBitmap().asImageBitmap()
-        apps.add(AppInfo(appName, appIcon))
+        if (packageManager.getLaunchIntentForPackage(packageInfo.packageName) != null &&
+            (packageInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) == 0) {
+            val appName = packageInfo.loadLabel(packageManager).toString()
+            val appIcon = packageInfo.loadIcon(packageManager).toBitmap().asImageBitmap()
+            apps.add(AppInfo(appName, appIcon))
+        }
     }
     return apps
 }
