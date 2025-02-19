@@ -5,7 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.runtime.Composable
-import com.dynamictecnologies.notificationmanager.ui.theme.AppListScreen
+import com.dynamictecnologies.notificationmanager.ui.AppListScreen
 import com.dynamictecnologies.notificationmanager.ui.theme.NotificationManagerTheme
 import com.dynamictecnologies.notificationmanager.viewmodel.AppListViewModel
 import com.dynamictecnologies.notificationmanager.viewmodel.AppListViewModelFactory
