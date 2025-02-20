@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "6c0b393cf3a34c8defd99ea67eae4ccb",
+    "identityHash": "999d1ee15fce954fef83b104615d29c7",
     "entities": [
       {
         "tableName": "notifications",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `packageName` TEXT NOT NULL, `appName` TEXT NOT NULL, `title` TEXT NOT NULL, `content` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, `senderName` TEXT, `isGroupMessage` INTEGER NOT NULL, `groupName` TEXT, `isRead` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `packageName` TEXT NOT NULL, `appName` TEXT NOT NULL, `title` TEXT NOT NULL, `content` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, `senderName` TEXT, `isGroupMessage` INTEGER NOT NULL, `groupName` TEXT, `isRead` INTEGER NOT NULL, `uniqueId` TEXT NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -67,6 +67,12 @@
             "columnName": "isRead",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "uniqueId",
+            "columnName": "uniqueId",
+            "affinity": "TEXT",
+            "notNull": true
           }
         ],
         "primaryKey": {
@@ -82,7 +88,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '6c0b393cf3a34c8defd99ea67eae4ccb')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '999d1ee15fce954fef83b104615d29c7')"
     ]
   }
 }

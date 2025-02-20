@@ -8,25 +8,21 @@ import android.content.pm.PackageManager
 import android.util.Log
 import com.dynamictecnologies.notificationmanager.service.NotificationListenerService
 
+import com.dynamictecnologies.notificationmanager.service.NotificationForegroundService
+
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
-            Log.d("BootReceiver", "Boot completed, iniciando servicio...")
-            // Forzar reconexión del servicio
-            val componentName = ComponentName(
-                context,
-                NotificationListenerService::class.java
-            )
-            context.packageManager.setComponentEnabledSetting(
-                componentName,
-                PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                PackageManager.DONT_KILL_APP
-            )
-            context.packageManager.setComponentEnabledSetting(
-                componentName,
-                PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-                PackageManager.DONT_KILL_APP
-            )
+        if (intent.action == Intent.ACTION_BOOT_COMPLETED ||
+            intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) {
+            Log.d("BootReceiver", "Iniciando servicios después del arranque...")
+
+            // Iniciar servicio en primer plano
+            val serviceIntent = Intent(context, NotificationForegroundService::class.java)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                context.startForegroundService(serviceIntent)
+            } else {
+                context.startService(serviceIntent)
+            }
         }
     }
 }

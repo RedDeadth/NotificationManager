@@ -15,10 +15,7 @@ interface NotificationDao {
     @Query("SELECT * FROM notifications WHERE packageName = :packageName ORDER BY timestamp DESC")
     fun getNotificationsForApp(packageName: String): Flow<List<NotificationInfo>>
 
-    @Query("SELECT * FROM notifications ORDER BY timestamp DESC")
-    fun getAllNotifications(): Flow<List<NotificationInfo>>
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertNotification(notification: NotificationInfo)
 
     @Query("DELETE FROM notifications WHERE timestamp < :date")

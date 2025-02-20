@@ -11,10 +11,10 @@
 
     <!-- Permisos necesarios -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <!-- Este permiso no es necesario declararlo, solo usarlo en el service -->
-    <!-- <uses-permission android:name="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" /> -->
-    <!-- Agregar este permiso -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Agregar este permiso para Android 14+ -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <application
         android:allowBackup="true"
@@ -38,7 +38,7 @@
             </intent-filter>
         </activity>
 
-        <!-- Corregir el nombre del servicio y agregar metadata -->
+        <!-- Servicio de notificaciones -->
         <service
             android:name=".service.NotificationListenerService"
             android:label="@string/app_name"
@@ -47,7 +47,7 @@
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
-            <!-- Agregar metadata para descripción -->
+            <!-- Agregar metadata para filtros -->
             <meta-data
                 android:name="android.service.notification.default_filter_types"
                 android:value="conversations|alerting" />
@@ -56,13 +56,23 @@
                 android:value="ongoing|silent" />
         </service>
 
-        <!-- Agregar receiver para boot -->
+        <!-- Servicio en primer plano -->
+        <service
+            android:name=".service.NotificationForegroundService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <!-- Receiver para inicio en boot -->
         <receiver
             android:name=".receiver.BootReceiver"
             android:enabled="true"
-            android:exported="true">
+            android:exported="true"
+            android:directBootAware="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
             </intent-filter>
         </receiver>
 
