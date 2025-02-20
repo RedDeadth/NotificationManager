@@ -29,8 +29,8 @@ import com.dynamictecnologies.notificationmanager.viewmodel.AppListViewModel
 fun AppListScreen(
     viewModel: AppListViewModel
 ) {
-    val apps by viewModel.apps.collectAsState(initial = emptyList())
-    val selectedApp = viewModel.selectedApp.value
+    val apps by viewModel.apps.collectAsState()
+    val selectedApp by viewModel.selectedApp.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val showAppList by viewModel.showAppList.collectAsState()
     val notifications by viewModel.notifications.collectAsState()
@@ -51,26 +51,23 @@ fun AppListScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Vista principal
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                if (selectedApp != null) {
-                    // Quitamos verticalArrangement = Arrangement.Center para que las tarjetas se muestren una debajo de otra
+                // Cambiamos la forma de manejar selectedApp
+                selectedApp?.let { app ->
                     SelectedAppCard(
-                        app = selectedApp,
+                        app = app,
                         onChangeAppClick = { viewModel.toggleAppList() }
                     )
-                    // Agregamos el NotificationHistoryCard cuando hay una app seleccionada
                     NotificationHistoryCard(
                         notifications = notifications,
-                        modifier = Modifier.weight(1f) // Esto hará que ocupe el espacio restante
+                        modifier = Modifier.weight(1f)
                     )
-                } else {
-                    // Cuando no hay app seleccionada, mantenemos el comportamiento centrado
+                } ?: run {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -82,12 +79,10 @@ fun AppListScreen(
                 }
             }
 
-            // Loading indicator
             if (isLoading) {
                 LoadingScreen()
             }
 
-            // Dialog de selección de apps
             if (showAppList) {
                 AppSelectionDialog(
                     apps = apps,
@@ -101,7 +96,6 @@ fun AppListScreen(
         }
     }
 }
-
 @Composable
 private fun InitialSelectionCard(onSelectAppClick: () -> Unit) {
     Card(

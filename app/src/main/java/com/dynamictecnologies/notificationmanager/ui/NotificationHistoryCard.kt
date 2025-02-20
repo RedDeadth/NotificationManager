@@ -1,5 +1,6 @@
 package com.dynamictecnologies.notificationmanager.ui
 
+import android.util.Log
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -33,6 +34,8 @@ fun NotificationHistoryCard(
     notifications: List<NotificationInfo>,
     modifier: Modifier = Modifier
 ) {
+    Log.d("NotificationHistoryCard", "Renderizando ${notifications.size} notificaciones")
+
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -43,7 +46,7 @@ fun NotificationHistoryCard(
             modifier = Modifier.padding(16.dp)
         ) {
             Text(
-                text = "Historial de Notificaciones",
+                text = "Historial de Notificaciones (${notifications.size})",
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
@@ -63,7 +66,10 @@ fun NotificationHistoryCard(
                 }
             } else {
                 LazyColumn {
-                    items(notifications) { notification ->
+                    items(
+                        items = notifications,
+                        key = { "${it.packageName}_${it.timestamp.time}" }
+                    ) { notification ->
                         NotificationItem(notification)
                         Divider(
                             modifier = Modifier.padding(vertical = 8.dp),
