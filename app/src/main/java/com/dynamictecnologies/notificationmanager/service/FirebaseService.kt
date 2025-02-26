@@ -1,63 +1,69 @@
 package com.dynamictecnologies.notificationmanager.service
 
 import android.util.Log
-import com.dynamictecnologies.notificationmanager.data.db.FirebaseDatabaseManager
 import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.ktx.database
-import com.google.firebase.ktx.Firebase
-import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
 import com.google.firebase.database.ServerValue
+import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
+import kotlinx.coroutines.tasks.await
+import java.util.*
 import kotlinx.coroutines.tasks.await
 import java.util.*
 
 class FirebaseService {
     private val TAG = "FirebaseService"
-    private val database: FirebaseDatabase = Firebase.database
-    private val notificationsRef = database.getReference("notifications/data")
-    private val databaseManager = FirebaseDatabaseManager()
+    private val database: FirebaseDatabase = FirebaseDatabase.getInstance()
+    private val notificationsRef = database.getReference("notifications")
 
-    init {
-        // Habilitar persistencia offline
-        database.setPersistenceEnabled(true)
+    // Función para codificar el nombre del paquete de manera segura
+    private fun encodePackageName(packageName: String): String {
+        return packageName.replace(".", "_")
     }
-    suspend fun initialize() {
-        databaseManager.initializeDatabase()
+
+    // Función para decodificar el nombre del paquete
+    private fun decodePackageName(encodedPackageName: String): String {
+        return encodedPackageName.replace("_", ".")
     }
+
     suspend fun syncNotification(notification: NotificationInfo): Boolean {
         return try {
-            Log.d(TAG, "Sincronizando notificación con Firebase: ${notification.title}")
+            Log.d(TAG, "Sincronizando notificación: ${notification.title} de ${notification.packageName}")
 
-            // Crear una referencia específica para esta notificación
-            val notificationRef = notificationsRef
-                .child(notification.packageName)
-                .child(notification.uniqueId)
+            // Codificar el nombre del paquete para la ruta
+            val encodedPackageName = encodePackageName(notification.packageName)
 
-            // Convertir la notificación a un Map
+            // Preparar datos de la notificación
             val notificationMap = mapOf(
-                "id" to notification.id,
-                "packageName" to notification.packageName,
-                "appName" to notification.appName,
                 "title" to notification.title,
                 "content" to notification.content,
                 "timestamp" to notification.timestamp.time,
-                "senderName" to notification.senderName,
-                "isGroupMessage" to notification.isGroupMessage,
-                "groupName" to notification.groupName,
-                "isRead" to notification.isRead,
+                "syncTimestamp" to ServerValue.TIMESTAMP,
+                "appName" to notification.appName,
                 "uniqueId" to notification.uniqueId,
-                "syncTimestamp" to ServerValue.TIMESTAMP
+                "senderName" to (notification.senderName ?: ""),
+                "isGroupMessage" to notification.isGroupMessage,
+                "groupName" to (notification.groupName ?: ""),
+                "isRead" to notification.isRead,
+                "packageName" to notification.packageName // Guardar el nombre original del paquete
             )
 
-            // Guardar en Firebase
-            notificationRef.setValue(notificationMap).await()
-            database.reference.child("notifications/metadata/lastUpdate")
-                .setValue(ServerValue.TIMESTAMP)
+            // Primero actualizar el estado de sincronización
+            notificationsRef
+                .child(encodedPackageName)
+                .child("isSynced")
+                .setValue(true)
                 .await()
 
-            Log.d(TAG, "✓ Notificación sincronizada exitosamente con Firebase")
+            // Luego guardar la notificación usando su ID
+            notificationsRef
+                .child(encodedPackageName)
+                .child(notification.id.toString())
+                .setValue(notificationMap)
+                .await()
+
+            Log.d(TAG, "✓ Notificación sincronizada exitosamente para ${notification.packageName}")
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Error sincronizando con Firebase: ${e.message}")
+            Log.e(TAG, "Error sincronizando notificación: ${e.message}")
             e.printStackTrace()
             false
         }
@@ -65,44 +71,46 @@ class FirebaseService {
 
     suspend fun getNotifications(packageName: String): List<NotificationInfo> {
         return try {
+            val encodedPackageName = encodePackageName(packageName)
+            Log.d(TAG, "Obteniendo notificaciones para $packageName (encoded: $encodedPackageName)")
+
             val snapshot = notificationsRef
-                .child(packageName)
-                .orderByChild("timestamp")
-                .limitToLast(100)  // Limitar a las últimas 100 notificaciones
+                .child(encodedPackageName)
+                .orderByKey()
+                .limitToLast(100)
                 .get()
                 .await()
 
-            snapshot.children.mapNotNull { child ->
-                try {
-                    val id = child.child("id").getValue(Long::class.java) ?: 0
-                    val title = child.child("title").getValue(String::class.java) ?: ""
-                    val content = child.child("content").getValue(String::class.java) ?: ""
-                    val timestamp = child.child("timestamp").getValue(Long::class.java)?.let { Date(it) } ?: Date()
-                    val appName = child.child("appName").getValue(String::class.java) ?: ""
-                    val uniqueId = child.child("uniqueId").getValue(String::class.java) ?: ""
-                    val senderName = child.child("senderName").getValue(String::class.java)
-                    val isGroupMessage = child.child("isGroupMessage").getValue(Boolean::class.java) ?: false
-                    val groupName = child.child("groupName").getValue(String::class.java)
-                    val isRead = child.child("isRead").getValue(Boolean::class.java) ?: false
+            val notifications = mutableListOf<NotificationInfo>()
 
-                    NotificationInfo(
-                        id = id,
-                        packageName = packageName,
-                        appName = appName,
-                        title = title,
-                        content = content,
-                        timestamp = timestamp,
-                        senderName = senderName,
-                        isGroupMessage = isGroupMessage,
-                        groupName = groupName,
-                        isRead = isRead,
-                        uniqueId = uniqueId
-                    )
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error parseando notificación: ${e.message}")
-                    null
+            snapshot.children.forEach { child ->
+                if (child.key != "isSynced") {
+                    try {
+                        val id = child.key?.toLongOrNull() ?: return@forEach
+                        notifications.add(
+                            NotificationInfo(
+                                id = id,
+                                packageName = packageName, // Usar el nombre original del paquete
+                                appName = child.child("appName").getValue(String::class.java) ?: "",
+                                title = child.child("title").getValue(String::class.java) ?: "",
+                                content = child.child("content").getValue(String::class.java) ?: "",
+                                timestamp = Date(child.child("timestamp").getValue(Long::class.java) ?: 0),
+                                senderName = child.child("senderName").getValue(String::class.java),
+                                isGroupMessage = child.child("isGroupMessage").getValue(Boolean::class.java) ?: false,
+                                groupName = child.child("groupName").getValue(String::class.java),
+                                isRead = child.child("isRead").getValue(Boolean::class.java) ?: false,
+                                uniqueId = child.child("uniqueId").getValue(String::class.java) ?: "",
+                                isSynced = true
+                            )
+                        )
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error parseando notificación: ${e.message}")
+                    }
                 }
             }
+
+            Log.d(TAG, "Recuperadas ${notifications.size} notificaciones para $packageName")
+            notifications.sortedByDescending { it.timestamp }
         } catch (e: Exception) {
             Log.e(TAG, "Error obteniendo notificaciones de Firebase: ${e.message}")
             emptyList()
@@ -111,18 +119,57 @@ class FirebaseService {
 
     suspend fun deleteOldNotifications(packageName: String, olderThan: Date) {
         try {
+            val encodedPackageName = encodePackageName(packageName)
+            Log.d(TAG, "Eliminando notificaciones antiguas para $packageName (encoded: $encodedPackageName)")
+
             val snapshot = notificationsRef
-                .child(packageName)
+                .child(encodedPackageName)
                 .orderByChild("timestamp")
                 .endAt(olderThan.time.toDouble())
                 .get()
                 .await()
 
+            var count = 0
             snapshot.children.forEach { child ->
-                child.ref.removeValue().await()
+                if (child.key != "isSynced") {
+                    child.ref.removeValue().await()
+                    count++
+                }
             }
+
+            Log.d(TAG, "✓ $count notificaciones antiguas eliminadas para $packageName")
         } catch (e: Exception) {
             Log.e(TAG, "Error eliminando notificaciones antiguas: ${e.message}")
         }
     }
+
+    suspend fun clearOtherAppsNotifications(selectedPackageName: String) {
+        try {
+            val encodedSelectedPackage = encodePackageName(selectedPackageName)
+            Log.d(TAG, "Limpiando notificaciones excepto para $selectedPackageName")
+
+            val snapshot = notificationsRef.get().await()
+
+            snapshot.children.forEach { child ->
+                if (child.key != encodedSelectedPackage) {
+                    child.ref.removeValue().await()
+                }
+            }
+            Log.d(TAG, "✓ Notificaciones de otras apps eliminadas")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error limpiando otras apps: ${e.message}")
+        }
+    }
+    suspend fun verifyConnection() {
+        try {
+            val connectedRef = database.getReference(".info/connected")
+            val snapshot = connectedRef.get().await()
+            val isConnected = snapshot.getValue(Boolean::class.java) ?: false
+            Log.d(TAG, "Estado de conexión Firebase: ${if (isConnected) "Conectado" else "Desconectado"}")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error verificando conexión: ${e.message}")
+        }
+    }
+
+
 }

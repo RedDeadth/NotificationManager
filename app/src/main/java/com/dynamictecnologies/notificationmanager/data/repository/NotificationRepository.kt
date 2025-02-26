@@ -30,37 +30,25 @@ class NotificationRepository(
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     init {
-        initializeFirebase()
-        startPeriodicTasks()
+        startPeriodicSync()
     }
-    private fun initializeFirebase() {
-        scope.launch {
-            try {
-                firebaseService.initialize()
-            } catch (e: Exception) {
-                Log.e(TAG, "Error inicializando Firebase: ${e.message}")
-            }
-        }
-    }
-    private fun startPeriodicTasks() {
+
+    private fun startPeriodicSync() {
         scope.launch {
             while (isActive) {
                 try {
-                    cleanOldNotifications()
                     if (isNetworkAvailable()) {
+                        firebaseService.verifyConnection()
                         syncPendingNotifications()
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error en tareas periódicas: ${e.message}")
+                    Log.e(TAG, "Error en sincronización periódica: ${e.message}")
                 }
-                delay(1 * 60 * 60 * 1000) // Ejecutar cada hora
+                delay(30_000) // Intentar cada 30 segundos
             }
         }
     }
-
-
-    fun getNotificationsForApp(packageName: String): Flow<List<NotificationInfo>> {
-        Log.d(TAG, "Solicitando notificaciones para package: $packageName")
+    fun getNotifications(packageName: String): Flow<List<NotificationInfo>> {
         return notificationDao.getNotificationsForApp(packageName)
             .onEach { notifications ->
                 Log.d(TAG, "Notificaciones obtenidas: ${notifications.size}")
@@ -78,26 +66,46 @@ class NotificationRepository(
     suspend fun insertNotification(notification: NotificationInfo) {
         try {
             Log.d(TAG, "Insertando notificación: ${notification.title}")
-            notificationDao.insertNotification(notification)
-            Log.d(TAG, "✓ Notificación insertada correctamente")
+
+            // Guardar localmente
+            val id = notificationDao.insertNotification(notification)
+            Log.d(TAG, "✓ Notificación guardada localmente con ID: $id")
+
+            // Intentar sincronizar inmediatamente si hay conexión
+            if (isNetworkAvailable()) {
+                val success = firebaseService.syncNotification(notification.copy(id = id))
+                if (success) {
+                    notificationDao.updateNotification(
+                        notification.copy(id = id, isSynced = true)
+                    )
+                    Log.d(TAG, "✓ Notificación sincronizada con Firebase")
+                } else {
+                    Log.w(TAG, "⚠ Sincronización diferida para más tarde")
+                }
+            } else {
+                Log.w(TAG, "⚠ Sin conexión, la notificación se sincronizará más tarde")
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error insertando notificación: ${e.message}")
             throw e
         }
     }
+
     private suspend fun syncPendingNotifications() {
         try {
-            Log.d(TAG, "Iniciando sincronización de notificaciones pendientes")
-            val unSyncedNotifications = notificationDao.getUnSyncedNotifications()
-            Log.d(TAG, "Notificaciones pendientes encontradas: ${unSyncedNotifications.size}")
+            val unsynced = notificationDao.getUnSyncedNotifications()
+            if (unsynced.isNotEmpty()) {
+                Log.d(TAG, "Sincronizando ${unsynced.size} notificaciones pendientes...")
 
-            unSyncedNotifications.forEach { notification ->
-                if (firebaseService.syncNotification(notification)) {
-                    notificationDao.updateNotification(notification.copy(isSynced = true))
+                unsynced.forEach { notification ->
+                    if (firebaseService.syncNotification(notification)) {
+                        notificationDao.updateNotification(notification.copy(isSynced = true))
+                        Log.d(TAG, "✓ Sincronizada notificación: ${notification.title}")
+                    }
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error sincronizando notificaciones pendientes: ${e.message}")
+            Log.e(TAG, "Error en syncPendingNotifications: ${e.message}")
         }
     }
 

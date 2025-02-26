@@ -29,6 +29,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.graphics.drawable.toBitmap
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.util.*
 
 class AppListViewModel(
     private val packageManager: PackageManager,
@@ -38,7 +45,6 @@ class AppListViewModel(
     private val TAG = "AppListViewModel"
     private val prefs = context.getSharedPreferences("app_preferences", Context.MODE_PRIVATE)
 
-    // Agregamos los estados faltantes
     private val _apps = MutableStateFlow<List<AppInfo>>(emptyList())
     val apps = _apps.asStateFlow()
 
@@ -52,17 +58,16 @@ class AppListViewModel(
     val showAppList = _showAppList.asStateFlow()
 
     private val _notifications = MutableStateFlow<List<NotificationInfo>>(emptyList())
-    val notifications = _notifications.asStateFlow()
+    val notifications: StateFlow<List<NotificationInfo>> = _notifications.asStateFlow()
 
     init {
         Log.d(TAG, "ViewModel inicializado")
-        loadInstalledApps() // Agregamos carga de apps
+        loadInstalledApps()
         viewModelScope.launch {
             restoreLastSelectedApp()
         }
     }
 
-    // Agregamos función para cargar apps
     private fun loadInstalledApps() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -101,7 +106,6 @@ class AppListViewModel(
         }
     }
 
-    // Agregamos función para toggle del diálogo
     fun toggleAppList() {
         _showAppList.value = !_showAppList.value
         Log.d(TAG, "Toggle dialog: ${_showAppList.value}")
@@ -114,20 +118,22 @@ class AppListViewModel(
                 _selectedApp.value = app
 
                 app?.let { selectedApp ->
+                    // Guardar la app seleccionada
                     prefs.edit().putString("last_selected_app", selectedApp.packageName).apply()
                     Log.d(TAG, "Iniciando observación de notificaciones para: ${selectedApp.name}")
 
-                    repository.getNotificationsForApp(selectedApp.packageName)
+                    // Observar el flujo de notificaciones
+                    repository.getNotifications(selectedApp.packageName)
                         .catch { e ->
                             Log.e(TAG, "Error observando notificaciones: ${e.message}")
                             e.printStackTrace()
                         }
-                        .collect { notificationList ->
-                            Log.d(TAG, "Recibidas ${notificationList.size} notificaciones")
-                            notificationList.forEach { notification ->
-                                Log.d(TAG, "Notificación: ${notification.title} - ${notification.timestamp}")
+                        .collect { notificationsList ->
+                            Log.d(TAG, "Recibidas ${notificationsList.size} notificaciones")
+                            notificationsList.forEach { notification ->
+                                Log.d(TAG, "Notificación: ${notification.title} (${notification.timestamp})")
                             }
-                            _notifications.value = notificationList
+                            _notifications.value = notificationsList
                         }
                 } ?: run {
                     Log.d(TAG, "No hay app seleccionada, limpiando notificaciones")
