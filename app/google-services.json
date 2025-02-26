@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "626452363454",
+    "firebase_url": "https://notification-manager-b5fcf-default-rtdb.firebaseio.com",
+    "project_id": "notification-manager-b5fcf",
+    "storage_bucket": "notification-manager-b5fcf.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:626452363454:android:76bc593e195f0a416406ef",
+        "android_client_info": {
+          "package_name": "com.dynamictecnologies.notificationmanager"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "626452363454-eulq9qu2gjcktod5frkadjrjua7c13j4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.dynamictecnologies.notificationmanager",
+            "certificate_hash": "96da464ff12b6400a5fa008d920a569e3c41235f"
+          }
+        },
+        {
+          "client_id": "626452363454-p1v4r3bqaln92rv8tdgira1n1hlh5iof.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC2pf0gEA_5SHAUc0LHLhYT87dpk2nBgZc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "626452363454-p1v4r3bqaln92rv8tdgira1n1hlh5iof.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

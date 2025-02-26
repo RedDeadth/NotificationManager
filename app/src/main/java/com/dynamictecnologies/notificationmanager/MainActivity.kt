@@ -2,6 +2,7 @@ package com.dynamictecnologies.notificationmanager
 
 import android.app.AlertDialog
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -13,11 +14,13 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import com.dynamictecnologies.notificationmanager.data.db.NotificationDatabase
 import com.dynamictecnologies.notificationmanager.data.repository.NotificationRepository
+import com.dynamictecnologies.notificationmanager.service.FirebaseService
 import com.dynamictecnologies.notificationmanager.service.NotificationListenerService
 import com.dynamictecnologies.notificationmanager.ui.AppListScreen
 import com.dynamictecnologies.notificationmanager.ui.theme.NotificationManagerTheme
 import com.dynamictecnologies.notificationmanager.viewmodel.AppListViewModel
 import com.dynamictecnologies.notificationmanager.viewmodel.AppListViewModelFactory
+import com.google.firebase.FirebaseApp
 
 class MainActivity : ComponentActivity() {
     private val TAG = "MainActivity"
@@ -26,12 +29,19 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Inicializar Firebase
+        FirebaseApp.initializeApp(this)
+
         // Verificar permisos primero
         checkAndRequestPermissions()
 
         val database = NotificationDatabase.getDatabase(applicationContext)
-        val repository = NotificationRepository(database.notificationDao())
-
+        val firebaseService = FirebaseService()
+        val repository = NotificationRepository(
+            notificationDao = database.notificationDao(),
+            firebaseService = firebaseService,
+            context = applicationContext
+        )
         val viewModel: AppListViewModel by viewModels {
             AppListViewModelFactory(applicationContext, repository)
         }

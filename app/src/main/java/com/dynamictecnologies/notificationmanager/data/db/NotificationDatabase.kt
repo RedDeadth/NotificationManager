@@ -5,11 +5,13 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
 
 @Database(
     entities = [NotificationInfo::class],
-    version = 1,
+    version = 2,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -26,7 +28,8 @@ abstract class NotificationDatabase : RoomDatabase() {
                     context.applicationContext,
                     NotificationDatabase::class.java,
                     "notification_database"
-                ).build()
+                )
+                .build()
                 INSTANCE = instance
                 instance
             }

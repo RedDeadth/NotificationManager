@@ -50,7 +50,7 @@ class NotificationForegroundService : Service() {
     private fun createNotification(): Notification {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Notification Manager")
-            .setContentText("Monitoreando notificaciones...")
+            .setContentText("Monitoreando notificaciones...Wasaaaaaaa")
             .setSmallIcon(R.drawable.ic_notification) // Usamos R.drawable
             .setOngoing(true)
             .apply {

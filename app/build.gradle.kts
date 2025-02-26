@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     kotlin("kapt")
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -48,6 +49,14 @@ android {
     }
 }
 dependencies {
+
+    //Firebase Dependencias
+    implementation(platform("com.google.firebase:firebase-bom:33.9.0"))
+    implementation("com.google.firebase:firebase-analytics")
+    // Firebase Auth & Realtime Database
+    implementation("com.google.firebase:firebase-database-ktx")
+    implementation("com.google.firebase:firebase-auth-ktx")
+
     // Room - Actualizada la versión
     val roomVersion = "2.6.1"
     implementation("androidx.room:room-runtime:$roomVersion")

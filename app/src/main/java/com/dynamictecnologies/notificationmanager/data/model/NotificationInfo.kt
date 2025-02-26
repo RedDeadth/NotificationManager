@@ -17,5 +17,6 @@ data class NotificationInfo(
     val isGroupMessage: Boolean = false,
     val groupName: String? = null,
     val isRead: Boolean = false,
-    val uniqueId: String = "$packageName:$title:$content:${timestamp.time}"
+    val uniqueId: String = "$packageName:$title:$content:${timestamp.time}",
+    var isSynced: Boolean = false
 )
