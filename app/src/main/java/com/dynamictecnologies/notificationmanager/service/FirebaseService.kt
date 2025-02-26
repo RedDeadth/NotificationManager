@@ -38,11 +38,6 @@ class FirebaseService {
                 "timestamp" to notification.timestamp.time,
                 "syncTimestamp" to ServerValue.TIMESTAMP,
                 "appName" to notification.appName,
-                "uniqueId" to notification.uniqueId,
-                "senderName" to (notification.senderName ?: ""),
-                "isGroupMessage" to notification.isGroupMessage,
-                "groupName" to (notification.groupName ?: ""),
-                "isRead" to notification.isRead,
                 "packageName" to notification.packageName // Guardar el nombre original del paquete
             )
 
@@ -95,11 +90,6 @@ class FirebaseService {
                                 title = child.child("title").getValue(String::class.java) ?: "",
                                 content = child.child("content").getValue(String::class.java) ?: "",
                                 timestamp = Date(child.child("timestamp").getValue(Long::class.java) ?: 0),
-                                senderName = child.child("senderName").getValue(String::class.java),
-                                isGroupMessage = child.child("isGroupMessage").getValue(Boolean::class.java) ?: false,
-                                groupName = child.child("groupName").getValue(String::class.java),
-                                isRead = child.child("isRead").getValue(Boolean::class.java) ?: false,
-                                uniqueId = child.child("uniqueId").getValue(String::class.java) ?: "",
                                 isSynced = true
                             )
                         )
