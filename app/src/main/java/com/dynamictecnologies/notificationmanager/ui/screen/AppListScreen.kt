@@ -1,7 +1,5 @@
-package com.dynamictecnologies.notificationmanager.ui
+package com.dynamictecnologies.notificationmanager.ui.screen
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
