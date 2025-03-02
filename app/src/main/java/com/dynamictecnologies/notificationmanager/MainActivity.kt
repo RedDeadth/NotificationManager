@@ -4,25 +4,32 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.navigation.compose.rememberNavController
 import com.dynamictecnologies.notificationmanager.data.db.NotificationDatabase
+import com.dynamictecnologies.notificationmanager.data.repository.AuthRepository
 import com.dynamictecnologies.notificationmanager.data.repository.NotificationRepository
+import com.dynamictecnologies.notificationmanager.navigation.AppNavigation
 import com.dynamictecnologies.notificationmanager.service.FirebaseService
-import com.dynamictecnologies.notificationmanager.ui.screen.PermissionScreen
 import com.dynamictecnologies.notificationmanager.ui.theme.NotificationManagerTheme
 import com.dynamictecnologies.notificationmanager.util.PermissionManager
-import com.dynamictecnologies.notificationmanager.viewmodel.AppListViewModel
-import com.dynamictecnologies.notificationmanager.viewmodel.AppListViewModelFactory
+import com.dynamictecnologies.notificationmanager.viewmodel.*
 import com.google.firebase.FirebaseApp
-import com.dynamictecnologies.notificationmanager.viewmodel.PermissionViewModel
-import com.dynamictecnologies.notificationmanager.viewmodel.PermissionViewModelFactory
 import com.google.firebase.database.FirebaseDatabase
 
 class MainActivity : ComponentActivity() {
     private val TAG = "MainActivity"
 
+    private val permissionManager by lazy {
+        PermissionManager(this)
+    }
+
+    // ViewModels
+    private val authViewModel: AuthViewModel by viewModels {
+        AuthViewModelFactory(AuthRepository(this))
+    }
+
     private val permissionViewModel: PermissionViewModel by viewModels {
-        // Crear una instancia de PermissionManager primero
-        PermissionViewModelFactory(PermissionManager(applicationContext))
+        PermissionViewModelFactory(permissionManager)
     }
 
     private val appListViewModel: AppListViewModel by viewModels {
@@ -35,12 +42,18 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             NotificationManagerTheme {
-                PermissionScreen(
+                AppNavigation(
+                    authViewModel = authViewModel,
                     permissionViewModel = permissionViewModel,
                     appListViewModel = appListViewModel
                 )
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        permissionViewModel.checkPermissions()
     }
 
     private fun initializeFirebase() {
@@ -66,3 +79,4 @@ class MainActivity : ComponentActivity() {
         )
     }
 }
+

@@ -50,44 +50,47 @@ class NotificationRepository(
     }
     fun getNotifications(packageName: String): Flow<List<NotificationInfo>> {
         return notificationDao.getNotificationsForApp(packageName)
-            .onEach { notifications ->
-                Log.d(TAG, "Notificaciones obtenidas: ${notifications.size}")
-                notifications.forEach { notification ->
-                    Log.d(TAG, "- ${notification.timestamp}: ${notification.title}")
+            .onStart {
+                emit(notificationDao.getNotificationsForAppImmediate(packageName))
+
+                if (isNetworkAvailable()) {
+                    try {
+                        val remoteNotifications = firebaseService.getNotifications(packageName)
+                        processRemoteNotifications(remoteNotifications)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error en sincronización inicial: ${e.message}")
+                    }
                 }
             }
-            .catch { e ->
-                Log.e(TAG, "Error obteniendo notificaciones: ${e.message}")
-                emit(emptyList())
-            }
+            .distinctUntilChanged()
             .flowOn(Dispatchers.IO)
+    }
+
+    private suspend fun processRemoteNotifications(remoteNotifications: List<NotificationInfo>) {
+        remoteNotifications.forEach { notification ->
+            try {
+                notificationDao.insertOrUpdateNotification(notification.copy(isSynced = true))
+            } catch (e: Exception) {
+                Log.e(TAG, "Error procesando notificación remota: ${e.message}")
+            }
+        }
     }
 
     suspend fun insertNotification(notification: NotificationInfo) {
         try {
-            Log.d(TAG, "Insertando notificación: ${notification.title}")
-
-            // Guardar localmente
             val id = notificationDao.insertNotification(notification)
-            Log.d(TAG, "✓ Notificación guardada localmente con ID: $id")
+            Log.d(TAG, "Notificación guardada localmente con ID: $id")
 
-            // Intentar sincronizar inmediatamente si hay conexión
             if (isNetworkAvailable()) {
-                val success = firebaseService.syncNotification(notification.copy(id = id))
+                val updatedNotification = notification.copy(id = id)
+                val success = firebaseService.syncNotification(updatedNotification)
                 if (success) {
-                    notificationDao.updateNotification(
-                        notification.copy(id = id, isSynced = true)
-                    )
+                    notificationDao.updateNotification(updatedNotification.copy(isSynced = true))
                     Log.d(TAG, "✓ Notificación sincronizada con Firebase")
-                } else {
-                    Log.w(TAG, "⚠ Sincronización diferida para más tarde")
                 }
-            } else {
-                Log.w(TAG, "⚠ Sin conexión, la notificación se sincronizará más tarde")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error insertando notificación: ${e.message}")
-            throw e
         }
     }
 
@@ -96,7 +99,6 @@ class NotificationRepository(
             val unsynced = notificationDao.getUnSyncedNotifications()
             if (unsynced.isNotEmpty()) {
                 Log.d(TAG, "Sincronizando ${unsynced.size} notificaciones pendientes...")
-
                 unsynced.forEach { notification ->
                     if (firebaseService.syncNotification(notification)) {
                         notificationDao.updateNotification(notification.copy(isSynced = true))
@@ -109,21 +111,7 @@ class NotificationRepository(
         }
     }
 
-    private suspend fun cleanOldNotifications() {
-        try {
-            val oneWeekAgo = Calendar.getInstance().apply {
-                add(Calendar.DAY_OF_YEAR, -7)
-            }.time
-
-            Log.d(TAG, "Limpiando notificaciones antiguas (> 1 semana)")
-            notificationDao.deleteOldSyncedNotifications(oneWeekAgo)
-            Log.d(TAG, "✓ Limpieza completada")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error limpiando notificaciones antiguas: ${e.message}")
-        }
-    }
-
-    private fun isNetworkAvailable(): Boolean {
+    fun isNetworkAvailable(): Boolean {
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val network = connectivityManager.activeNetwork ?: return false
         val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false

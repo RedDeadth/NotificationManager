@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "b98711297831c68889aaffd986658632",
+    "identityHash": "dc9af9fd8188fc76c1edca85509836ac",
     "entities": [
       {
         "tableName": "notifications",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `packageName` TEXT NOT NULL, `appName` TEXT NOT NULL, `title` TEXT NOT NULL, `content` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, `senderName` TEXT, `isGroupMessage` INTEGER NOT NULL, `groupName` TEXT, `isRead` INTEGER NOT NULL, `uniqueId` TEXT NOT NULL, `isSynced` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `packageName` TEXT NOT NULL, `appName` TEXT NOT NULL, `title` TEXT NOT NULL, `content` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, `isSynced` INTEGER NOT NULL, `syncStatus` TEXT NOT NULL, `syncTimestamp` INTEGER, `lastSyncAttempt` INTEGER)",
         "fields": [
           {
             "fieldPath": "id",
@@ -45,40 +45,28 @@
             "notNull": true
           },
           {
-            "fieldPath": "senderName",
-            "columnName": "senderName",
-            "affinity": "TEXT",
-            "notNull": false
-          },
-          {
-            "fieldPath": "isGroupMessage",
-            "columnName": "isGroupMessage",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "groupName",
-            "columnName": "groupName",
-            "affinity": "TEXT",
-            "notNull": false
-          },
-          {
-            "fieldPath": "isRead",
-            "columnName": "isRead",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "uniqueId",
-            "columnName": "uniqueId",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
             "fieldPath": "isSynced",
             "columnName": "isSynced",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "syncStatus",
+            "columnName": "syncStatus",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncTimestamp",
+            "columnName": "syncTimestamp",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "lastSyncAttempt",
+            "columnName": "lastSyncAttempt",
+            "affinity": "INTEGER",
+            "notNull": false
           }
         ],
         "primaryKey": {
@@ -94,7 +82,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b98711297831c68889aaffd986658632')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'dc9af9fd8188fc76c1edca85509836ac')"
     ]
   }
 }

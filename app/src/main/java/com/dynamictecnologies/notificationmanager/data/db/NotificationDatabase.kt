@@ -11,7 +11,7 @@ import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
 
 @Database(
     entities = [NotificationInfo::class],
-    version = 2,
+    version = 1, // Volver a versión 1
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -29,7 +29,8 @@ abstract class NotificationDatabase : RoomDatabase() {
                     NotificationDatabase::class.java,
                     "notification_database"
                 )
-                .build()
+                    .fallbackToDestructiveMigration() // Esto permitirá recrear la base de datos si hay cambios
+                    .build()
                 INSTANCE = instance
                 instance
             }

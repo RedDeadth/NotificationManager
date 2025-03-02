@@ -32,6 +32,7 @@ import kotlinx.coroutines.withContext
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.drawable.toBitmap
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -44,6 +45,7 @@ class AppListViewModel(
 ) : ViewModel() {
     private val TAG = "AppListViewModel"
     private val prefs = context.getSharedPreferences("app_preferences", Context.MODE_PRIVATE)
+    private var notificationJob: Job? = null
 
     private val _apps = MutableStateFlow<List<AppInfo>>(emptyList())
     val apps = _apps.asStateFlow()
@@ -58,12 +60,12 @@ class AppListViewModel(
     val showAppList = _showAppList.asStateFlow()
 
     private val _notifications = MutableStateFlow<List<NotificationInfo>>(emptyList())
-    val notifications: StateFlow<List<NotificationInfo>> = _notifications.asStateFlow()
+    val notifications = _notifications.asStateFlow()
 
     init {
         Log.d(TAG, "ViewModel inicializado")
-        loadInstalledApps()
         viewModelScope.launch {
+            loadInstalledApps()
             restoreLastSelectedApp()
         }
     }
@@ -114,27 +116,26 @@ class AppListViewModel(
     fun selectApp(app: AppInfo?) {
         viewModelScope.launch {
             try {
+                notificationJob?.cancel()
+
                 Log.d(TAG, "Seleccionando app: ${app?.name}")
                 _selectedApp.value = app
 
                 app?.let { selectedApp ->
-                    // Guardar la app seleccionada
                     prefs.edit().putString("last_selected_app", selectedApp.packageName).apply()
                     Log.d(TAG, "Iniciando observación de notificaciones para: ${selectedApp.name}")
 
-                    // Observar el flujo de notificaciones
-                    repository.getNotifications(selectedApp.packageName)
-                        .catch { e ->
-                            Log.e(TAG, "Error observando notificaciones: ${e.message}")
-                            e.printStackTrace()
-                        }
-                        .collect { notificationsList ->
-                            Log.d(TAG, "Recibidas ${notificationsList.size} notificaciones")
-                            notificationsList.forEach { notification ->
-                                Log.d(TAG, "Notificación: ${notification.title} (${notification.timestamp})")
+                    notificationJob = launch {
+                        repository.getNotifications(selectedApp.packageName)
+                            .catch { e ->
+                                Log.e(TAG, "Error observando notificaciones: ${e.message}")
+                                e.printStackTrace()
                             }
-                            _notifications.value = notificationsList
-                        }
+                            .collectLatest { notificationsList ->
+                                Log.d(TAG, "Actualizando lista de notificaciones: ${notificationsList.size}")
+                                _notifications.value = notificationsList.sortedByDescending { it.timestamp }
+                            }
+                    }
                 } ?: run {
                     Log.d(TAG, "No hay app seleccionada, limpiando notificaciones")
                     _notifications.value = emptyList()
@@ -152,7 +153,7 @@ class AppListViewModel(
 
         if (lastSelectedPackage != null) {
             try {
-                val appInfo = withContext(Dispatchers.IO) {
+                withContext(Dispatchers.IO) {
                     val applicationInfo = packageManager.getApplicationInfo(lastSelectedPackage, 0)
                     val icon = applicationInfo.loadIcon(packageManager).toBitmap(
                         width = 96,
@@ -160,18 +161,25 @@ class AppListViewModel(
                         config = Bitmap.Config.ARGB_8888
                     ).asImageBitmap()
 
-                    AppInfo(
+                    val appInfo = AppInfo(
                         name = applicationInfo.loadLabel(packageManager).toString(),
                         packageName = lastSelectedPackage,
                         icon = icon
                     )
+
+                    withContext(Dispatchers.Main) {
+                        selectApp(appInfo)
+                    }
                 }
-                Log.d(TAG, "App restaurada: ${appInfo.name}")
-                selectApp(appInfo)
             } catch (e: Exception) {
                 Log.e(TAG, "Error restaurando app: ${e.message}")
                 e.printStackTrace()
             }
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        notificationJob?.cancel()
     }
 }

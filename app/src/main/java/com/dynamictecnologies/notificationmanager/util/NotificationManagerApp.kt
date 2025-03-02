@@ -1,4 +1,4 @@
-package com.dynamictecnologies.notificationmanager
+package com.dynamictecnologies.notificationmanager.util
 
 import android.app.Application
 import android.util.Log

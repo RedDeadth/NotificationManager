@@ -1,4 +1,4 @@
-package com.dynamictecnologies.notificationmanager.ui.screen
+package com.dynamictecnologies.notificationmanager.ui.screen.home
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background

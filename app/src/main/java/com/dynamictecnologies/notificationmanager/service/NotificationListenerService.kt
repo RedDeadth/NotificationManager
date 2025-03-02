@@ -113,8 +113,7 @@ class NotificationListenerService : NotificationListenerService() {
                         appName = appName,
                         title = title,
                         content = text,
-                        timestamp = Date(timestamp),
-                        uniqueId = notificationKey
+                        timestamp = Date(timestamp)
                     )
 
                     repository.insertNotification(notificationInfo)

@@ -1,16 +1,14 @@
-package com.dynamictecnologies.notificationmanager.ui.screen
+package com.dynamictecnologies.notificationmanager.ui.screen.permission
 
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.platform.LocalContext
 import com.dynamictecnologies.notificationmanager.viewmodel.AppListViewModel
 import com.dynamictecnologies.notificationmanager.viewmodel.PermissionViewModel
-import androidx.compose.runtime.*
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import com.dynamictecnologies.notificationmanager.ui.screen.home.AppListScreen
 
 @Composable
 fun PermissionScreen(

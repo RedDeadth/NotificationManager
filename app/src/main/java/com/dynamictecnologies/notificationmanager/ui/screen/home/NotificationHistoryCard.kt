@@ -1,4 +1,4 @@
-package com.dynamictecnologies.notificationmanager.ui.screen
+package com.dynamictecnologies.notificationmanager.ui.screen.home
 
 import android.util.Log
 import androidx.compose.foundation.layout.*
