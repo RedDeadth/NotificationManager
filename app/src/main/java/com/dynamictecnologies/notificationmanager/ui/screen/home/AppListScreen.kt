@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,18 +21,27 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.dynamictecnologies.notificationmanager.data.model.AppInfo
+import com.dynamictecnologies.notificationmanager.ui.util.permission.ShareDialog
+import com.dynamictecnologies.notificationmanager.ui.util.permission.UsernameRegistrationDialog
 import com.dynamictecnologies.notificationmanager.viewmodel.AppListViewModel
+import com.dynamictecnologies.notificationmanager.viewmodel.UserViewModel
+import com.dynamictecnologies.notificationmanager.viewmodel.UsernameState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppListScreen(
-    viewModel: AppListViewModel
+    viewModel: AppListViewModel,
+    userViewModel: UserViewModel
 ) {
     val apps by viewModel.apps.collectAsState()
     val selectedApp by viewModel.selectedApp.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val showAppList by viewModel.showAppList.collectAsState()
     val notifications by viewModel.notifications.collectAsState()
+
+    var showShareDialog by remember { mutableStateOf(false) }
+    val usernameState by UserViewModel.usernameState.collectAsState()
+    val sharedUsers by UserViewModel.sharedUsers.collectAsState()
 
     Scaffold(
         topBar = {
@@ -40,10 +50,39 @@ fun AppListScreen(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+                ),
+                actions = {
+                    if (selectedApp != null) {
+                        IconButton(onClick = { showShareDialog = true }) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Compartir",
+                                tint = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
+                    }
+                }
             )
         }
     ) { paddingValues ->
+
+        if (usernameState is UsernameState.Initial) {
+            UsernameRegistrationDialog(
+                onUsernameSubmit = userViewModel::registerUsername,
+                state = usernameState
+            )
+        }
+
+        if (showShareDialog) {
+            ShareDialog(
+                onDismiss = { showShareDialog = false },
+                onShareWith = { username ->
+                    userViewModel.shareWithUser(username)
+                    showShareDialog = false
+                },
+                sharedUsers = sharedUsers
+            )
+        }
         Box(
             modifier = Modifier
                 .fillMaxSize()

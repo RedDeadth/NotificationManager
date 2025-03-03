@@ -1,4 +1,4 @@
-package com.dynamictecnologies.notificationmanager.ui.screen.permission
+package com.dynamictecnologies.notificationmanager.ui.util.permission
 
 import androidx.compose.material3.*
 import androidx.compose.runtime.*

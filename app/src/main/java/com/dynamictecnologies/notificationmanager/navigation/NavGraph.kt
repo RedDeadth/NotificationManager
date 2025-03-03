@@ -3,6 +3,7 @@ package com.dynamictecnologies.notificationmanager.navigation
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.*
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -10,7 +11,7 @@ import androidx.navigation.compose.rememberNavController
 import com.dynamictecnologies.notificationmanager.ui.screen.auth.LoginScreen
 import com.dynamictecnologies.notificationmanager.ui.screen.auth.RegisterScreen
 import com.dynamictecnologies.notificationmanager.ui.screen.home.AppListScreen
-import com.dynamictecnologies.notificationmanager.ui.screen.permission.PermissionScreen
+import com.dynamictecnologies.notificationmanager.ui.util.permission.PermissionScreen
 import com.dynamictecnologies.notificationmanager.viewmodel.AuthViewModel
 import com.dynamictecnologies.notificationmanager.viewmodel.PermissionViewModel
 import com.dynamictecnologies.notificationmanager.viewmodel.AppListViewModel
@@ -34,7 +35,13 @@ fun NavigationGraph(
         navController = navController,
         startDestination = startDestination
     ) {
-        composable(Screen.Login.route) {
+        composable(
+            route = Screen.Login.route,
+            enterTransition = { NavTransitions.enterTransition },
+            exitTransition = { NavTransitions.exitTransition },
+            popEnterTransition = { NavTransitions.popEnterTransition },
+            popExitTransition = { NavTransitions.popExitTransition }
+        ) {
             LoginScreen(
                 authViewModel = authViewModel,
                 onNavigateToRegister = {
@@ -43,7 +50,13 @@ fun NavigationGraph(
             )
         }
 
-        composable(Screen.Register.route) {
+        composable(
+            route = Screen.Register.route,
+            enterTransition = { NavTransitions.enterTransition },
+            exitTransition = { NavTransitions.exitTransition },
+            popEnterTransition = { NavTransitions.popEnterTransition },
+            popExitTransition = { NavTransitions.popExitTransition }
+        ) {
             RegisterScreen(
                 authViewModel = authViewModel,
                 onNavigateToLogin = {
@@ -52,14 +65,26 @@ fun NavigationGraph(
             )
         }
 
-        composable(Screen.Permission.route) {
+        composable(
+            route = Screen.Permission.route,
+            enterTransition = { NavTransitions.enterTransition },
+            exitTransition = { NavTransitions.exitTransition },
+            popEnterTransition = { NavTransitions.popEnterTransition },
+            popExitTransition = { NavTransitions.popExitTransition }
+        ) {
             PermissionScreen(
                 permissionViewModel = permissionViewModel,
                 appListViewModel = appListViewModel
             )
         }
 
-        composable(Screen.AppList.route) {
+        composable(
+            route = Screen.AppList.route,
+            enterTransition = { NavTransitions.enterTransition },
+            exitTransition = { NavTransitions.exitTransition },
+            popEnterTransition = { NavTransitions.popEnterTransition },
+            popExitTransition = { NavTransitions.popExitTransition }
+        ) {
             AppListScreen(
                 viewModel = appListViewModel
             )
@@ -117,15 +142,23 @@ fun AppNavigation(
 
 // Opcional: Agregar transiciones de animación
 object NavTransitions {
-    val enterTransition = fadeIn(animationSpec = tween(300)) +
-            slideInHorizontally(animationSpec = tween(300)) { it }
+    val enterTransition: AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition = {
+        fadeIn(animationSpec = tween(300)) +
+                slideInHorizontally(animationSpec = tween(300)) { it }
+    }
 
-    val exitTransition = fadeOut(animationSpec = tween(300)) +
-            slideOutHorizontally(animationSpec = tween(300)) { -it }
+    val exitTransition: AnimatedContentTransitionScope<NavBackStackEntry>.() -> ExitTransition = {
+        fadeOut(animationSpec = tween(300)) +
+                slideOutHorizontally(animationSpec = tween(300)) { -it }
+    }
 
-    val popEnterTransition = fadeIn(animationSpec = tween(300)) +
-            slideInHorizontally(animationSpec = tween(300)) { -it }
+    val popEnterTransition: AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition = {
+        fadeIn(animationSpec = tween(300)) +
+                slideInHorizontally(animationSpec = tween(300)) { -it }
+    }
 
-    val popExitTransition = fadeOut(animationSpec = tween(300)) +
-            slideOutHorizontally(animationSpec = tween(300)) { it }
+    val popExitTransition: AnimatedContentTransitionScope<NavBackStackEntry>.() -> ExitTransition = {
+        fadeOut(animationSpec = tween(300)) +
+                slideOutHorizontally(animationSpec = tween(300)) { it }
+    }
 }
