@@ -64,6 +64,7 @@ dependencies {
     // Navigation
     implementation("androidx.navigation:navigation-runtime-ktx:2.7.7")
     implementation("androidx.navigation:navigation-compose:2.7.7")
+    implementation(libs.androidx.storage)
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 

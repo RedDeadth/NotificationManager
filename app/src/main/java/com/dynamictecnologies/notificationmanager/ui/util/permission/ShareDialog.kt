@@ -11,6 +11,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.dynamictecnologies.notificationmanager.data.model.UserInfo
 import com.dynamictecnologies.notificationmanager.ui.screen.home.AppListScreen
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -24,49 +25,56 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.dynamictecnologies.notificationmanager.viewmodel.UserViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShareDialog(
     onDismiss: () -> Unit,
     onShareWith: (String) -> Unit,
+    viewModel: UserViewModel,
     sharedUsers: List<UserInfo>
 ) {
-    var username by remember { mutableStateOf("") }
-    var isError by remember { mutableStateOf(false) }
+    val availableUsers by viewModel.availableUsers.collectAsState()
+    var selectedUsername by remember { mutableStateOf("") }
+
+    LaunchedEffect(Unit) {
+        viewModel.loadAvailableUsers()
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Compartir notificaciones") },
+        title = { Text("Compartir Notificaciones") },
         text = {
             Column {
-                OutlinedTextField(
-                    value = username,
-                    onValueChange = {
-                        username = it
-                        isError = false
-                    },
-                    label = { Text("Nombre de usuario") },
-                    isError = isError,
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "Compartido con:",
-                    style = MaterialTheme.typography.titleSmall
-                )
-
-                LazyColumn(
-                    modifier = Modifier
-                        .padding(top = 8.dp)
-                        .height(200.dp)
-                ) {
-                    items(sharedUsers) { user ->
-                        Text(
-                            text = user.username,
-                            modifier = Modifier.padding(vertical = 4.dp)
-                        )
+                if (availableUsers.isEmpty()) {
+                    Text("No hay usuarios disponibles para compartir")
+                } else {
+                    OutlinedTextField(
+                        value = selectedUsername,
+                        onValueChange = { selectedUsername = it },
+                        label = { Text("Usuario") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "Usuarios disponibles:",
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                    LazyColumn(
+                        modifier = Modifier.heightIn(max = 200.dp)
+                    ) {
+                        items(availableUsers) { username ->
+                            Text(
+                                text = username,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { selectedUsername = username }
+                                    .padding(vertical = 8.dp),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
                     }
                 }
             }
@@ -74,13 +82,11 @@ fun ShareDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    if (username.isBlank()) {
-                        isError = true
-                        return@Button
+                    if (selectedUsername.isNotEmpty()) {
+                        onShareWith(selectedUsername)
                     }
-                    onShareWith(username)
-                    username = ""
-                }
+                },
+                enabled = selectedUsername.isNotEmpty()
             ) {
                 Text("Compartir")
             }

@@ -40,8 +40,8 @@ fun AppListScreen(
     val notifications by viewModel.notifications.collectAsState()
 
     var showShareDialog by remember { mutableStateOf(false) }
-    val usernameState by UserViewModel.usernameState.collectAsState()
-    val sharedUsers by UserViewModel.sharedUsers.collectAsState()
+    val usernameState by userViewModel.usernameState.collectAsState()
+    val sharedUsers by userViewModel.sharedUsers.collectAsState()
 
     Scaffold(
         topBar = {
@@ -80,9 +80,11 @@ fun AppListScreen(
                     userViewModel.shareWithUser(username)
                     showShareDialog = false
                 },
+                viewModel = userViewModel,  // Añadir este parámetro
                 sharedUsers = sharedUsers
             )
         }
+
         Box(
             modifier = Modifier
                 .fillMaxSize()

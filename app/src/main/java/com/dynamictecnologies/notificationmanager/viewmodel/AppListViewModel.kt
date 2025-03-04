@@ -32,6 +32,7 @@ import kotlinx.coroutines.withContext
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.drawable.toBitmap
+import androidx.lifecycle.ViewModelProvider
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -181,5 +182,22 @@ class AppListViewModel(
     override fun onCleared() {
         super.onCleared()
         notificationJob?.cancel()
+    }
+}
+
+class AppListViewModelFactory(
+    private val context: Context,
+    private val repository: NotificationRepository
+) : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(AppListViewModel::class.java)) {
+            return AppListViewModel(
+                packageManager = context.packageManager,
+                repository = repository,
+                context = context
+            ) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

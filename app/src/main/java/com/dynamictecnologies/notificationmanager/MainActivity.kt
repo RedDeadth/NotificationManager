@@ -10,15 +10,17 @@ import com.dynamictecnologies.notificationmanager.data.repository.AuthRepository
 import com.dynamictecnologies.notificationmanager.data.repository.NotificationRepository
 import com.dynamictecnologies.notificationmanager.navigation.AppNavigation
 import com.dynamictecnologies.notificationmanager.service.FirebaseService
+import com.dynamictecnologies.notificationmanager.service.UserService
 import com.dynamictecnologies.notificationmanager.ui.theme.NotificationManagerTheme
 import com.dynamictecnologies.notificationmanager.util.PermissionManager
 import com.dynamictecnologies.notificationmanager.viewmodel.*
 import com.google.firebase.FirebaseApp
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
+import com.dynamictecnologies.notificationmanager.viewmodel.UserViewModel
+import com.dynamictecnologies.notificationmanager.viewmodel.UserViewModelFactory
 
 class MainActivity : ComponentActivity() {
-    private val TAG = "MainActivity"
-
     private val permissionManager by lazy {
         PermissionManager(this)
     }
@@ -36,6 +38,10 @@ class MainActivity : ComponentActivity() {
         AppListViewModelFactory(applicationContext, createRepository())
     }
 
+    private val userViewModel: UserViewModel by viewModels {
+        UserViewModelFactory(createUserService())
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         initializeFirebase()
@@ -45,7 +51,8 @@ class MainActivity : ComponentActivity() {
                 AppNavigation(
                     authViewModel = authViewModel,
                     permissionViewModel = permissionViewModel,
-                    appListViewModel = appListViewModel
+                    appListViewModel = appListViewModel,
+                    userViewModel = userViewModel
                 )
             }
         }
@@ -76,6 +83,12 @@ class MainActivity : ComponentActivity() {
             notificationDao = database.notificationDao(),
             firebaseService = firebaseService,
             context = applicationContext
+        )
+    }
+    private fun createUserService(): UserService {
+        return UserService(
+            FirebaseAuth.getInstance(),
+            FirebaseDatabase.getInstance()
         )
     }
 }

@@ -9,11 +9,13 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.dynamictecnologies.notificationmanager.ui.screen.home.AppListScreen
+import com.dynamictecnologies.notificationmanager.viewmodel.UserViewModel
 
 @Composable
 fun PermissionScreen(
     permissionViewModel: PermissionViewModel,
-    appListViewModel: AppListViewModel
+    appListViewModel: AppListViewModel,
+    userViewModel: UserViewModel
 ) {
     val permissionsGranted by permissionViewModel.permissionsGranted.collectAsState()
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -32,7 +34,9 @@ fun PermissionScreen(
     }
 
     // Siempre mostrar AppListScreen como base
-    AppListScreen(viewModel = appListViewModel)
+    AppListScreen(
+        viewModel = appListViewModel,
+        userViewModel = userViewModel )
 
     // Mostrar el diálogo de permisos si no están concedidos
     if (!permissionsGranted) {

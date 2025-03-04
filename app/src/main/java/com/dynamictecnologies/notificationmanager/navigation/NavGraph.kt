@@ -1,9 +1,6 @@
 package com.dynamictecnologies.notificationmanager.navigation
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.tween
 import androidx.compose.runtime.*
-import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -15,6 +12,8 @@ import com.dynamictecnologies.notificationmanager.ui.util.permission.PermissionS
 import com.dynamictecnologies.notificationmanager.viewmodel.AuthViewModel
 import com.dynamictecnologies.notificationmanager.viewmodel.PermissionViewModel
 import com.dynamictecnologies.notificationmanager.viewmodel.AppListViewModel
+import com.dynamictecnologies.notificationmanager.viewmodel.UserViewModel
+import com.dynamictecnologies.notificationmanager.viewmodel.UsernameState
 
 sealed class Screen(val route: String) {
     object Login : Screen("login")
@@ -29,19 +28,14 @@ fun NavigationGraph(
     authViewModel: AuthViewModel,
     permissionViewModel: PermissionViewModel,
     appListViewModel: AppListViewModel,
+    userViewModel: UserViewModel,
     startDestination: String
 ) {
     NavHost(
         navController = navController,
         startDestination = startDestination
     ) {
-        composable(
-            route = Screen.Login.route,
-            enterTransition = { NavTransitions.enterTransition },
-            exitTransition = { NavTransitions.exitTransition },
-            popEnterTransition = { NavTransitions.popEnterTransition },
-            popExitTransition = { NavTransitions.popExitTransition }
-        ) {
+        composable(route = Screen.Login.route) {
             LoginScreen(
                 authViewModel = authViewModel,
                 onNavigateToRegister = {
@@ -50,13 +44,7 @@ fun NavigationGraph(
             )
         }
 
-        composable(
-            route = Screen.Register.route,
-            enterTransition = { NavTransitions.enterTransition },
-            exitTransition = { NavTransitions.exitTransition },
-            popEnterTransition = { NavTransitions.popEnterTransition },
-            popExitTransition = { NavTransitions.popExitTransition }
-        ) {
+        composable(route = Screen.Register.route) {
             RegisterScreen(
                 authViewModel = authViewModel,
                 onNavigateToLogin = {
@@ -65,28 +53,18 @@ fun NavigationGraph(
             )
         }
 
-        composable(
-            route = Screen.Permission.route,
-            enterTransition = { NavTransitions.enterTransition },
-            exitTransition = { NavTransitions.exitTransition },
-            popEnterTransition = { NavTransitions.popEnterTransition },
-            popExitTransition = { NavTransitions.popExitTransition }
-        ) {
+        composable(route = Screen.Permission.route) {
             PermissionScreen(
                 permissionViewModel = permissionViewModel,
-                appListViewModel = appListViewModel
+                appListViewModel = appListViewModel,
+                userViewModel = userViewModel
             )
         }
 
-        composable(
-            route = Screen.AppList.route,
-            enterTransition = { NavTransitions.enterTransition },
-            exitTransition = { NavTransitions.exitTransition },
-            popEnterTransition = { NavTransitions.popEnterTransition },
-            popExitTransition = { NavTransitions.popExitTransition }
-        ) {
+        composable(route = Screen.AppList.route) {
             AppListScreen(
-                viewModel = appListViewModel
+                viewModel = appListViewModel,
+                userViewModel = userViewModel // Añadir userViewModel
             )
         }
     }
@@ -96,21 +74,24 @@ fun NavigationGraph(
 fun AppNavigation(
     authViewModel: AuthViewModel,
     permissionViewModel: PermissionViewModel,
-    appListViewModel: AppListViewModel
+    appListViewModel: AppListViewModel,
+    userViewModel: UserViewModel // Añadir este parámetro
 ) {
     val navController = rememberNavController()
     val authState by authViewModel.authState.collectAsState()
     val permissionsGranted by permissionViewModel.permissionsGranted.collectAsState()
+    val usernameState by userViewModel.usernameState.collectAsState()
 
     // Determinar la pantalla inicial basada en los estados
     val startDestination = when {
         !authState.isAuthenticated -> Screen.Login.route
         !permissionsGranted -> Screen.Permission.route
+        usernameState is UsernameState.Initial -> Screen.Login.route // Verificar si el usuario tiene username
         else -> Screen.AppList.route
     }
 
     // Efectos de navegación basados en los estados
-    LaunchedEffect(authState.isAuthenticated, permissionsGranted) {
+    LaunchedEffect(authState.isAuthenticated, permissionsGranted, usernameState) {
         when {
             !authState.isAuthenticated -> {
                 navController.navigate(Screen.Login.route) {
@@ -122,6 +103,12 @@ fun AppNavigation(
                     popUpTo(Screen.Login.route) { inclusive = true }
                 }
             }
+            usernameState is UsernameState.Initial -> {
+                // El usuario necesita registrar un username
+                navController.navigate(Screen.Login.route) {
+                    popUpTo(Screen.Permission.route) { inclusive = true }
+                }
+            }
             else -> {
                 navController.navigate(Screen.AppList.route) {
                     popUpTo(Screen.Permission.route) { inclusive = true }
@@ -130,35 +117,12 @@ fun AppNavigation(
         }
     }
 
-    // Agregar animaciones de transición
     NavigationGraph(
         navController = navController,
         authViewModel = authViewModel,
         permissionViewModel = permissionViewModel,
         appListViewModel = appListViewModel,
+        userViewModel = userViewModel,
         startDestination = startDestination
     )
-}
-
-// Opcional: Agregar transiciones de animación
-object NavTransitions {
-    val enterTransition: AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition = {
-        fadeIn(animationSpec = tween(300)) +
-                slideInHorizontally(animationSpec = tween(300)) { it }
-    }
-
-    val exitTransition: AnimatedContentTransitionScope<NavBackStackEntry>.() -> ExitTransition = {
-        fadeOut(animationSpec = tween(300)) +
-                slideOutHorizontally(animationSpec = tween(300)) { -it }
-    }
-
-    val popEnterTransition: AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition = {
-        fadeIn(animationSpec = tween(300)) +
-                slideInHorizontally(animationSpec = tween(300)) { -it }
-    }
-
-    val popExitTransition: AnimatedContentTransitionScope<NavBackStackEntry>.() -> ExitTransition = {
-        fadeOut(animationSpec = tween(300)) +
-                slideOutHorizontally(animationSpec = tween(300)) { it }
-    }
 }
