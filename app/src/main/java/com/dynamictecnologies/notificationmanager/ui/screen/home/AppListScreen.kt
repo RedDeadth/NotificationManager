@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -29,12 +30,15 @@ import com.dynamictecnologies.notificationmanager.viewmodel.UsernameState
 import com.dynamictecnologies.notificationmanager.ui.components.InitialSelectionCard
 import com.dynamictecnologies.notificationmanager.ui.components.SelectedAppCard
 import com.dynamictecnologies.notificationmanager.ui.components.AppSelectionDialog
+import com.dynamictecnologies.notificationmanager.ui.components.UserDrawerContent
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppListScreen(
     viewModel: AppListViewModel,
-    userViewModel: UserViewModel
+    userViewModel: UserViewModel,
+    onLogout: () -> Unit
 ) {
     val apps by viewModel.apps.collectAsState()
     val selectedApp by viewModel.selectedApp.collectAsState()
@@ -46,99 +50,130 @@ fun AppListScreen(
     val usernameState by userViewModel.usernameState.collectAsState()
     val sharedUsers by userViewModel.sharedUsers.collectAsState()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Notification Manager") },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary
-                ),
-                actions = {
-                    if (selectedApp != null) {
-                        IconButton(onClick = { showShareDialog = true }) {
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+
+
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet {
+                UserDrawerContent(
+                    usernameState = usernameState,
+                    onCreateProfile = { scope.launch { drawerState.close() } },
+                    onLogout = {
+                        scope.launch {
+                            drawerState.close()
+                            onLogout()
+                        }
+                    }
+                )
+            }
+        }
+    ) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Notification Manager") },
+                    navigationIcon = {
+                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
                             Icon(
-                                imageVector = Icons.Default.Share,
-                                contentDescription = "Compartir",
+                                imageVector = Icons.Default.Menu,
+                                contentDescription = "Menu",
                                 tint = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                        navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                    ),
+                    actions = {
+                        if (selectedApp != null) {
+                            IconButton(onClick = { showShareDialog = true }) {
+                                Icon(
+                                    imageVector = Icons.Default.Share,
+                                    contentDescription = "Compartir",
+                                    tint = MaterialTheme.colorScheme.onPrimary
+                                )
+                            }
+                        }
+                    }
+                )
+            }
+        ) { paddingValues ->
+
+            if (usernameState is UsernameState.Initial) {
+                UsernameRegistrationDialog(
+                    onUsernameSubmit = userViewModel::registerUsername,
+                    state = usernameState
+                )
+            }
+
+            if (showShareDialog) {
+                ShareDialog(
+                    onDismiss = { showShareDialog = false },
+                    onShareWith = { username ->
+                        userViewModel.shareWithUser(username)
+                        showShareDialog = false
+                    },
+                    viewModel = userViewModel,  // Añadir este parámetro
+                    sharedUsers = sharedUsers
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Cambiamos la forma de manejar selectedApp
+                    selectedApp?.let { app ->
+                        SelectedAppCard(
+                            app = app,
+                            onChangeAppClick = { viewModel.toggleAppList() }
+                        )
+                        NotificationHistoryCard(
+                            notifications = notifications,
+                            modifier = Modifier.weight(1f)
+                        )
+                    } ?: run {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            InitialSelectionCard(
+                                onSelectAppClick = { viewModel.toggleAppList() }
                             )
                         }
                     }
                 }
-            )
-        }
-    ) { paddingValues ->
 
-        if (usernameState is UsernameState.Initial) {
-            UsernameRegistrationDialog(
-                onUsernameSubmit = userViewModel::registerUsername,
-                state = usernameState
-            )
-        }
-
-        if (showShareDialog) {
-            ShareDialog(
-                onDismiss = { showShareDialog = false },
-                onShareWith = { username ->
-                    userViewModel.shareWithUser(username)
-                    showShareDialog = false
-                },
-                viewModel = userViewModel,  // Añadir este parámetro
-                sharedUsers = sharedUsers
-            )
-        }
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // Cambiamos la forma de manejar selectedApp
-                selectedApp?.let { app ->
-                    SelectedAppCard(
-                        app = app,
-                        onChangeAppClick = { viewModel.toggleAppList() }
-                    )
-                    NotificationHistoryCard(
-                        notifications = notifications,
-                        modifier = Modifier.weight(1f)
-                    )
-                } ?: run {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        InitialSelectionCard(
-                            onSelectAppClick = { viewModel.toggleAppList() }
-                        )
-                    }
+                if (isLoading) {
+                    LoadingScreen()
                 }
-            }
 
-            if (isLoading) {
-                LoadingScreen()
-            }
-
-            if (showAppList) {
-                AppSelectionDialog(
-                    apps = apps,
-                    onAppSelected = { app ->
-                        viewModel.selectApp(app)
-                        viewModel.toggleAppList()
-                    },
-                    onDismiss = { viewModel.toggleAppList() }
-                )
+                if (showAppList) {
+                    AppSelectionDialog(
+                        apps = apps,
+                        onAppSelected = { app ->
+                            viewModel.selectApp(app)
+                            viewModel.toggleAppList()
+                        },
+                        onDismiss = { viewModel.toggleAppList() }
+                    )
+                }
             }
         }
     }
 }
-
 @Composable
 private fun LoadingScreen() {
     Box(

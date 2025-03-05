@@ -8,12 +8,17 @@ import androidx.navigation.compose.rememberNavController
 import com.dynamictecnologies.notificationmanager.ui.screen.auth.LoginScreen
 import com.dynamictecnologies.notificationmanager.ui.screen.auth.RegisterScreen
 import com.dynamictecnologies.notificationmanager.ui.screen.home.AppListScreen
-import com.dynamictecnologies.notificationmanager.ui.components.permission.PermissionScreen
+import com.dynamictecnologies.notificationmanager.ui.components.PermissionScreen
 import com.dynamictecnologies.notificationmanager.viewmodel.AuthViewModel
 import com.dynamictecnologies.notificationmanager.viewmodel.PermissionViewModel
 import com.dynamictecnologies.notificationmanager.viewmodel.AppListViewModel
 import com.dynamictecnologies.notificationmanager.viewmodel.UserViewModel
 import com.dynamictecnologies.notificationmanager.viewmodel.UsernameState
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 
 sealed class Screen(val route: String) {
     object Login : Screen("login")
@@ -40,6 +45,11 @@ fun NavigationGraph(
                 authViewModel = authViewModel,
                 onNavigateToRegister = {
                     navController.navigate(Screen.Register.route)
+                },
+                onLoginSuccess = {
+                    navController.navigate(Screen.Permission.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
                 }
             )
         }
@@ -57,14 +67,31 @@ fun NavigationGraph(
             PermissionScreen(
                 permissionViewModel = permissionViewModel,
                 appListViewModel = appListViewModel,
-                userViewModel = userViewModel
+                userViewModel = userViewModel,
+                onPermissionsGranted = {
+                    navController.navigate(Screen.AppList.route) {
+                        popUpTo(Screen.Permission.route) { inclusive = true }
+                    }
+                },
+                onLogout = {
+                    authViewModel.signOut()
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
             )
         }
 
         composable(route = Screen.AppList.route) {
             AppListScreen(
                 viewModel = appListViewModel,
-                userViewModel = userViewModel // Añadir userViewModel
+                userViewModel = userViewModel,
+                onLogout = {
+                    authViewModel.signOut()
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
             )
         }
     }
@@ -75,44 +102,53 @@ fun AppNavigation(
     authViewModel: AuthViewModel,
     permissionViewModel: PermissionViewModel,
     appListViewModel: AppListViewModel,
-    userViewModel: UserViewModel // Añadir este parámetro
+    userViewModel: UserViewModel,
+    modifier: Modifier = Modifier
 ) {
     val navController = rememberNavController()
     val authState by authViewModel.authState.collectAsState()
     val permissionsGranted by permissionViewModel.permissionsGranted.collectAsState()
-    val usernameState by userViewModel.usernameState.collectAsState()
 
-    // Determinar la pantalla inicial basada en los estados
+    // Determinar la pantalla inicial basada en el estado de autenticación
     val startDestination = when {
         !authState.isAuthenticated -> Screen.Login.route
         !permissionsGranted -> Screen.Permission.route
-        usernameState is UsernameState.Initial -> Screen.Login.route // Verificar si el usuario tiene username
         else -> Screen.AppList.route
     }
 
-    // Efectos de navegación basados en los estados
-    LaunchedEffect(authState.isAuthenticated, permissionsGranted, usernameState) {
+    // Efectos de navegación basados en cambios de estado
+    LaunchedEffect(authState) {
         when {
+            // Si el usuario no está autenticado, navegar al login
             !authState.isAuthenticated -> {
-                navController.navigate(Screen.Login.route) {
-                    popUpTo(0) { inclusive = true }
+                if (authState.error != null) {
+                    // Manejar error de autenticación si es necesario
+                } else {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
                 }
             }
-            !permissionsGranted -> {
-                navController.navigate(Screen.Permission.route) {
-                    popUpTo(Screen.Login.route) { inclusive = true }
-                }
+            // Si está autenticado pero loading, mostrar loading
+            authState.isLoading -> {
+                // Opcionalmente mostrar un indicador de carga
             }
-            usernameState is UsernameState.Initial -> {
-                // El usuario necesita registrar un username
-                navController.navigate(Screen.Login.route) {
-                    popUpTo(Screen.Permission.route) { inclusive = true }
-                }
-            }
+            // Si está autenticado y no está loading, verificar permisos
             else -> {
-                navController.navigate(Screen.AppList.route) {
-                    popUpTo(Screen.Permission.route) { inclusive = true }
+                if (!permissionsGranted) {
+                    navController.navigate(Screen.Permission.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
                 }
+            }
+        }
+    }
+
+    // Efecto separado para manejar los permisos
+    LaunchedEffect(permissionsGranted) {
+        if (authState.isAuthenticated && permissionsGranted) {
+            navController.navigate(Screen.AppList.route) {
+                popUpTo(0) { inclusive = true }
             }
         }
     }

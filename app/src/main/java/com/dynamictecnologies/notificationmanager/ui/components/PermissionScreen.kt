@@ -15,12 +15,13 @@ import com.dynamictecnologies.notificationmanager.viewmodel.UserViewModel
 fun PermissionScreen(
     permissionViewModel: PermissionViewModel,
     appListViewModel: AppListViewModel,
-    userViewModel: UserViewModel
+    userViewModel: UserViewModel,
+    onPermissionsGranted: () -> Unit,
+    onLogout: () -> Unit
 ) {
     val permissionsGranted by permissionViewModel.permissionsGranted.collectAsState()
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    // Observar el ciclo de vida para verificar permisos cuando la app vuelve a primer plano
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
@@ -33,10 +34,19 @@ fun PermissionScreen(
         }
     }
 
-    // Siempre mostrar AppListScreen como base
+    // Verificar si los permisos están concedidos
+    LaunchedEffect(permissionsGranted) {
+        if (permissionsGranted) {
+            onPermissionsGranted()
+        }
+    }
+
+    // Mostrar AppListScreen como base
     AppListScreen(
         viewModel = appListViewModel,
-        userViewModel = userViewModel )
+        userViewModel = userViewModel,
+        onLogout = onLogout
+    )
 
     // Mostrar el diálogo de permisos si no están concedidos
     if (!permissionsGranted) {
@@ -45,13 +55,11 @@ fun PermissionScreen(
                 permissionViewModel.openNotificationSettings()
             },
             onDismissClick = {
-                // Opcional: permitir cerrar la app si el usuario no quiere dar permisos
                 permissionViewModel.closeApp()
             }
         )
     }
 }
-
 @Composable
 private fun PermissionRequiredDialog(
     onConfirmClick: () -> Unit,

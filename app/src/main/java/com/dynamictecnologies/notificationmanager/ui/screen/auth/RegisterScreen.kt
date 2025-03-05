@@ -17,8 +17,15 @@ fun RegisterScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+    var showError by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf("") }
 
     val authState by authViewModel.authState.collectAsState()
+
+    // Efecto para manejar errores de validación
+    LaunchedEffect(email, password, confirmPassword) {
+        showError = false
+    }
 
     Column(
         modifier = Modifier
@@ -27,62 +34,63 @@ fun RegisterScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
-            label = { Text("Email") },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        OutlinedTextField(
-            value = password,
-            onValueChange = { password = it },
-            label = { Text("Contraseña") },
-            visualTransformation = PasswordVisualTransformation(),
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        OutlinedTextField(
-            value = confirmPassword,
-            onValueChange = { confirmPassword = it },
-            label = { Text("Confirmar Contraseña") },
-            visualTransformation = PasswordVisualTransformation(),
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
+        // ... resto del código ...
 
         Button(
             onClick = {
-                if (password == confirmPassword) {
-                    authViewModel.registerWithEmail(email, password)
+                when {
+                    email.isEmpty() -> {
+                        showError = true
+                        errorMessage = "El email es requerido"
+                    }
+                    password.isEmpty() -> {
+                        showError = true
+                        errorMessage = "La contraseña es requerida"
+                    }
+                    password != confirmPassword -> {
+                        showError = true
+                        errorMessage = "Las contraseñas no coinciden"
+                    }
+                    else -> {
+                        authViewModel.registerWithEmail(email, password)
+                    }
                 }
             },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !authState.isLoading
         ) {
-            Text("Registrarse")
+            if (authState.isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+            } else {
+                Text("Registrarse")
+            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
 
         TextButton(
-            onClick = onNavigateToLogin
+            onClick = onNavigateToLogin,
+            enabled = !authState.isLoading
         ) {
             Text("¿Ya tienes cuenta? Inicia sesión")
         }
 
-        if (authState.isLoading) {
-            CircularProgressIndicator()
+        if (showError) {
+            Text(
+                text = errorMessage,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(top = 8.dp)
+            )
         }
 
         authState.error?.let { error ->
             Text(
                 text = error,
-                color = MaterialTheme.colorScheme.error
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(top = 8.dp)
             )
         }
     }
