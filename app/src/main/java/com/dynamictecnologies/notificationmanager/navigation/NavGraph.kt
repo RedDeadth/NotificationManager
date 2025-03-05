@@ -8,7 +8,7 @@ import androidx.navigation.compose.rememberNavController
 import com.dynamictecnologies.notificationmanager.ui.screen.auth.LoginScreen
 import com.dynamictecnologies.notificationmanager.ui.screen.auth.RegisterScreen
 import com.dynamictecnologies.notificationmanager.ui.screen.home.AppListScreen
-import com.dynamictecnologies.notificationmanager.ui.util.permission.PermissionScreen
+import com.dynamictecnologies.notificationmanager.ui.components.permission.PermissionScreen
 import com.dynamictecnologies.notificationmanager.viewmodel.AuthViewModel
 import com.dynamictecnologies.notificationmanager.viewmodel.PermissionViewModel
 import com.dynamictecnologies.notificationmanager.viewmodel.AppListViewModel
