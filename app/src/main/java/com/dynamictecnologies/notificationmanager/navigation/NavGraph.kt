@@ -19,12 +19,14 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.dynamictecnologies.notificationmanager.ui.screen.auth.ProfileScreen
 
 sealed class Screen(val route: String) {
     object Login : Screen("login")
     object Register : Screen("register")
     object Permission : Screen("permission")
     object AppList : Screen("app_list")
+    object Profile : Screen("profile")
 }
 
 @Composable
@@ -78,6 +80,9 @@ fun NavigationGraph(
                     navController.navigate(Screen.Login.route) {
                         popUpTo(0) { inclusive = true }
                     }
+                },
+                onNavigateToProfile = {  // Añadir este parámetro
+                    navController.navigate(Screen.Profile.route)
                 }
             )
         }
@@ -91,6 +96,26 @@ fun NavigationGraph(
                     navController.navigate(Screen.Login.route) {
                         popUpTo(0) { inclusive = true }
                     }
+                },
+                onNavigateToProfile = {
+                    navController.navigate(Screen.Profile.route)
+                }
+            )
+        }
+        composable(route = Screen.Profile.route) {
+            ProfileScreen(
+                usernameState = userViewModel.usernameState.collectAsState().value,
+                onCreateProfile = {
+                    // Manejar creación/edición de perfil
+                },
+                onLogout = {
+                    authViewModel.signOut()
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
+                onNavigateBack = {
+                    navController.popBackStack()
                 }
             )
         }

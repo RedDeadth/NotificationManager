@@ -2,10 +2,15 @@ package com.dynamictecnologies.notificationmanager.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+// Colores celestes como color predominante
+val LightBlue80 = Color(0xFF81D4FA) // Celeste principal para tema oscuro
+val LightBlue60 = Color(0xFFB3E5FC) // Celeste secundario para tema oscuro
+val LightBlue40 = Color(0xFF29B6F6) // Celeste terciario para tema oscuro
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+val LightBlue40Light = Color(0xFF03A9F4) // Celeste principal para tema claro
+val LightBlue20 = Color(0xFF4FC3F7) // Celeste secundario para tema claro
+val LightBlue10 = Color(0xFFE1F5FE) // Celeste terciario para tema claro
+
+// Colores de acento
+val Teal80 = Color(0xFF80DEEA)
+val Teal40 = Color(0xFF26C6DA)

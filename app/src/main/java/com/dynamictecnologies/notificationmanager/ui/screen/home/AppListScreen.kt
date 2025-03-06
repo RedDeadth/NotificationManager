@@ -9,7 +9,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.ScreenShare
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -38,7 +42,8 @@ import kotlinx.coroutines.launch
 fun AppListScreen(
     viewModel: AppListViewModel,
     userViewModel: UserViewModel,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onNavigateToProfile: () -> Unit
 ) {
     val apps by viewModel.apps.collectAsState()
     val selectedApp by viewModel.selectedApp.collectAsState()
@@ -53,56 +58,62 @@ fun AppListScreen(
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
+    var selectedTab by remember { mutableStateOf(0) }
+    var showProfileDialog by remember { mutableStateOf(false) }
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = {
-            ModalDrawerSheet {
-                UserDrawerContent(
-                    usernameState = usernameState,
-                    onCreateProfile = { scope.launch { drawerState.close() } },
-                    onLogout = {
-                        scope.launch {
-                            drawerState.close()
-                            onLogout()
-                        }
-                    }
-                )
-            }
-        }
-    ) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { Text("Notification Manager") },
-                    navigationIcon = {
-                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Notification Manager") },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                ),
+                actions = {
+                    if (selectedApp != null) {
+                        IconButton(onClick = { showShareDialog = true }) {
                             Icon(
-                                imageVector = Icons.Default.Menu,
-                                contentDescription = "Menu",
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Compartir",
                                 tint = MaterialTheme.colorScheme.onPrimary
                             )
                         }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                        navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                    ),
-                    actions = {
-                        if (selectedApp != null) {
-                            IconButton(onClick = { showShareDialog = true }) {
-                                Icon(
-                                    imageVector = Icons.Default.Share,
-                                    contentDescription = "Compartir",
-                                    tint = MaterialTheme.colorScheme.onPrimary
-                                )
-                            }
-                        }
                     }
+                }
+            )
+        },
+        bottomBar = {
+            NavigationBar {
+                NavigationBarItem(
+                    selected = selectedTab == 0,
+                    onClick = { selectedTab = 0 },
+                    icon = {
+                        Icon(Icons.Default.Home, contentDescription = "Inicio")
+                    },
+                    label = { Text("Inicio") }
+                )
+                NavigationBarItem(
+                    selected = selectedTab == 1,
+                    onClick = { selectedTab = 1 },
+                    icon = {
+                        Icon(Icons.Default.People, contentDescription = "Compartidos")
+                    },
+                    label = { Text("Compartidos") }
+                )
+                NavigationBarItem(
+                    selected = selectedTab == 2,
+                    onClick = {
+                        onNavigateToProfile()
+                    },
+                    icon = {
+                        Icon(Icons.Default.Person, contentDescription = "Perfil")
+                    },
+                    label = { Text("Perfil") }
                 )
             }
-        ) { paddingValues ->
+        }
+    ) { paddingValues ->
 
             if (usernameState is UsernameState.Initial) {
                 UsernameRegistrationDialog(
@@ -118,7 +129,7 @@ fun AppListScreen(
                         userViewModel.shareWithUser(username)
                         showShareDialog = false
                     },
-                    viewModel = userViewModel,  // Añadir este parámetro
+                    viewModel = userViewModel,
                     sharedUsers = sharedUsers
                 )
             }
@@ -134,12 +145,100 @@ fun AppListScreen(
                         .padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Cambiamos la forma de manejar selectedApp
                     selectedApp?.let { app ->
-                        SelectedAppCard(
-                            app = app,
-                            onChangeAppClick = { viewModel.toggleAppList() }
-                        )
+                        // Diseño horizontal para ambas tarjetas al mismo nivel
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(IntrinsicSize.Min)
+                                .padding(bottom = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            // Tarjeta izquierda - App Seleccionada
+                            Card(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .padding(16.dp)
+                                        .fillMaxHeight(),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "Aplicación Seleccionada",
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    app.icon?.let { icon ->
+                                        Image(
+                                            bitmap = icon,
+                                            contentDescription = null,
+                                            modifier = Modifier
+                                                .size(56.dp)
+                                                .clip(RoundedCornerShape(12.dp))
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = app.name,
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    OutlinedButton(
+                                        onClick = { viewModel.toggleAppList() },
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text("Cambiar Aplicación")
+                                    }
+                                }
+                            }
+
+                            // Tarjeta derecha - Visualizador
+                            Card(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .padding(16.dp)
+                                        .fillMaxHeight(),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "Visualizador de Notificaciones",
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.ScreenShare,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(56.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "Sin conexión",
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    OutlinedButton(
+                                        onClick = { /* Función futura */ },
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text("Conectar")
+                                    }
+                                }
+                            }
+                        }
+
+                        // Historial de notificaciones
                         NotificationHistoryCard(
                             notifications = notifications,
                             modifier = Modifier.weight(1f)
@@ -173,7 +272,8 @@ fun AppListScreen(
             }
         }
     }
-}
+
+
 @Composable
 private fun LoadingScreen() {
     Box(
