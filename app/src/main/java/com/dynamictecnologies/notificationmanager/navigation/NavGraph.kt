@@ -105,8 +105,8 @@ fun NavigationGraph(
         composable(route = Screen.Profile.route) {
             ProfileScreen(
                 usernameState = userViewModel.usernameState.collectAsState().value,
-                onCreateProfile = {
-                    // Manejar creación/edición de perfil
+                onCreateProfile = { username ->
+                    userViewModel.registerUsername(username)
                 },
                 onLogout = {
                     authViewModel.signOut()

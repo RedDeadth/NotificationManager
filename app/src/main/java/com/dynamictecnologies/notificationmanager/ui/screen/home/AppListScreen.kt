@@ -27,14 +27,12 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.dynamictecnologies.notificationmanager.data.model.AppInfo
 import com.dynamictecnologies.notificationmanager.ui.components.ShareDialog
-import com.dynamictecnologies.notificationmanager.ui.components.UsernameRegistrationDialog
 import com.dynamictecnologies.notificationmanager.viewmodel.AppListViewModel
 import com.dynamictecnologies.notificationmanager.viewmodel.UserViewModel
 import com.dynamictecnologies.notificationmanager.viewmodel.UsernameState
 import com.dynamictecnologies.notificationmanager.ui.components.InitialSelectionCard
 import com.dynamictecnologies.notificationmanager.ui.components.SelectedAppCard
 import com.dynamictecnologies.notificationmanager.ui.components.AppSelectionDialog
-import com.dynamictecnologies.notificationmanager.ui.components.UserDrawerContent
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -64,7 +62,7 @@ fun AppListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Notification Manager") },
+                title = { Text("My Notifications App") },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary,
@@ -114,13 +112,6 @@ fun AppListScreen(
             }
         }
     ) { paddingValues ->
-
-            if (usernameState is UsernameState.Initial) {
-                UsernameRegistrationDialog(
-                    onUsernameSubmit = userViewModel::registerUsername,
-                    state = usernameState
-                )
-            }
 
             if (showShareDialog) {
                 ShareDialog(
