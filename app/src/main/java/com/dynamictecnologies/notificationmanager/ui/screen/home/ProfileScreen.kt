@@ -1,4 +1,4 @@
-package com.dynamictecnologies.notificationmanager.ui.screen.auth
+package com.dynamictecnologies.notificationmanager.ui.screen.home
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape

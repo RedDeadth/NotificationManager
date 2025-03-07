@@ -1,32 +1,27 @@
-package com.dynamictecnologies.notificationmanager.ui.screen.home
+package com.dynamictecnologies.notificationmanager.ui.components
 
 import android.util.Log
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.zIndex
 import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
+import com.dynamictecnologies.notificationmanager.data.model.SyncStatus
+import com.dynamictecnologies.notificationmanager.ui.components.SyncStatusIndicator
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -39,6 +34,7 @@ fun NotificationHistoryCard(
     Log.d("NotificationHistoryCard", "Renderizando ${notifications.size} notificaciones")
 
     var expanded by remember { mutableStateOf(false) }
+    val groupedNotifications = notifications.groupBy { it.syncStatus }
 
     // Tarjeta normal (contraída)
     Card(
@@ -162,32 +158,109 @@ fun NotificationHistoryCard(
         }
     }
 }
-
 @Composable
 private fun NotificationItem(notification: NotificationInfo) {
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp)
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = notification.title,
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = notification.content,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = formatDate(notification.timestamp),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+        // Contenido principal (ahora sin el indicador de estado al inicio)
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            // Encabezado solo con título (sin nombre de app)
+            Text(
+                text = notification.title,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Contenido de la notificación
+            Text(
+                text = notification.content,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Pie con timestamps
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Timestamp de la notificación
+                Text(
+                    text = formatDate(notification.timestamp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                // Timestamp de sincronización si existe
+                notification.syncTimestamp?.let { syncTime ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Sync,
+                            contentDescription = null,
+                            modifier = Modifier.size(12.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = formatDate(Date(syncTime)),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            // Mostrar mensaje de error si la sincronización falló
+            if (notification.syncStatus == SyncStatus.FAILED) {
+                Text(
+                    text = "Error de sincronización",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+        }
+
+        // Indicador de estado de sincronización (ahora a la derecha)
+        SyncStatusIndicator(
+            status = notification.syncStatus,
+            modifier = Modifier.size(20.dp)
         )
     }
+}
+
+
+@Composable
+private fun SyncStatusIndicator(status: SyncStatus, modifier: Modifier = Modifier) {
+    val (icon, tint) = when (status) {
+        SyncStatus.SYNCED -> Icons.Default.CheckCircle to MaterialTheme.colorScheme.primary
+        SyncStatus.SYNCING -> Icons.Default.Sync to MaterialTheme.colorScheme.secondary
+        SyncStatus.PENDING -> Icons.Default.Schedule to MaterialTheme.colorScheme.outline
+        SyncStatus.FAILED -> Icons.Default.Error to MaterialTheme.colorScheme.error
+    }
+
+    Icon(
+        imageVector = icon,
+        contentDescription = "Estado de sincronización: ${status.name}",
+        modifier = modifier,
+        tint = tint
+    )
 }
 
 private fun formatDate(date: Date): String {

@@ -49,7 +49,8 @@ fun PermissionScreen(
         userViewModel = userViewModel,
         onLogout = onLogout,
         onNavigateToProfile = onNavigateToProfile,
-        onNavigateToShared = onNavigateToShared
+        onNavigateToShared = onNavigateToShared,
+
     )
 
     // Mostrar el diálogo de permisos si no están concedidos

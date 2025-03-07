@@ -26,7 +26,11 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.dynamictecnologies.notificationmanager.data.model.AppInfo
 import com.dynamictecnologies.notificationmanager.ui.items.AppListItem
-
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.*
+import com.dynamictecnologies.notificationmanager.ui.items.AppListItem
 
 @Composable
 fun AppSelectionDialog(
@@ -37,52 +41,72 @@ fun AppSelectionDialog(
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(
-            usePlatformDefaultWidth = false
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true
         )
     ) {
-        Surface(
+        Card(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxWidth(0.95f)
                 .fillMaxHeight(0.8f),
-            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-            color = MaterialTheme.colorScheme.surface
+            shape = RoundedCornerShape(16.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
-            Column {
-                // Header
-                Box(
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.primaryContainer)
-                        .padding(16.dp)
+                        .padding(bottom = 1.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.align(Alignment.CenterStart)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Cerrar",
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
                     Text(
                         text = "Seleccionar Aplicación",
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.align(Alignment.Center),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        style = MaterialTheme.typography.titleMedium
                     )
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Cerrar"
+                        )
+                    }
                 }
 
-                // Lista de apps
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(vertical = 8.dp)
-                ) {
-                    items(apps, key = { it.name }) { app ->
-                        AppListItem(
-                            app = app,
-                            onAppClick = { onAppSelected(app) }
+                Divider(modifier = Modifier.padding(bottom = 1.dp))
+
+                if (apps.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp)
+                            .weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No hay aplicaciones disponibles",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        items(
+                            items = apps,
+                            key = { it.packageName }
+                        ) { app ->
+                            AppListItem(
+                                app = app,
+                                onAppClick = { onAppSelected(app) }
+                            )
+                            Divider(
+                                modifier = Modifier.padding(vertical = 8.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant
+                            )
+                        }
                     }
                 }
             }

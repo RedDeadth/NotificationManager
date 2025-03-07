@@ -6,6 +6,7 @@ import android.net.NetworkCapabilities
 import android.util.Log
 import com.dynamictecnologies.notificationmanager.data.db.NotificationDao
 import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
+import com.dynamictecnologies.notificationmanager.data.model.SyncStatus
 import com.dynamictecnologies.notificationmanager.service.FirebaseService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -69,7 +70,12 @@ class NotificationRepository(
     private suspend fun processRemoteNotifications(remoteNotifications: List<NotificationInfo>) {
         remoteNotifications.forEach { notification ->
             try {
-                notificationDao.insertOrUpdateNotification(notification.copy(isSynced = true))
+                // Marcar las notificaciones remotas como SYNCED
+                notificationDao.insertOrUpdateNotification(notification.copy(
+                    isSynced = true,
+                    syncStatus = SyncStatus.SYNCED,
+                    syncTimestamp = System.currentTimeMillis()
+                ))
             } catch (e: Exception) {
                 Log.e(TAG, "Error procesando notificación remota: ${e.message}")
             }
@@ -78,15 +84,26 @@ class NotificationRepository(
 
     suspend fun insertNotification(notification: NotificationInfo) {
         try {
-            val id = notificationDao.insertNotification(notification)
+            // Al insertar, marcar como PENDING inicialmente
+            val notificationWithStatus = notification.copy(syncStatus = SyncStatus.PENDING)
+            val id = notificationDao.insertNotification(notificationWithStatus)
             Log.d(TAG, "Notificación guardada localmente con ID: $id")
 
             if (isNetworkAvailable()) {
-                val updatedNotification = notification.copy(id = id)
+                // Actualizar status a SYNCING antes de sincronizar
+                notificationDao.updateSyncStatus(id, SyncStatus.SYNCING)
+
+                val updatedNotification = notificationWithStatus.copy(id = id)
                 val success = firebaseService.syncNotification(updatedNotification)
+
                 if (success) {
-                    notificationDao.updateNotification(updatedNotification.copy(isSynced = true))
+                    // Usar la función del DAO para actualizar el estado de sincronización
+                    notificationDao.updateNotificationSyncResult(id, true)
                     Log.d(TAG, "✓ Notificación sincronizada con Firebase")
+                } else {
+                    // Si falla, actualizar estado a FAILED
+                    notificationDao.updateNotificationSyncResult(id, false)
+                    Log.d(TAG, "✗ Falló la sincronización con Firebase")
                 }
             }
         } catch (e: Exception) {
@@ -100,9 +117,17 @@ class NotificationRepository(
             if (unsynced.isNotEmpty()) {
                 Log.d(TAG, "Sincronizando ${unsynced.size} notificaciones pendientes...")
                 unsynced.forEach { notification ->
-                    if (firebaseService.syncNotification(notification)) {
-                        notificationDao.updateNotification(notification.copy(isSynced = true))
+                    // Actualizar a SYNCING durante el intento
+                    notificationDao.updateSyncStatus(notification.id, SyncStatus.SYNCING)
+
+                    val success = firebaseService.syncNotification(notification)
+                    // Usar la función del DAO para actualizar el estado
+                    notificationDao.updateNotificationSyncResult(notification.id, success)
+
+                    if (success) {
                         Log.d(TAG, "✓ Sincronizada notificación: ${notification.title}")
+                    } else {
+                        Log.d(TAG, "✗ Falló la sincronización de notificación: ${notification.title}")
                     }
                 }
             }

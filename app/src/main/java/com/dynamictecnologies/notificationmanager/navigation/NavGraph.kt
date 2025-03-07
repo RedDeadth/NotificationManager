@@ -13,13 +13,10 @@ import com.dynamictecnologies.notificationmanager.viewmodel.AuthViewModel
 import com.dynamictecnologies.notificationmanager.viewmodel.PermissionViewModel
 import com.dynamictecnologies.notificationmanager.viewmodel.AppListViewModel
 import com.dynamictecnologies.notificationmanager.viewmodel.UserViewModel
-import com.dynamictecnologies.notificationmanager.viewmodel.UsernameState
-import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import com.dynamictecnologies.notificationmanager.ui.screen.auth.ProfileScreen
+import com.dynamictecnologies.notificationmanager.ui.screen.home.ProfileScreen
+import com.dynamictecnologies.notificationmanager.ui.screen.home.SharedScreen
+import com.dynamictecnologies.notificationmanager.viewmodel.SharedViewModel
 
 sealed class Screen(val route: String) {
     object Login : Screen("login")
@@ -37,6 +34,7 @@ fun NavigationGraph(
     permissionViewModel: PermissionViewModel,
     appListViewModel: AppListViewModel,
     userViewModel: UserViewModel,
+    sharedViewModel: SharedViewModel,
     startDestination: String
 ) {
     NavHost(
@@ -85,8 +83,8 @@ fun NavigationGraph(
                 onNavigateToProfile = {  // Añadir este parámetro
                     navController.navigate(Screen.Profile.route)
                 },
-                onNavigateToShared = {  // Añadir este parámetro
-                    navController.navigate(Screen.Profile.route)
+                onNavigateToShared = {
+                    navController.navigate(Screen.Shared.route)  // Cambiar de Profile.route a Shared.route
                 }
             )
         }
@@ -105,7 +103,7 @@ fun NavigationGraph(
                     navController.navigate(Screen.Profile.route)
                 },
                 onNavigateToShared = {
-                    navController.navigate(Screen.AppList.route)
+                    navController.navigate(Screen.Shared.route)  // Cambiar de Profile.route a Shared.route
                 }
             )
         }
@@ -125,7 +123,18 @@ fun NavigationGraph(
                     navController.popBackStack()
                 },
                 onNavigateToShared = {
-                    navController.popBackStack()
+                    navController.navigate(Screen.Shared.route)  // Cambiar de Profile.route a Shared.route
+                },
+                onNavigateToHome = {
+                    navController.navigate(Screen.AppList.route)
+                }
+            )
+        }
+        composable(route = Screen.Shared.route) {
+            SharedScreen(
+                viewModel = sharedViewModel,
+                onNavigateToProfile = {
+                    navController.navigate(Screen.Profile.route)
                 },
                 onNavigateToHome = {
                     navController.navigate(Screen.AppList.route)
@@ -141,6 +150,7 @@ fun AppNavigation(
     permissionViewModel: PermissionViewModel,
     appListViewModel: AppListViewModel,
     userViewModel: UserViewModel,
+    sharedViewModel: SharedViewModel,
     modifier: Modifier = Modifier
 ) {
     val navController = rememberNavController()
@@ -197,6 +207,7 @@ fun AppNavigation(
         permissionViewModel = permissionViewModel,
         appListViewModel = appListViewModel,
         userViewModel = userViewModel,
-        startDestination = startDestination
+        startDestination = startDestination,
+        sharedViewModel =  sharedViewModel
     )
 }

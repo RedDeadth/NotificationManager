@@ -18,6 +18,7 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import com.dynamictecnologies.notificationmanager.viewmodel.UserViewModel
+import com.dynamictecnologies.notificationmanager.viewmodel.SharedViewModel
 import com.dynamictecnologies.notificationmanager.viewmodel.UserViewModelFactory
 
 class MainActivity : ComponentActivity() {
@@ -41,6 +42,12 @@ class MainActivity : ComponentActivity() {
     private val userViewModel: UserViewModel by viewModels {
         UserViewModelFactory(createUserService())
     }
+    private val sharedViewModel: SharedViewModel by viewModels {
+        SharedViewModelFactory(
+            userService = createUserService(),
+            notificationService = createFirebaseService()  // Añadir el servicio de notificaciones
+        )
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,7 +59,8 @@ class MainActivity : ComponentActivity() {
                     authViewModel = authViewModel,
                     permissionViewModel = permissionViewModel,
                     appListViewModel = appListViewModel,
-                    userViewModel = userViewModel
+                    userViewModel = userViewModel,
+                    sharedViewModel = sharedViewModel,
                 )
             }
         }
@@ -90,6 +98,9 @@ class MainActivity : ComponentActivity() {
             FirebaseAuth.getInstance(),
             FirebaseDatabase.getInstance()
         )
+    }
+    private fun createFirebaseService(): FirebaseService {
+        return FirebaseService()
     }
 }
 
