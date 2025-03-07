@@ -24,7 +24,7 @@ class UserViewModel(
     val sharedUsers = _sharedUsers.asStateFlow()
 
     init {
-        checkUserRegistration()
+        observeAuthState()
     }
 
     private fun checkUserRegistration() {
@@ -42,6 +42,20 @@ class UserViewModel(
                     Log.e("UserViewModel", "Error al verificar registro: ${error.message}")
                     _usernameState.value = UsernameState.Error(error.message ?: "Error desconocido")
                 }
+        }
+    }
+    fun clearState() {
+        _usernameState.value = UsernameState.Initial
+        _availableUsers.value = emptyList()
+        _sharedUsers.value = emptyList()
+    }
+    private fun observeAuthState() {
+        userService.observeAuthChanges { user ->
+            if (user == null) {
+                clearState()
+            } else {
+                checkUserRegistration()
+            }
         }
     }
 

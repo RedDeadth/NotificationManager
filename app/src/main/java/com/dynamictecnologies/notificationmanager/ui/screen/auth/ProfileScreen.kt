@@ -10,11 +10,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.dynamictecnologies.notificationmanager.ui.components.AppBottomBar
+import com.dynamictecnologies.notificationmanager.ui.components.AppTopBar
+import com.dynamictecnologies.notificationmanager.ui.components.Screen
 import com.dynamictecnologies.notificationmanager.viewmodel.UsernameState
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -22,15 +22,20 @@ fun ProfileScreen(
     usernameState: UsernameState,
     onCreateProfile: (String) -> Unit,
     onLogout: () -> Unit,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToHome: () -> Unit,
+    onNavigateToShared: () -> Unit
 ) {
     var username by remember { mutableStateOf("") }
     var isError by remember { mutableStateOf(false) }
 
+    // Establecer la pantalla actual a PROFILE
+    val currentScreen = Screen.PROFILE
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Perfil") },
+            AppTopBar(
+                currentScreen = currentScreen,
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -38,12 +43,19 @@ fun ProfileScreen(
                             contentDescription = "Regresar"
                         )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+                }
+            )
+        },
+        bottomBar = {
+            AppBottomBar(
+                currentScreen = currentScreen,
+                onScreenSelected = { screen ->
+                    when (screen) {
+                        Screen.HOME -> onNavigateToHome()
+                        Screen.SHARED -> onNavigateToShared()
+                        Screen.PROFILE -> { /* Ya estamos en esta pantalla */ }
+                    }
+                }
             )
         }
     ) { paddingValues ->

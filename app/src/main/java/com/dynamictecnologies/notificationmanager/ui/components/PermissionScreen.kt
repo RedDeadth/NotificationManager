@@ -18,7 +18,8 @@ fun PermissionScreen(
     userViewModel: UserViewModel,
     onPermissionsGranted: () -> Unit,
     onLogout: () -> Unit,
-    onNavigateToProfile: () -> Unit
+    onNavigateToProfile: () -> Unit,
+    onNavigateToShared: () -> Unit
 ) {
     val permissionsGranted by permissionViewModel.permissionsGranted.collectAsState()
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -47,7 +48,8 @@ fun PermissionScreen(
         viewModel = appListViewModel,
         userViewModel = userViewModel,
         onLogout = onLogout,
-        onNavigateToProfile = onNavigateToProfile
+        onNavigateToProfile = onNavigateToProfile,
+        onNavigateToShared = onNavigateToShared
     )
 
     // Mostrar el diálogo de permisos si no están concedidos

@@ -27,6 +27,7 @@ sealed class Screen(val route: String) {
     object Permission : Screen("permission")
     object AppList : Screen("app_list")
     object Profile : Screen("profile")
+    object Shared : Screen("shared")
 }
 
 @Composable
@@ -83,6 +84,9 @@ fun NavigationGraph(
                 },
                 onNavigateToProfile = {  // Añadir este parámetro
                     navController.navigate(Screen.Profile.route)
+                },
+                onNavigateToShared = {  // Añadir este parámetro
+                    navController.navigate(Screen.Profile.route)
                 }
             )
         }
@@ -99,6 +103,9 @@ fun NavigationGraph(
                 },
                 onNavigateToProfile = {
                     navController.navigate(Screen.Profile.route)
+                },
+                onNavigateToShared = {
+                    navController.navigate(Screen.AppList.route)
                 }
             )
         }
@@ -116,6 +123,12 @@ fun NavigationGraph(
                 },
                 onNavigateBack = {
                     navController.popBackStack()
+                },
+                onNavigateToShared = {
+                    navController.popBackStack()
+                },
+                onNavigateToHome = {
+                    navController.navigate(Screen.AppList.route)
                 }
             )
         }
