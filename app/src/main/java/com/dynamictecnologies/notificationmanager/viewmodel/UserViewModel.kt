@@ -35,7 +35,6 @@ class UserViewModel(
                         _usernameState.value = UsernameState.Initial
                     } else {
                         _usernameState.value = UsernameState.Success(userInfo)
-                        loadSharedUsers() // Cargar usuarios compartidos al iniciar
                     }
                 }
                 .onFailure { error ->
@@ -73,51 +72,6 @@ class UserViewModel(
                     Log.e("UserViewModel", "Error al registrar username: ${error.message}")
                     _usernameState.value = UsernameState.Error(error.message ?: "Error desconocido")
                 }
-        }
-    }
-
-    fun loadAvailableUsers() {
-        viewModelScope.launch {
-            userService.getAvailableUsers()
-                .onSuccess { users ->
-                    _availableUsers.value = users
-                    Log.d("UserViewModel", "Usuarios disponibles cargados: ${users.size}")
-                }
-                .onFailure { error ->
-                    Log.e("UserViewModel", "Error al cargar usuarios disponibles: ${error.message}")
-                }
-        }
-    }
-
-    fun shareWithUser(username: String) {
-        viewModelScope.launch {
-            Log.d("UserViewModel", "Intentando compartir con: $username")
-            userService.shareNotificationsAccess(username)
-                .onSuccess {
-                    Log.d("UserViewModel", "Compartido exitosamente con: $username")
-                    loadSharedUsers() // Recargar la lista después de compartir
-                }
-                .onFailure { error ->
-                    Log.e("UserViewModel", "Error al compartir: ${error.message}")
-                }
-        }
-    }
-
-    fun loadSharedUsers() {
-        viewModelScope.launch {
-            try {
-                Log.d("UserViewModel", "Cargando usuarios compartidos")
-                userService.getSharedUsers()
-                    .onSuccess { users ->
-                        Log.d("UserViewModel", "Usuarios compartidos cargados: ${users.size}")
-                        _sharedUsers.value = users
-                    }
-                    .onFailure { error ->
-                        Log.e("UserViewModel", "Error al cargar usuarios compartidos: ${error.message}")
-                    }
-            } catch (e: Exception) {
-                Log.e("UserViewModel", "Error al cargar usuarios compartidos", e)
-            }
         }
     }
 }

@@ -1,46 +1,36 @@
 package com.dynamictecnologies.notificationmanager.ui.screen.home
 
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.ScreenShare
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
 import com.dynamictecnologies.notificationmanager.data.model.UserInfo
 import com.dynamictecnologies.notificationmanager.ui.components.ShareDialog
-import com.dynamictecnologies.notificationmanager.viewmodel.AppListViewModel
 import com.dynamictecnologies.notificationmanager.viewmodel.UserViewModel
-import com.dynamictecnologies.notificationmanager.ui.components.InitialSelectionCard
-import com.dynamictecnologies.notificationmanager.ui.components.AppSelectionDialog
 import com.dynamictecnologies.notificationmanager.ui.components.AppBottomBar
 import com.dynamictecnologies.notificationmanager.ui.components.AppTopBar
-import com.dynamictecnologies.notificationmanager.ui.components.NotificationHistoryCard
 import com.dynamictecnologies.notificationmanager.ui.components.Screen
 import com.dynamictecnologies.notificationmanager.ui.screen.home.DateUtils.formatDate
 import com.dynamictecnologies.notificationmanager.viewmodel.SharedScreenState
-import com.dynamictecnologies.notificationmanager.viewmodel.SharedViewModel
+import com.dynamictecnologies.notificationmanager.viewmodel.ShareViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 @Composable
-fun SharedScreen(
-    viewModel: SharedViewModel,
-    userViewModel: UserViewModel, // Add UserViewModel parameter
+fun ShareScreen(
+    viewModel: ShareViewModel,
+    userViewModel: UserViewModel,
     onNavigateToProfile: () -> Unit,
     onNavigateToHome: () -> Unit,
     modifier: Modifier = Modifier,

@@ -18,7 +18,7 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import com.dynamictecnologies.notificationmanager.viewmodel.UserViewModel
-import com.dynamictecnologies.notificationmanager.viewmodel.SharedViewModel
+import com.dynamictecnologies.notificationmanager.viewmodel.ShareViewModel
 import com.dynamictecnologies.notificationmanager.viewmodel.UserViewModelFactory
 
 class MainActivity : ComponentActivity() {
@@ -42,8 +42,8 @@ class MainActivity : ComponentActivity() {
     private val userViewModel: UserViewModel by viewModels {
         UserViewModelFactory(createUserService())
     }
-    private val sharedViewModel: SharedViewModel by viewModels {
-        SharedViewModelFactory(
+    private val sharedViewModel: ShareViewModel by viewModels {
+        ShareViewModelFactory(
             userService = createUserService(),
             notificationService = createFirebaseService()  // Añadir el servicio de notificaciones
         )

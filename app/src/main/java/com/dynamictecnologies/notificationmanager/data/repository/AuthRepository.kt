@@ -49,12 +49,10 @@ class AuthRepository(
         return result.user!!
     }
 
-    // Nuevo método para iniciar el proceso de inicio de sesión con Google
     fun getGoogleSignInIntent(): Intent {
         return googleSignInClient.signInIntent
     }
 
-    // Método actualizado para manejar el resultado de la autenticación con Google
     suspend fun handleGoogleSignIn(idToken: String): FirebaseUser {
         val credential = GoogleAuthProvider.getCredential(idToken, null)
         val result = auth.signInWithCredential(credential).await()
@@ -64,7 +62,7 @@ class AuthRepository(
 
     fun signOut() {
         auth.signOut()
-        googleSignInClient.signOut() // También desconectar de Google
+        googleSignInClient.signOut()
         clearUserSession()
     }
 

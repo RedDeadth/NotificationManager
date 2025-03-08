@@ -16,7 +16,7 @@ import com.dynamictecnologies.notificationmanager.viewmodel.UserViewModel
 import androidx.compose.ui.Modifier
 import com.dynamictecnologies.notificationmanager.ui.screen.home.ProfileScreen
 import com.dynamictecnologies.notificationmanager.ui.screen.home.SharedScreen
-import com.dynamictecnologies.notificationmanager.viewmodel.SharedViewModel
+import com.dynamictecnologies.notificationmanager.viewmodel.ShareViewModel
 import com.dynamictecnologies.notificationmanager.navigation.NavigationAnimations
 
 
@@ -36,7 +36,7 @@ fun NavigationGraph(
     permissionViewModel: PermissionViewModel,
     appListViewModel: AppListViewModel,
     userViewModel: UserViewModel,
-    sharedViewModel: SharedViewModel,
+    sharedViewModel: ShareViewModel,
     startDestination: String
 ) {
     NavHost(
@@ -170,6 +170,7 @@ fun NavigationGraph(
             popExitTransition = { NavigationAnimations.popExitTransition() }
         ) {
             SharedScreen(
+                userViewModel = userViewModel,
                 viewModel = sharedViewModel,
                 onNavigateToProfile = {
                     navController.navigate(Screen.Profile.route)
@@ -188,7 +189,7 @@ fun AppNavigation(
     permissionViewModel: PermissionViewModel,
     appListViewModel: AppListViewModel,
     userViewModel: UserViewModel,
-    sharedViewModel: SharedViewModel,
+    sharedViewModel: ShareViewModel,
     modifier: Modifier = Modifier
 ) {
     val navController = rememberNavController()
