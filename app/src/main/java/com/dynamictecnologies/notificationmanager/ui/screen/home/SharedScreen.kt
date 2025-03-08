@@ -40,6 +40,7 @@ import java.util.Locale
 @Composable
 fun SharedScreen(
     viewModel: SharedViewModel,
+    userViewModel: UserViewModel, // Add UserViewModel parameter
     onNavigateToProfile: () -> Unit,
     onNavigateToHome: () -> Unit,
     modifier: Modifier = Modifier,
@@ -47,6 +48,9 @@ fun SharedScreen(
     val uiState by viewModel.uiState.collectAsState()
     val sharedUsers by viewModel.sharedUsers.collectAsState()
     val sharedWithMeNotifications by viewModel.sharedWithMeNotifications.collectAsState()
+    
+    // Add state for showing the share dialog
+    var showShareDialog by remember { mutableStateOf(false) }
 
     val currentScreen = Screen.SHARED
 
@@ -86,8 +90,21 @@ fun SharedScreen(
                     SharedScreenContent(
                         sharedUsers = sharedUsers,
                         sharedNotifications = sharedWithMeNotifications,
-                        onAddUser = { /* Show add user dialog */ }
+                        onAddUser = { showShareDialog = true } // Update to show dialog
                     )
+                    
+                    // Add ShareDialog when showShareDialog is true
+                    if (showShareDialog) {
+                        ShareDialog(
+                            onDismiss = { showShareDialog = false },
+                            onShareWith = { username ->
+                                viewModel.shareWithUser(username)
+                                showShareDialog = false
+                            },
+                            viewModel = userViewModel,
+                            sharedUsers = sharedUsers
+                        )
+                    }
                 }
                 is SharedScreenState.Error -> {
                     ErrorView(message = (uiState as SharedScreenState.Error).message)

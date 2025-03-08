@@ -8,7 +8,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.dynamictecnologies.notificationmanager.viewmodel.AuthViewModel
 
 @Composable
@@ -19,6 +21,7 @@ fun LoginScreen(
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var username by remember { mutableStateOf("") }
 
     val authState by authViewModel.authState.collectAsState()
 
@@ -36,6 +39,24 @@ fun LoginScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        // Mensaje de bienvenida
+        Text(
+            text = "Bienvenido usuario, ¿cómo deberíamos llamarte?",
+            fontSize = 20.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(bottom = 24.dp)
+        )
+        
+        // Campo para el nombre de usuario
+        OutlinedTextField(
+            value = username,
+            onValueChange = { username = it },
+            label = { Text("Nombre") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        
+        Spacer(modifier = Modifier.height(16.dp))
+
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },

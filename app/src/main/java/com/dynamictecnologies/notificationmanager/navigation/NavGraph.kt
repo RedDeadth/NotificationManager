@@ -17,6 +17,8 @@ import androidx.compose.ui.Modifier
 import com.dynamictecnologies.notificationmanager.ui.screen.home.ProfileScreen
 import com.dynamictecnologies.notificationmanager.ui.screen.home.SharedScreen
 import com.dynamictecnologies.notificationmanager.viewmodel.SharedViewModel
+import com.dynamictecnologies.notificationmanager.navigation.NavigationAnimations
+
 
 sealed class Screen(val route: String) {
     object Login : Screen("login")
@@ -41,7 +43,13 @@ fun NavigationGraph(
         navController = navController,
         startDestination = startDestination
     ) {
-        composable(route = Screen.Login.route) {
+        composable(
+            route = Screen.Login.route,
+            enterTransition = { NavigationAnimations.enterTransition() },
+            exitTransition = { NavigationAnimations.exitTransition() },
+            popEnterTransition = { NavigationAnimations.popEnterTransition() },
+            popExitTransition = { NavigationAnimations.popExitTransition() }
+        ) {
             LoginScreen(
                 authViewModel = authViewModel,
                 onNavigateToRegister = {
@@ -55,7 +63,13 @@ fun NavigationGraph(
             )
         }
 
-        composable(route = Screen.Register.route) {
+        composable(
+            route = Screen.Register.route,
+            enterTransition = { NavigationAnimations.enterTransition() },
+            exitTransition = { NavigationAnimations.exitTransition() },
+            popEnterTransition = { NavigationAnimations.popEnterTransition() },
+            popExitTransition = { NavigationAnimations.popExitTransition() }
+        ) {
             RegisterScreen(
                 authViewModel = authViewModel,
                 onNavigateToLogin = {
@@ -64,7 +78,13 @@ fun NavigationGraph(
             )
         }
 
-        composable(route = Screen.Permission.route) {
+        composable(
+            route = Screen.Permission.route,
+            enterTransition = { NavigationAnimations.enterTransition() },
+            exitTransition = { NavigationAnimations.exitTransition() },
+            popEnterTransition = { NavigationAnimations.popEnterTransition() },
+            popExitTransition = { NavigationAnimations.popExitTransition() }
+        ) {
             PermissionScreen(
                 permissionViewModel = permissionViewModel,
                 appListViewModel = appListViewModel,
@@ -89,7 +109,13 @@ fun NavigationGraph(
             )
         }
 
-        composable(route = Screen.AppList.route) {
+        composable(
+            route = Screen.AppList.route,
+            enterTransition = { NavigationAnimations.enterTransition() },
+            exitTransition = { NavigationAnimations.exitTransition() },
+            popEnterTransition = { NavigationAnimations.popEnterTransition() },
+            popExitTransition = { NavigationAnimations.popExitTransition() }
+        ) {
             AppListScreen(
                 viewModel = appListViewModel,
                 userViewModel = userViewModel,
@@ -107,7 +133,13 @@ fun NavigationGraph(
                 }
             )
         }
-        composable(route = Screen.Profile.route) {
+        composable(
+            route = Screen.Profile.route,
+            enterTransition = { NavigationAnimations.enterTransition() },
+            exitTransition = { NavigationAnimations.exitTransition() },
+            popEnterTransition = { NavigationAnimations.popEnterTransition() },
+            popExitTransition = { NavigationAnimations.popExitTransition() }
+        ) {
             ProfileScreen(
                 usernameState = userViewModel.usernameState.collectAsState().value,
                 onCreateProfile = { username ->
@@ -130,7 +162,13 @@ fun NavigationGraph(
                 }
             )
         }
-        composable(route = Screen.Shared.route) {
+        composable(
+            route = Screen.Shared.route,
+            enterTransition = { NavigationAnimations.enterTransition() },
+            exitTransition = { NavigationAnimations.exitTransition() },
+            popEnterTransition = { NavigationAnimations.popEnterTransition() },
+            popExitTransition = { NavigationAnimations.popExitTransition() }
+        ) {
             SharedScreen(
                 viewModel = sharedViewModel,
                 onNavigateToProfile = {

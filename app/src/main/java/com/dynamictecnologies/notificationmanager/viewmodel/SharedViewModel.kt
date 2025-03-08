@@ -28,6 +28,22 @@ class SharedViewModel(
         checkUserProfile()
     }
 
+    // Add this function to your SharedViewModel class
+    fun shareWithUser(username: String) {
+        viewModelScope.launch {
+            try {
+                // Call your repository method to share notifications with the user
+                repository.shareNotificationsWithUser(username)
+
+                // Refresh the list of shared users
+                loadSharedUsers()
+            } catch (e: Exception) {
+                // Handle errors
+                _uiState.value = SharedScreenState.Error("Error al compartir: ${e.message}")
+            }
+        }
+    }
+
     private fun checkUserProfile() {
         viewModelScope.launch {
             userService.checkCurrentUserRegistration()

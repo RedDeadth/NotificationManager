@@ -4,16 +4,19 @@ import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
@@ -65,6 +68,10 @@ fun NotificationManagerTheme(
             val window = (view.context as Activity).window
             window.statusBarColor = colorScheme.primary.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+
+            // Opcional: Establecer también el color del fondo de la ventana
+            // para evitar cualquier flash durante las transiciones
+            window.setBackgroundDrawableResource(android.R.color.transparent)
         }
     }
 
@@ -72,6 +79,12 @@ fun NotificationManagerTheme(
         colorScheme = colorScheme,
         typography = Typography,
         shapes = RoundedShapes, // Usar formas redondeadas estilo Samsung
-        content = content
-    )
+    ) {
+        // Envolver en Surface para garantizar un fondo consistente durante las transiciones
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = colorScheme.background, // Usar el color de fondo del tema
+            content = content
+        )
+    }
 }
