@@ -39,6 +39,7 @@ fun ShareScreen(
     val sharedUsers by shareViewModel.sharedUsers.collectAsState()
     val availableUsers by shareViewModel.availableUsers.collectAsState()
     val isLoadingUsers by shareViewModel.isLoading.collectAsState()
+    val hostNotifications by shareViewModel.hostNotifications.collectAsState()
     var showAddFriendDialog by remember { mutableStateOf(false) }
 
     val currentScreen = Screen.SHARED
@@ -71,6 +72,7 @@ fun ShareScreen(
             SharedScreenContent(
                 sharedUsers = sharedUsers,
                 availableUsers = availableUsers,
+                notifications = hostNotifications,
                 isLoading = isLoadingUsers,
                 onAddUserClick = {
                     shareViewModel.loadAvailableUsers()
@@ -101,6 +103,7 @@ private fun SharedScreenContent(
     sharedUsers: List<UserInfo>,
     availableUsers: List<UserInfo>,
     isLoading: Boolean,
+    notifications: List<NotificationInfo>,
     onAddUserClick: () -> Unit,
     onRemoveUser: (String) -> Unit
 ) {
@@ -155,6 +158,48 @@ private fun SharedScreenContent(
                 }
             }
         }
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f), // Toma el espacio restante
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(
+                    text = "Notificaciones Recibidas",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                if (notifications.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No hay notificaciones",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    LazyColumn {
+                        items(
+                            items = notifications,
+                            key = { "${it.packageName}_${it.timestamp.time}" }
+                        ) { notification ->
+                            SharedNotificationItem(notification)
+                            Divider()
+                        }
+                    }
+                }
+            }
+        }
+
     }
 }
 
@@ -306,4 +351,42 @@ private fun AvailableUserItem(
             Text(text = "Añadir")
         }
     }
+}
+@Composable
+private fun SharedNotificationItem(
+    notification: NotificationInfo
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+    ) {
+        Text(
+            text = notification.title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Text(
+            text = notification.content,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 2
+        )
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Text(
+            text = formatDate(notification.timestamp),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+private fun formatDate(date: Date): String {
+    val formatter = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+    return formatter.format(date)
 }

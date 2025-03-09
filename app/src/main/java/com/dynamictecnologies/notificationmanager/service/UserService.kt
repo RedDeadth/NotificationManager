@@ -15,48 +15,38 @@ class UserService(
     private val database: FirebaseDatabase = FirebaseDatabase.getInstance()
 ) {
     private val usersRef = database.getReference("users")
-    private val usernameMappingRef = database.getReference("usernames")
-
 
     suspend fun checkCurrentUserRegistration(): Result<UserInfo?> {
         return try {
             val currentUser = auth.currentUser ?:
             return Result.failure(Exception("No hay usuario autenticado"))
 
-            Log.d("UserService", "Verificando registro para UID: ${currentUser.uid}")
+            Log.d("UserService", "Verificando registro para username del usuario: ${currentUser.uid}")
 
-            // Primero limpiar cualquier caché local
-            database.getReference("users").keepSynced(false)
-            database.getReference("usernames").keepSynced(false)
+            // Buscar el usuario por UID en todos los perfiles
+            val query = usersRef.orderByChild("uid").equalTo(currentUser.uid)
+            val snapshot = query.get().await()
 
-            val userSnapshot = usersRef.child(currentUser.uid).get().await()
-
-            if (!userSnapshot.exists()) {
+            if (!snapshot.exists()) {
                 Log.d("UserService", "No se encontró perfil para UID: ${currentUser.uid}")
                 return Result.success(null)
             }
 
-            val userInfo = userSnapshot.getValue(UserInfo::class.java)
-            if (userInfo == null) {
-                Log.e("UserService", "Error al convertir datos para UID: ${currentUser.uid}")
-                return Result.failure(Exception("Error al obtener datos del perfil"))
-            }
+            // Tomar el primer (y único) resultado
+            val userSnapshot = snapshot.children.first()
+            val username = userSnapshot.key ?:
+            return Result.failure(Exception("Error al obtener username"))
 
-            // Verificar que el perfil corresponde al usuario actual
-            if (userInfo.uid != currentUser.uid) {
-                Log.e("UserService", "Inconsistencia de UID detectada. Esperado: ${currentUser.uid}, Encontrado: ${userInfo.uid}")
-                // Limpiar el estado inconsistente
-                usersRef.child(currentUser.uid).removeValue().await()
-                return Result.success(null)
-            }
+            val userInfo = userSnapshot.getValue(UserInfo::class.java)?.copy(username = username)
+                ?: return Result.failure(Exception("Error al obtener datos del perfil"))
 
-            // Verificar que el email coincide
-            if (userInfo.email != currentUser.email) {
-                Log.e("UserService", "Inconsistencia de email detectada")
+            // Verificar integridad de datos
+            if (userInfo.uid != currentUser.uid || userInfo.email != currentUser.email) {
+                Log.e("UserService", "Inconsistencia de datos detectada")
                 return Result.failure(Exception("Error de integridad en los datos"))
             }
 
-            Log.d("UserService", "Perfil recuperado exitosamente para UID: ${currentUser.uid}")
+            Log.d("UserService", "Perfil recuperado exitosamente para username: $username")
             Result.success(userInfo)
         } catch (e: Exception) {
             Log.e("UserService", "Error en verificación: ${e.message}", e)
@@ -69,25 +59,19 @@ class UserService(
             val currentUser = auth.currentUser ?:
             return Result.failure(Exception("No hay usuario autenticado"))
 
-            Log.d("UserService", "Iniciando registro para UID: ${currentUser.uid}")
-
-            // Verificar si el usuario ya tiene un perfil
-            val existingUserSnapshot = usersRef.child(currentUser.uid).get().await()
-            if (existingUserSnapshot.exists()) {
-                val existingUser = existingUserSnapshot.getValue(UserInfo::class.java)
-                if (existingUser?.email == currentUser.email) {
-                    Log.d("UserService", "Usuario ya tiene perfil")
-                    return Result.failure(Exception("Ya tienes un perfil registrado"))
-                } else {
-                    // Si el email no coincide, eliminar el perfil existente
-                    usersRef.child(currentUser.uid).removeValue().await()
-                }
-            }
+            Log.d("UserService", "Iniciando registro para username: $username")
 
             // Verificar si el username ya existe
-            val usernameSnapshot = usernameMappingRef.child(username).get().await()
+            val usernameSnapshot = usersRef.child(username).get().await()
             if (usernameSnapshot.exists()) {
                 return Result.failure(Exception("El nombre de usuario ya existe"))
+            }
+
+            // Verificar si el usuario ya tiene un perfil
+            val existingQuery = usersRef.orderByChild("uid").equalTo(currentUser.uid)
+            val existingSnapshot = existingQuery.get().await()
+            if (existingSnapshot.exists()) {
+                return Result.failure(Exception("Ya tienes un perfil registrado"))
             }
 
             val userInfo = UserInfo(
@@ -97,22 +81,16 @@ class UserService(
                 createdAt = System.currentTimeMillis()
             )
 
-            // Crear el mapa de actualizaciones
-            val updates = hashMapOf<String, Any>(
-                "/users/${currentUser.uid}" to userInfo.toMap(),
-                "/usernames/$username" to currentUser.uid
-            )
-
-            // Realizar las actualizaciones de manera atómica
-            database.reference.updateChildren(updates).await()
+            // Guardar usando username como clave
+            usersRef.child(username).setValue(userInfo.toMap()).await()
 
             // Verificar que se guardó correctamente
-            val savedUserSnapshot = usersRef.child(currentUser.uid).get().await()
-            val savedUserInfo = savedUserSnapshot.getValue(UserInfo::class.java)
+            val savedUserSnapshot = usersRef.child(username).get().await()
+            val savedUser = savedUserSnapshot.getValue(UserInfo::class.java)
                 ?: return Result.failure(Exception("Error al guardar el perfil"))
 
-            Log.d("UserService", "Registro exitoso para UID: ${currentUser.uid}")
-            Result.success(savedUserInfo)
+            Log.d("UserService", "Registro exitoso para username: $username")
+            Result.success(savedUser.copy(username = username))
         } catch (e: Exception) {
             Log.e("UserService", "Error en registro: ${e.message}", e)
             Result.failure(e)

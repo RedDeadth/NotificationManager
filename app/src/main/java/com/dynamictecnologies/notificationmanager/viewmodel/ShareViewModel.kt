@@ -3,6 +3,7 @@ package com.dynamictecnologies.notificationmanager.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
 import com.dynamictecnologies.notificationmanager.data.model.UserInfo
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
@@ -25,6 +26,7 @@ sealed class SharedScreenState {
 class ShareViewModel : ViewModel() {
     private val auth = FirebaseAuth.getInstance()
     private val database = FirebaseDatabase.getInstance()
+    private val usersRef = database.getReference("users")
 
     private val _uiState = MutableStateFlow<SharedScreenState>(SharedScreenState.Loading)
     val uiState: StateFlow<SharedScreenState> = _uiState.asStateFlow()
@@ -38,92 +40,86 @@ class ShareViewModel : ViewModel() {
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    private val _hostNotifications = MutableStateFlow<List<NotificationInfo>>(emptyList())
+    val hostNotifications: StateFlow<List<NotificationInfo>> = _hostNotifications.asStateFlow()
+
+    private val _currentUsername = MutableStateFlow<String?>(null)
+    val currentUsername: StateFlow<String?> = _currentUsername.asStateFlow()
+
     init {
-        loadCurrentUserProfile()
-        observeSharedUsers()
+        loadCurrentUsername()
     }
 
-    private fun loadCurrentUserProfile() {
+    private fun loadCurrentUsername() {
         viewModelScope.launch {
             try {
-                val currentUser = auth.currentUser
-                if (currentUser == null) {
-                    _uiState.value = SharedScreenState.NoProfile
-                    return@launch
-                }
+                val currentUser = auth.currentUser ?: return@launch
+                val query = usersRef.orderByChild("uid").equalTo(currentUser.uid)
+                val snapshot = query.get().await()
+                val username = snapshot.children.firstOrNull()?.key
 
-                val userSnapshot = database.getReference("users")
-                    .child(currentUser.uid)
-                    .get()
-                    .await()
-
-                if (!userSnapshot.exists()) {
-                    _uiState.value = SharedScreenState.NoProfile
+                if (username != null) {
+                    _currentUsername.value = username
+                    observeSharedUsers(username)
                 } else {
-                    _uiState.value = SharedScreenState.Success
+                    _uiState.value = SharedScreenState.NoProfile
                 }
             } catch (e: Exception) {
-                _uiState.value = SharedScreenState.Error(e.message ?: "Error desconocido")
-            }
-        }
-    }
-
-    fun shareWithUser(userId: String) {
-        viewModelScope.launch {
-            try {
-                val currentUser = auth.currentUser ?: return@launch
-                val updates = hashMapOf<String, Any>(
-                    "users/${currentUser.uid}/sharedWith/$userId" to true
+                println("Error al cargar username actual: ${e.message}")
+                _uiState.value = SharedScreenState.Error(
+                    e.message ?: "Error al cargar perfil"
                 )
-                database.reference.updateChildren(updates).await()
-            } catch (e: Exception) {
-                _uiState.value = SharedScreenState.Error(e.message ?: "Error al compartir")
             }
         }
     }
-
-    fun removeSharedUser(userId: String) {
-        viewModelScope.launch {
-            try {
-                val currentUser = auth.currentUser ?: return@launch
-                val updates = hashMapOf<String, Any?>().apply {
-                    put("users/${currentUser.uid}/sharedWith/$userId", null)
-                }
-                database.reference.updateChildren(updates).await()
-            } catch (e: Exception) {
-                _uiState.value = SharedScreenState.Error(e.message ?: "Error al remover usuario")
-            }
-        }
-    }
-    fun addFriend(userId: String) {
+    fun shareWithUser(targetUsername: String) {
         viewModelScope.launch {
             try {
                 _isLoading.value = true
-                val currentUser = auth.currentUser ?: return@launch
+                val currentUsername = _currentUsername.value ?:
+                throw Exception("No se encontró tu perfil")
+
+                // Verificar que el usuario objetivo existe
+                val targetUserSnapshot = usersRef.child(targetUsername).get().await()
+                if (!targetUserSnapshot.exists()) {
+                    throw Exception("Usuario objetivo no encontrado")
+                }
+                val targetUid = targetUserSnapshot.child("uid").getValue(String::class.java)
+                    ?: throw Exception("Error al obtener datos del usuario objetivo")
+
+                // Actualizar sharedWith
                 val updates = hashMapOf<String, Any>(
-                    "users/${currentUser.uid}/sharedWith/$userId" to true
+                    "users/$currentUsername/sharedWith/$targetUsername" to targetUid
                 )
                 database.reference.updateChildren(updates).await()
-                loadAvailableUsers() // Recargar la lista de usuarios disponibles
+
             } catch (e: Exception) {
-                _uiState.value = SharedScreenState.Error(e.message ?: "Error al añadir usuario")
+                _uiState.value = SharedScreenState.Error(e.message ?: "Error al compartir")
             } finally {
                 _isLoading.value = false
             }
         }
     }
-
-    fun removeFriend(userId: String) {
+    fun removeSharedUser(targetUsername: String) {
         viewModelScope.launch {
             try {
                 _isLoading.value = true
                 val currentUser = auth.currentUser ?: return@launch
+
+                // Obtener el username actual
+                val currentUserQuery = usersRef.orderByChild("uid").equalTo(currentUser.uid)
+                val currentUserSnapshot = currentUserQuery.get().await()
+                val currentUsername = currentUserSnapshot.children.firstOrNull()?.key
+                    ?: throw Exception("No se encontró tu perfil")
+
+                // Eliminar el usuario compartido
                 val updates = hashMapOf<String, Any?>(
-                    "users/${currentUser.uid}/sharedWith/$userId" to null
+                    "users/$currentUsername/sharedWith/$targetUsername" to null
                 )
                 database.reference.updateChildren(updates).await()
+
             } catch (e: Exception) {
-                _uiState.value = SharedScreenState.Error(e.message ?: "Error al eliminar usuario")
+                _uiState.value = SharedScreenState.Error(e.message ?: "Error al remover usuario")
             } finally {
                 _isLoading.value = false
             }
@@ -180,62 +176,44 @@ class ShareViewModel : ViewModel() {
             }
         }
     }
-
-    private suspend fun getUserInfo(userId: String): UserInfo? {
-        return try {
-            val userSnapshot = database.getReference("users").child(userId).get().await()
-            userSnapshot.getValue(UserInfo::class.java)?.let { userData ->
-                userData.copy(
-                    uid = userId,
-                    username = userData.username,
-                    email = userData.email,
-                    createdAt = userData.createdAt
-                )
-            }
-        } catch (e: Exception) {
-            println("Error al obtener información del usuario $userId: ${e.message}")
-            e.printStackTrace()
-            null
-        }
-    }
-
-
-    // También vamos a mejorar observeSharedUsers para asegurarnos de que funcione correctamente
-    private fun observeSharedUsers() {
-        val currentUser = auth.currentUser ?: return
-        val userRef = database.getReference("users").child(currentUser.uid)
-
-        userRef.addValueEventListener(object : ValueEventListener {
+    private fun observeSharedUsers(username: String) {
+        usersRef.child(username).addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 viewModelScope.launch {
                     try {
-                        val userInfo = snapshot.getValue(UserInfo::class.java)
-                        println("Observando usuarios compartidos para: ${userInfo?.username}")
-
                         val sharedUsersList = mutableListOf<UserInfo>()
 
-                        // Obtener los usuarios compartidos
-                        userInfo?.sharedWith?.forEach { (userId, isShared) ->
-                            if (isShared) {
-                                println("Buscando usuario compartido: $userId")
-                                getUserInfo(userId)?.let {
-                                    println("Usuario compartido encontrado: ${it.username}")
-                                    sharedUsersList.add(it)
-                                }
+                        val sharedWithMap = snapshot.child("sharedWith")
+                            .children
+                            .associate { it.key!! to it.getValue(String::class.java)!! }
+
+                        println("SharedWith map para $username: $sharedWithMap")
+
+                        sharedWithMap.forEach { (sharedUsername, uid) ->
+                            println("Buscando usuario compartido: $sharedUsername")
+                            val userSnapshot = usersRef.child(sharedUsername).get().await()
+                            userSnapshot.getValue(UserInfo::class.java)?.let { userInfo ->
+                                val completeUserInfo = userInfo.copy(
+                                    username = sharedUsername,
+                                    uid = uid
+                                )
+                                println("Usuario compartido encontrado: ${completeUserInfo.username}")
+                                sharedUsersList.add(completeUserInfo)
                             }
                         }
 
-                        println("Total usuarios compartidos: ${sharedUsersList.size}")
+                        println("Total usuarios compartidos para $username: ${sharedUsersList.size}")
                         _sharedUsers.value = sharedUsersList
                     } catch (e: Exception) {
-                        println("Error al observar usuarios compartidos: ${e.message}")
-                        _uiState.value = SharedScreenState.Error(e.message ?: "Error al obtener usuarios compartidos")
+                        println("Error al procesar usuarios compartidos: ${e.message}")
+                        _uiState.value = SharedScreenState.Error(
+                            e.message ?: "Error al obtener usuarios compartidos"
+                        )
                     }
                 }
             }
 
             override fun onCancelled(error: DatabaseError) {
-                println("Error en la base de datos: ${error.message}")
                 _uiState.value = SharedScreenState.Error(error.message)
             }
         })

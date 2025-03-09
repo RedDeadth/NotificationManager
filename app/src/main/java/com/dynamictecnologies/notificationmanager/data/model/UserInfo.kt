@@ -5,12 +5,10 @@ data class UserInfo(
     val username: String = "",
     val email: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
-    val sharedWith: Map<String, Boolean> = emptyMap()
-
+    val sharedWith: Map<String, String> = emptyMap()
 ) {
     fun toMap(): Map<String, Any> = mapOf(
         "uid" to uid,
-        "username" to username,
         "email" to (email ?: ""),
         "createdAt" to createdAt,
         "sharedWith" to sharedWith
