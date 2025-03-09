@@ -1,84 +1,100 @@
 package com.dynamictecnologies.notificationmanager.ui.components
 
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import com.dynamictecnologies.notificationmanager.data.model.UserInfo
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.dynamictecnologies.notificationmanager.viewmodel.UserViewModel
+import com.dynamictecnologies.notificationmanager.data.model.UserInfo
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShareDialog(
+    availableUsers: List<UserInfo>,
+    isLoading: Boolean,
     onDismiss: () -> Unit,
-    onShareWith: (String) -> Unit,
-    viewModel: UserViewModel,
-    sharedUsers: List<UserInfo>
+    onAddFriend: (String) -> Unit
 ) {
-    val availableUsers by viewModel.availableUsers.collectAsState()
-    var selectedUsername by remember { mutableStateOf("") }
-
-    LaunchedEffect(Unit) {
-        viewModel.loadAvailableUsers()
-    }
-
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Compartir Notificaciones") },
+        title = {
+            Text("Añadir Amigo")
+        },
         text = {
-            Column {
-                if (availableUsers.isEmpty()) {
-                    Text("No hay usuarios disponibles para compartir")
-                } else {
-                    OutlinedTextField(
-                        value = selectedUsername,
-                        onValueChange = { selectedUsername = it },
-                        label = { Text("Usuario") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "Usuarios disponibles:",
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                    LazyColumn(
-                        modifier = Modifier.heightIn(max = 200.dp)
-                    ) {
-                        items(availableUsers) { username ->
-                            Text(
-                                text = username,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { selectedUsername = username }
-                                    .padding(vertical = 8.dp),
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
+            if (isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else if (availableUsers.isEmpty()) {
+                Text("No hay usuarios disponibles")
+            } else {
+                LazyColumn {
+                    items(availableUsers) { user ->
+                        UserItem(
+                            user = user,
+                            onAddClick = { onAddFriend(user.uid) }
+                        )
                     }
                 }
             }
         },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (selectedUsername.isNotEmpty()) {
-                        onShareWith(selectedUsername)
-                    }
-                },
-                enabled = selectedUsername.isNotEmpty()
-            ) {
-                Text("Compartir")
-            }
-        },
+        confirmButton = {},
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancelar")
+            IconButton(onClick = onDismiss) {
+                Icon(Icons.Default.Close, contentDescription = "Cerrar")
             }
         }
     )
+}
+
+@Composable
+private fun UserItem(
+    user: UserInfo,
+    onAddClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Person,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Column {
+                Text(
+                    text = user.username,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                user.email?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+        Button(
+            onClick = onAddClick,
+            modifier = Modifier.padding(start = 8.dp)
+        ) {
+            Text("Añadir")
+        }
+    }
 }

@@ -15,7 +15,7 @@ import com.dynamictecnologies.notificationmanager.viewmodel.AppListViewModel
 import com.dynamictecnologies.notificationmanager.viewmodel.UserViewModel
 import androidx.compose.ui.Modifier
 import com.dynamictecnologies.notificationmanager.ui.screen.home.ProfileScreen
-import com.dynamictecnologies.notificationmanager.ui.screen.home.SharedScreen
+import com.dynamictecnologies.notificationmanager.ui.screen.home.ShareScreen
 import com.dynamictecnologies.notificationmanager.viewmodel.ShareViewModel
 import com.dynamictecnologies.notificationmanager.navigation.NavigationAnimations
 
@@ -26,7 +26,7 @@ sealed class Screen(val route: String) {
     object Permission : Screen("permission")
     object AppList : Screen("app_list")
     object Profile : Screen("profile")
-    object Shared : Screen("shared")
+    object Share : Screen("share")
 }
 
 @Composable
@@ -36,7 +36,7 @@ fun NavigationGraph(
     permissionViewModel: PermissionViewModel,
     appListViewModel: AppListViewModel,
     userViewModel: UserViewModel,
-    sharedViewModel: ShareViewModel,
+    shareViewModel: ShareViewModel,
     startDestination: String
 ) {
     NavHost(
@@ -89,6 +89,7 @@ fun NavigationGraph(
                 permissionViewModel = permissionViewModel,
                 appListViewModel = appListViewModel,
                 userViewModel = userViewModel,
+                shareViewModel = shareViewModel,
                 onPermissionsGranted = {
                     navController.navigate(Screen.AppList.route) {
                         popUpTo(Screen.Permission.route) { inclusive = true }
@@ -104,7 +105,7 @@ fun NavigationGraph(
                     navController.navigate(Screen.Profile.route)
                 },
                 onNavigateToShared = {
-                    navController.navigate(Screen.Shared.route)  // Cambiar de Profile.route a Shared.route
+                    navController.navigate(Screen.Share.route)
                 }
             )
         }
@@ -129,7 +130,7 @@ fun NavigationGraph(
                     navController.navigate(Screen.Profile.route)
                 },
                 onNavigateToShared = {
-                    navController.navigate(Screen.Shared.route)  // Cambiar de Profile.route a Shared.route
+                    navController.navigate(Screen.Share.route)
                 }
             )
         }
@@ -155,7 +156,7 @@ fun NavigationGraph(
                     navController.popBackStack()
                 },
                 onNavigateToShared = {
-                    navController.navigate(Screen.Shared.route)  // Cambiar de Profile.route a Shared.route
+                    navController.navigate(Screen.Share.route)
                 },
                 onNavigateToHome = {
                     navController.navigate(Screen.AppList.route)
@@ -163,15 +164,15 @@ fun NavigationGraph(
             )
         }
         composable(
-            route = Screen.Shared.route,
+            route = Screen.Share.route,
             enterTransition = { NavigationAnimations.enterTransition() },
             exitTransition = { NavigationAnimations.exitTransition() },
             popEnterTransition = { NavigationAnimations.popEnterTransition() },
             popExitTransition = { NavigationAnimations.popExitTransition() }
         ) {
-            SharedScreen(
+            ShareScreen(
+                shareViewModel = shareViewModel,
                 userViewModel = userViewModel,
-                viewModel = sharedViewModel,
                 onNavigateToProfile = {
                     navController.navigate(Screen.Profile.route)
                 },
@@ -189,8 +190,7 @@ fun AppNavigation(
     permissionViewModel: PermissionViewModel,
     appListViewModel: AppListViewModel,
     userViewModel: UserViewModel,
-    sharedViewModel: ShareViewModel,
-    modifier: Modifier = Modifier
+    shareViewModel: ShareViewModel
 ) {
     val navController = rememberNavController()
     val authState by authViewModel.authState.collectAsState()
@@ -247,6 +247,6 @@ fun AppNavigation(
         appListViewModel = appListViewModel,
         userViewModel = userViewModel,
         startDestination = startDestination,
-        sharedViewModel =  sharedViewModel
+        shareViewModel =  shareViewModel
     )
 }

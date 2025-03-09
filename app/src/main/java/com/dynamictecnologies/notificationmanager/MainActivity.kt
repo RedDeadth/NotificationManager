@@ -42,11 +42,8 @@ class MainActivity : ComponentActivity() {
     private val userViewModel: UserViewModel by viewModels {
         UserViewModelFactory(createUserService())
     }
-    private val sharedViewModel: ShareViewModel by viewModels {
-        ShareViewModelFactory(
-            userService = createUserService(),
-            notificationService = createFirebaseService()  // Añadir el servicio de notificaciones
-        )
+    private val shareViewModel: ShareViewModel by viewModels {
+        ShareViewModelFactory()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -60,7 +57,7 @@ class MainActivity : ComponentActivity() {
                     permissionViewModel = permissionViewModel,
                     appListViewModel = appListViewModel,
                     userViewModel = userViewModel,
-                    sharedViewModel = sharedViewModel,
+                    shareViewModel = shareViewModel,
                 )
             }
         }

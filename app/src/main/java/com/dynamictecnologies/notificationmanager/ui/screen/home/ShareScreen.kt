@@ -3,15 +3,18 @@ package com.dynamictecnologies.notificationmanager.ui.screen.home
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
 import com.dynamictecnologies.notificationmanager.data.model.UserInfo
@@ -20,8 +23,6 @@ import com.dynamictecnologies.notificationmanager.viewmodel.UserViewModel
 import com.dynamictecnologies.notificationmanager.ui.components.AppBottomBar
 import com.dynamictecnologies.notificationmanager.ui.components.AppTopBar
 import com.dynamictecnologies.notificationmanager.ui.components.Screen
-import com.dynamictecnologies.notificationmanager.ui.screen.home.DateUtils.formatDate
-import com.dynamictecnologies.notificationmanager.viewmodel.SharedScreenState
 import com.dynamictecnologies.notificationmanager.viewmodel.ShareViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -29,18 +30,16 @@ import java.util.Locale
 
 @Composable
 fun ShareScreen(
-    viewModel: ShareViewModel,
+    shareViewModel: ShareViewModel,
     userViewModel: UserViewModel,
     onNavigateToProfile: () -> Unit,
     onNavigateToHome: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    val sharedUsers by viewModel.sharedUsers.collectAsState()
-    val sharedWithMeNotifications by viewModel.sharedWithMeNotifications.collectAsState()
-    
-    // Add state for showing the share dialog
-    var showShareDialog by remember { mutableStateOf(false) }
+    val sharedUsers by shareViewModel.sharedUsers.collectAsState()
+    val availableUsers by shareViewModel.availableUsers.collectAsState()
+    val isLoadingUsers by shareViewModel.isLoading.collectAsState()
+    var showAddFriendDialog by remember { mutableStateOf(false) }
 
     val currentScreen = Screen.SHARED
 
@@ -69,36 +68,29 @@ fun ShareScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            when (uiState) {
-                is SharedScreenState.Loading -> {
-                    LoadingIndicator()
+            SharedScreenContent(
+                sharedUsers = sharedUsers,
+                availableUsers = availableUsers,
+                isLoading = isLoadingUsers,
+                onAddUserClick = {
+                    shareViewModel.loadAvailableUsers()
+                    showAddFriendDialog = true
+                },
+                onRemoveUser = { userId ->
+                    shareViewModel.removeSharedUser(userId)
                 }
-                is SharedScreenState.NoProfile -> {
-                    NoProfileView(onNavigateToProfile)
-                }
-                is SharedScreenState.Success -> {
-                    SharedScreenContent(
-                        sharedUsers = sharedUsers,
-                        sharedNotifications = sharedWithMeNotifications,
-                        onAddUser = { showShareDialog = true } // Update to show dialog
-                    )
-                    
-                    // Add ShareDialog when showShareDialog is true
-                    if (showShareDialog) {
-                        ShareDialog(
-                            onDismiss = { showShareDialog = false },
-                            onShareWith = { username ->
-                                viewModel.shareWithUser(username)
-                                showShareDialog = false
-                            },
-                            viewModel = userViewModel,
-                            sharedUsers = sharedUsers
-                        )
+            )
+
+            if (showAddFriendDialog) {
+                AddUserDialog(
+                    availableUsers = availableUsers,
+                    isLoading = isLoadingUsers,
+                    onDismiss = { showAddFriendDialog = false },
+                    onAddUser = { userId ->
+                        shareViewModel.shareWithUser(userId)
+                        showAddFriendDialog = false
                     }
-                }
-                is SharedScreenState.Error -> {
-                    ErrorView(message = (uiState as SharedScreenState.Error).message)
-                }
+                )
             }
         }
     }
@@ -107,15 +99,16 @@ fun ShareScreen(
 @Composable
 private fun SharedScreenContent(
     sharedUsers: List<UserInfo>,
-    sharedNotifications: Map<String, List<NotificationInfo>>,
-    onAddUser: () -> Unit
+    availableUsers: List<UserInfo>,
+    isLoading: Boolean,
+    onAddUserClick: () -> Unit,
+    onRemoveUser: (String) -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // Sección de usuarios invitados
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -131,10 +124,10 @@ private fun SharedScreenContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Usuarios Invitados",
+                        text = "Usuarios Compartidos",
                         style = MaterialTheme.typography.titleMedium
                     )
-                    Button(onClick = onAddUser) {
+                    Button(onClick = onAddUserClick) {
                         Icon(Icons.Default.Add, contentDescription = null)
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Añadir")
@@ -152,188 +145,165 @@ private fun SharedScreenContent(
                 } else {
                     LazyColumn {
                         items(sharedUsers) { user ->
-                            SharedUserItem(user)
+                            SharedUserItem(
+                                user = user,
+                                onRemove = { onRemoveUser(user.uid) }
+                            )
                             Divider()
                         }
                     }
                 }
             }
         }
-
-        // Sección de notificaciones compartidas conmigo
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp)
-            ) {
-                Text(
-                    text = "Información compartida conmigo",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-
-                if (sharedNotifications.isEmpty()) {
-                    Text(
-                        text = "No hay notificaciones compartidas contigo",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else {
-                    LazyColumn {
-                        sharedNotifications.forEach { (username, notifications) ->
-                            item {
-                                Text(
-                                    text = "De: $username",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    modifier = Modifier.padding(vertical = 8.dp)
-                                )
-                            }
-                            items(notifications) { notification ->
-                                SharedNotificationItem(notification)
-                                Divider()
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 }
 
 @Composable
-private fun SharedUserItem(user: UserInfo) {
+private fun SharedUserItem(
+    user: UserInfo,
+    onRemove: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            imageVector = Icons.Default.Person,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Column {
-            Text(
-                text = user.username,
-                style = MaterialTheme.typography.bodyLarge
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Person,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
             )
-            Text(
-                text = user.email ?: "",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            Spacer(modifier = Modifier.width(8.dp))
+            Column {
+                Text(
+                    text = user.username,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                user.email?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+        IconButton(
+            onClick = onRemove,
+        ) {
+            Icon(
+                imageVector = Icons.Default.Delete,
+                contentDescription = "Eliminar usuario",
+                tint = MaterialTheme.colorScheme.error
             )
         }
     }
 }
+@Composable
+private fun AddUserDialog(
+    availableUsers: List<UserInfo>,
+    isLoading: Boolean,
+    onDismiss: () -> Unit,
+    onAddUser: (String) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Añadir Usuario") },
+        text = {
+            if (isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else if (availableUsers.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "No hay usuarios disponibles",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                LazyColumn {
+                    items(availableUsers) { user ->
+                        AvailableUserItem(
+                            user = user,
+                            onAdd = { onAddUser(user.uid) }
+                        )
+                        Divider()
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cerrar")
+            }
+        }
+    )
+}
 
 @Composable
-private fun SharedNotificationItem(notification: NotificationInfo) {
-    Column(
+private fun AvailableUserItem(
+    user: UserInfo,
+    onAdd: () -> Unit
+) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp)
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f)
         ) {
-            Text(
-                text = notification.appName,
-                style = MaterialTheme.typography.titleSmall
+            Icon(
+                imageVector = Icons.Default.Person,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
             )
-            Text(
-                text = formatDate(notification.timestamp),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Column {
+                Text(
+                    text = user.username,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                user.email?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
-        Text(
-            text = notification.title,
-            style = MaterialTheme.typography.bodyMedium
-        )
-        Text(
-            text = notification.content,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
 
-@Composable
-private fun NoProfileView(onNavigateToProfile: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            imageVector = Icons.Default.AccountCircle,
-            contentDescription = null,
-            modifier = Modifier.size(64.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Primero debes crear un perfil",
-            style = MaterialTheme.typography.titleMedium
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Button(onClick = onNavigateToProfile) {
-            Text("Crear Perfil")
+        // Botón horizontal en lugar de vertical
+        Button(
+            onClick = onAdd,
+            modifier = Modifier
+                .padding(start = 8.dp)
+                .height(36.dp)
+                .widthIn(min = 80.dp),
+            shape = RoundedCornerShape(8.dp)
+        ) {
+            Text(text = "Añadir")
         }
-    }
-}
-
-@Composable
-private fun LoadingIndicator() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        CircularProgressIndicator()
-    }
-}
-
-@Composable
-private fun ErrorView(message: String) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            imageVector = Icons.Default.Error,
-            contentDescription = null,
-            modifier = Modifier.size(64.dp),
-            tint = MaterialTheme.colorScheme.error
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = message,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.error
-        )
-    }
-}
-
-object DateUtils {
-    private val dateFormatter = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
-
-    fun formatDate(date: Date): String {
-        return dateFormatter.format(date)
-    }
-
-    fun formatTimestamp(timestamp: Long): String {
-        return formatDate(Date(timestamp))
     }
 }

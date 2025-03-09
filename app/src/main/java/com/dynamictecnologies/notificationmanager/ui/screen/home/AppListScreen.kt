@@ -66,18 +66,6 @@ fun AppListScreen(
         }
     ) { paddingValues ->
 
-        if (showShareDialog) {
-            ShareDialog(
-                onDismiss = { showShareDialog = false },
-                onShareWith = { username ->
-                    userViewModel.shareWithUser(username)
-                    showShareDialog = false
-                },
-                viewModel = userViewModel,
-                sharedUsers = sharedUsers
-            )
-        }
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
