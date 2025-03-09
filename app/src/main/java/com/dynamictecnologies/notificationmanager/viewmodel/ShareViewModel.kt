@@ -76,27 +76,87 @@ class ShareViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 _isLoading.value = true
-                val currentUsername = _currentUsername.value ?:
-                throw Exception("No se encontró tu perfil")
+                val currentUser = auth.currentUser ?: throw Exception("No hay usuario autenticado")
 
-                // Verificar que el usuario objetivo existe
+                // 1. Obtener el username actual
+                val query = usersRef.orderByChild("uid").equalTo(currentUser.uid)
+                val snapshot = query.get().await()
+                val currentUsername = snapshot.children.firstOrNull()?.key
+                    ?: throw Exception("No se encontró tu perfil")
+
+                println("Compartiendo desde $currentUsername con $targetUsername")
+
+                // 2. Verificar que el usuario objetivo existe y obtener su UID
                 val targetUserSnapshot = usersRef.child(targetUsername).get().await()
                 if (!targetUserSnapshot.exists()) {
                     throw Exception("Usuario objetivo no encontrado")
                 }
+
                 val targetUid = targetUserSnapshot.child("uid").getValue(String::class.java)
                     ?: throw Exception("Error al obtener datos del usuario objetivo")
 
-                // Actualizar sharedWith
+                println("Usuario objetivo encontrado con UID: $targetUid")
+
+                // 3. Actualizar sharedWith usando el username como clave y el uid como valor
                 val updates = hashMapOf<String, Any>(
                     "users/$currentUsername/sharedWith/$targetUsername" to targetUid
                 )
+
+                println("Aplicando actualizaciones: $updates")
+
+                // 4. Realizar la actualización
                 database.reference.updateChildren(updates).await()
 
+                println("Compartido exitosamente con $targetUsername")
+
+                // 5. Actualizar la lista de usuarios compartidos
+                loadSharedUsers()
+
             } catch (e: Exception) {
+                println("Error al compartir: ${e.message}")
+                e.printStackTrace()
                 _uiState.value = SharedScreenState.Error(e.message ?: "Error al compartir")
             } finally {
                 _isLoading.value = false
+            }
+        }
+    }
+
+    private fun loadSharedUsers() {
+        viewModelScope.launch {
+            try {
+                val currentUser = auth.currentUser ?: return@launch
+
+                // Obtener el username actual
+                val query = usersRef.orderByChild("uid").equalTo(currentUser.uid)
+                val snapshot = query.get().await()
+                val currentUsername = snapshot.children.firstOrNull()?.key ?: return@launch
+
+                println("Cargando usuarios compartidos para $currentUsername")
+
+                // Obtener los usuarios compartidos
+                val sharedUsersList = mutableListOf<UserInfo>()
+                val userSnapshot = usersRef.child(currentUsername).get().await()
+
+                val sharedWithMap = userSnapshot.child("sharedWith")
+                    .children
+                    .associate { it.key!! to it.getValue(String::class.java)!! }
+
+                println("SharedWith map: $sharedWithMap")
+
+                sharedWithMap.forEach { (username, uid) ->
+                    val sharedUserSnapshot = usersRef.child(username).get().await()
+                    sharedUserSnapshot.getValue(UserInfo::class.java)?.let { userInfo ->
+                        sharedUsersList.add(userInfo.copy(username = username))
+                    }
+                }
+
+                _sharedUsers.value = sharedUsersList
+                println("Usuarios compartidos cargados: ${sharedUsersList.size}")
+
+            } catch (e: Exception) {
+                println("Error al cargar usuarios compartidos: ${e.message}")
+                e.printStackTrace()
             }
         }
     }

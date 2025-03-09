@@ -19,9 +19,11 @@ class UserViewModel(
     private val _availableUsers = MutableStateFlow<List<String>>(emptyList())
     val availableUsers = _availableUsers.asStateFlow()
 
-    // Añadir esta declaración que faltaba
     private val _sharedUsers = MutableStateFlow<List<UserInfo>>(emptyList())
     val sharedUsers = _sharedUsers.asStateFlow()
+
+    private val _currentUsername = MutableStateFlow<String?>(null)
+    val currentUsername = _currentUsername.asStateFlow()
 
     init {
         observeAuthState()
@@ -29,32 +31,22 @@ class UserViewModel(
 
     private fun checkUserRegistration() {
         viewModelScope.launch {
+            _usernameState.value = UsernameState.Loading
             userService.checkCurrentUserRegistration()
                 .onSuccess { userInfo ->
                     if (userInfo == null) {
                         _usernameState.value = UsernameState.Initial
+                        _currentUsername.value = null
                     } else {
                         _usernameState.value = UsernameState.Success(userInfo)
+                        _currentUsername.value = userInfo.username
                     }
                 }
                 .onFailure { error ->
                     Log.e("UserViewModel", "Error al verificar registro: ${error.message}")
                     _usernameState.value = UsernameState.Error(error.message ?: "Error desconocido")
+                    _currentUsername.value = null
                 }
-        }
-    }
-    fun clearState() {
-        _usernameState.value = UsernameState.Initial
-        _availableUsers.value = emptyList()
-        _sharedUsers.value = emptyList()
-    }
-    private fun observeAuthState() {
-        userService.observeAuthChanges { user ->
-            if (user == null) {
-                clearState()
-            } else {
-                checkUserRegistration()
-            }
         }
     }
 
@@ -67,11 +59,29 @@ class UserViewModel(
                 .onSuccess { userInfo ->
                     Log.d("UserViewModel", "Username registrado exitosamente: $userInfo")
                     _usernameState.value = UsernameState.Success(userInfo)
+                    _currentUsername.value = userInfo.username
                 }
                 .onFailure { error ->
                     Log.e("UserViewModel", "Error al registrar username: ${error.message}")
                     _usernameState.value = UsernameState.Error(error.message ?: "Error desconocido")
                 }
+        }
+    }
+
+    fun clearState() {
+        _usernameState.value = UsernameState.Initial
+        _availableUsers.value = emptyList()
+        _sharedUsers.value = emptyList()
+        _currentUsername.value = null
+    }
+
+    private fun observeAuthState() {
+        userService.observeAuthChanges { user ->
+            if (user == null) {
+                clearState()
+            } else {
+                checkUserRegistration()
+            }
         }
     }
 }

@@ -4,11 +4,16 @@ import android.util.Log
 import com.dynamictecnologies.notificationmanager.data.model.UserInfo
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.getValue
 import kotlinx.coroutines.tasks.await
 import com.google.firebase.database.Transaction
 import com.google.firebase.database.MutableData
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 class UserService(
     private val auth: FirebaseAuth = FirebaseAuth.getInstance(),
@@ -74,6 +79,7 @@ class UserService(
                 return Result.failure(Exception("Ya tienes un perfil registrado"))
             }
 
+            // Crear nuevo perfil
             val userInfo = UserInfo(
                 uid = currentUser.uid,
                 username = username,
@@ -81,16 +87,40 @@ class UserService(
                 createdAt = System.currentTimeMillis()
             )
 
-            // Guardar usando username como clave
-            usersRef.child(username).setValue(userInfo.toMap()).await()
+            // Usar suspendCoroutine para manejar la transacción
+            val transactionResult = kotlinx.coroutines.suspendCancellableCoroutine { continuation ->
+                usersRef.child(username).runTransaction(object : Transaction.Handler {
+                    override fun doTransaction(mutableData: MutableData): Transaction.Result {
+                        if (mutableData.getValue() != null) {
+                            return Transaction.abort()
+                        }
+                        mutableData.value = userInfo.toMap()
+                        return Transaction.success(mutableData)
+                    }
 
-            // Verificar que se guardó correctamente
-            val savedUserSnapshot = usersRef.child(username).get().await()
-            val savedUser = savedUserSnapshot.getValue(UserInfo::class.java)
-                ?: return Result.failure(Exception("Error al guardar el perfil"))
+                    override fun onComplete(
+                        error: DatabaseError?,
+                        committed: Boolean,
+                        currentData: DataSnapshot?
+                    ) {
+                        if (error != null) {
+                            continuation.resumeWithException(Exception(error.message))
+                        } else if (!committed) {
+                            continuation.resumeWithException(Exception("El nombre de usuario ya existe"))
+                        } else {
+                            continuation.resume(true)
+                        }
+                    }
+                })
+            }
+
+            if (!transactionResult) {
+                return Result.failure(Exception("Error al registrar el usuario"))
+            }
 
             Log.d("UserService", "Registro exitoso para username: $username")
-            Result.success(savedUser.copy(username = username))
+            Result.success(userInfo)
+
         } catch (e: Exception) {
             Log.e("UserService", "Error en registro: ${e.message}", e)
             Result.failure(e)
