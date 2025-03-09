@@ -40,8 +40,8 @@ class ShareViewModel : ViewModel() {
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    private val _hostNotifications = MutableStateFlow<List<NotificationInfo>>(emptyList())
-    val hostNotifications: StateFlow<List<NotificationInfo>> = _hostNotifications.asStateFlow()
+    private val _sharedUsersNotifications = MutableStateFlow<Map<String, List<NotificationInfo>>>(emptyMap())
+    val sharedUsersNotifications: StateFlow<Map<String, List<NotificationInfo>>> = _sharedUsersNotifications.asStateFlow()
 
     private val _currentUsername = MutableStateFlow<String?>(null)
     val currentUsername: StateFlow<String?> = _currentUsername.asStateFlow()
@@ -272,6 +272,8 @@ class ShareViewModel : ViewModel() {
                     try {
                         val sharedUsersList = mutableListOf<UserInfo>()
 
+                        _sharedUsersNotifications.value = emptyMap()
+
                         println("Cambio detectado en sharedWith para $username")
                         println("Datos actuales: ${snapshot.value}")
 
@@ -290,6 +292,7 @@ class ShareViewModel : ViewModel() {
                                             uid = sharedUid
                                         ))
                                         println("Añadido usuario compartido: $sharedUsername")
+                                        observeUserNotifications(sharedUid, sharedUsername)
                                     }
                                 }
                             }
@@ -310,6 +313,40 @@ class ShareViewModel : ViewModel() {
             override fun onCancelled(error: DatabaseError) {
                 println("Error en observador de sharedWith: ${error.message}")
                 _uiState.value = SharedScreenState.Error(error.message)
+            }
+        })
+    }
+    private fun observeUserNotifications(uid: String, username: String) {
+        val notificationsRef = database.getReference("notifications/$uid")
+
+        notificationsRef.addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                viewModelScope.launch {
+                    try {
+                        val notifications = mutableListOf<NotificationInfo>()
+
+                        snapshot.children.forEach { appSnapshot ->
+                            appSnapshot.children.forEach { notificationSnapshot ->
+                                notificationSnapshot.getValue(NotificationInfo::class.java)?.let { notification ->
+                                    notifications.add(notification)
+                                }
+                            }
+                        }
+
+                        // Actualizar el mapa de notificaciones
+                        val currentNotifications = _sharedUsersNotifications.value.toMutableMap()
+                        currentNotifications[username] = notifications.sortedByDescending { it.timestamp }
+                        _sharedUsersNotifications.value = currentNotifications
+
+                        println("Notificaciones actualizadas para $username: ${notifications.size}")
+                    } catch (e: Exception) {
+                        println("Error al procesar notificaciones de $username: ${e.message}")
+                    }
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                println("Error al observar notificaciones de $username: ${error.message}")
             }
         })
     }
