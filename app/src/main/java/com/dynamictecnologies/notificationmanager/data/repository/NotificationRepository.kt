@@ -30,8 +30,15 @@ class NotificationRepository(
     private val TAG = "NotificationRepo"
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
+    private val prefs = context.getSharedPreferences("app_preferences", Context.MODE_PRIVATE)
+
     init {
         startPeriodicSync()
+    }
+
+    private fun isAppAllowedForSync(packageName: String): Boolean {
+        val allowedApp = prefs.getString("last_selected_app", null)
+        return allowedApp == packageName
     }
 
     private fun startPeriodicSync() {
@@ -84,7 +91,11 @@ class NotificationRepository(
 
     suspend fun insertNotification(notification: NotificationInfo) {
         try {
-            // Al insertar, marcar como PENDING inicialmente
+            if (!isAppAllowedForSync(notification.packageName)) {
+                Log.d(TAG, "Notificación ignorada: ${notification.packageName} no es la app seleccionada")
+                return
+            }
+
             val notificationWithStatus = notification.copy(syncStatus = SyncStatus.PENDING)
             val id = notificationDao.insertNotification(notificationWithStatus)
             Log.d(TAG, "Notificación guardada localmente con ID: $id")
