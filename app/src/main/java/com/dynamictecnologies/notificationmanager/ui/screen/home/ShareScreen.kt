@@ -150,7 +150,7 @@ private fun SharedScreenContent(
                         items(sharedUsers) { user ->
                             SharedUserItem(
                                 user = user,
-                                onRemove = { onRemoveUser(user.uid) }
+                                onRemove = { onRemoveUser(user.username) }
                             )
                             Divider()
                         }
@@ -202,7 +202,6 @@ private fun SharedScreenContent(
 
     }
 }
-
 @Composable
 private fun SharedUserItem(
     user: UserInfo,
@@ -242,7 +241,7 @@ private fun SharedUserItem(
             }
         }
         IconButton(
-            onClick = onRemove,
+            onClick = onRemove
         ) {
             Icon(
                 imageVector = Icons.Default.Delete,
@@ -286,7 +285,7 @@ private fun AddUserDialog(
                     items(availableUsers) { user ->
                         AvailableUserItem(
                             user = user,
-                            onAdd = { onAddUser(user.uid) }
+                            onAdd = { onAddUser(user.username) }
                         )
                         Divider()
                     }
@@ -329,13 +328,6 @@ private fun AvailableUserItem(
                     text = user.username,
                     style = MaterialTheme.typography.bodyLarge
                 )
-                user.email?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
             }
         }
 
