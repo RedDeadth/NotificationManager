@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
 import com.dynamictecnologies.notificationmanager.data.model.UserInfo
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
@@ -30,6 +31,8 @@ class ShareViewModel(
 ) : ViewModel() {
     private val usersRef = database.getReference("users")
     private var sharedUsersListener: ValueEventListener? = null
+    private var authStateListener: FirebaseAuth.AuthStateListener? = null
+    private var notificationListeners = mutableMapOf<String, ValueEventListener>()
 
     private val _uiState = MutableStateFlow<SharedScreenState>(SharedScreenState.Loading)
     val uiState: StateFlow<SharedScreenState> = _uiState.asStateFlow()
@@ -50,13 +53,54 @@ class ShareViewModel(
     val currentUsername: StateFlow<String?> = _currentUsername.asStateFlow()
 
     init {
-        loadCurrentUsername()
+        setupAuthStateListener()
+    }
+
+    private fun setupAuthStateListener() {
+        authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
+            val user = firebaseAuth.currentUser
+            if (user != null) {
+                // Usuario inició sesión
+                loadCurrentUsername()
+            } else {
+                // Usuario cerró sesión - limpiar datos
+                cleanupData()
+            }
+        }
+        auth.addAuthStateListener(authStateListener!!)
+    }
+
+    private fun cleanupData() {
+        // Remover listener de usuarios compartidos
+        sharedUsersListener?.let { listener ->
+            _currentUsername.value?.let { username ->
+                usersRef.child(username).child("sharedWith").removeEventListener(listener)
+            }
+        }
+
+        // Remover listeners de notificaciones
+        notificationListeners.forEach { (uid, listener) ->
+            database.getReference("notifications/$uid").removeEventListener(listener)
+        }
+        notificationListeners.clear()
+
+        // Restablecer valores
+        _currentUsername.value = null
+        _sharedUsers.value = emptyList()
+        _availableUsers.value = emptyList()
+        _sharedUsersNotifications.value = emptyMap()
+        _uiState.value = SharedScreenState.Loading
     }
 
     private fun loadCurrentUsername() {
         viewModelScope.launch {
             try {
-                val currentUser = auth.currentUser ?: return@launch
+                val currentUser = auth.currentUser
+                if (currentUser == null) {
+                    _uiState.value = SharedScreenState.NoProfile
+                    return@launch
+                }
+
                 val query = usersRef.orderByChild("uid").equalTo(currentUser.uid)
                 val snapshot = query.get().await()
                 val username = snapshot.children.firstOrNull()?.key
@@ -64,6 +108,7 @@ class ShareViewModel(
                 if (username != null) {
                     _currentUsername.value = username
                     observeSharedUsers(username)
+                    _uiState.value = SharedScreenState.Success
                 } else {
                     _uiState.value = SharedScreenState.NoProfile
                 }
@@ -75,6 +120,7 @@ class ShareViewModel(
             }
         }
     }
+
     fun shareWithUser(targetUsername: String) {
         viewModelScope.launch {
             try {
@@ -152,10 +198,17 @@ class ShareViewModel(
                     sharedUserSnapshot.getValue(UserInfo::class.java)?.let { userInfo ->
                         sharedUsersList.add(userInfo.copy(username = username))
                     }
+
+                    // Observar notificaciones para este usuario
+                    observeUserNotifications(uid, username)
                 }
 
                 _sharedUsers.value = sharedUsersList
                 println("Usuarios compartidos cargados: ${sharedUsersList.size}")
+
+                if (_uiState.value is SharedScreenState.Loading) {
+                    _uiState.value = SharedScreenState.Success
+                }
 
             } catch (e: Exception) {
                 println("Error al cargar usuarios compartidos: ${e.message}")
@@ -163,6 +216,7 @@ class ShareViewModel(
             }
         }
     }
+
     fun removeSharedUser(targetUsername: String) {
         viewModelScope.launch {
             try {
@@ -195,6 +249,16 @@ class ShareViewModel(
                     currentMap.filterKeys { it != targetUsername }
                 }
 
+                // 5. Remover listener de notificaciones
+                val uid = _sharedUsers.value.find { it.username == targetUsername }?.uid
+                if (uid != null && notificationListeners.containsKey(uid)) {
+                    val listener = notificationListeners[uid]
+                    listener?.let {
+                        database.getReference("notifications/$uid").removeEventListener(it)
+                    }
+                    notificationListeners.remove(uid)
+                }
+
                 println("Usuario removido exitosamente")
 
             } catch (e: Exception) {
@@ -206,6 +270,7 @@ class ShareViewModel(
             }
         }
     }
+
     fun loadAvailableUsers() {
         viewModelScope.launch {
             try {
@@ -267,6 +332,7 @@ class ShareViewModel(
             }
         }
     }
+
     private fun observeSharedUsers(username: String) {
         // Remover listener anterior si existe
         sharedUsersListener?.let { listener ->
@@ -293,11 +359,18 @@ class ShareViewModel(
                                             uid = sharedUid
                                         ))
                                     }
+
+                                    // Observar notificaciones
+                                    observeUserNotifications(sharedUid, sharedUsername)
                                 }
                             }
                         }
 
                         _sharedUsers.value = sharedUsersList
+
+                        if (_uiState.value is SharedScreenState.Loading) {
+                            _uiState.value = SharedScreenState.Success
+                        }
                     } catch (e: Exception) {
                         println("Error procesando usuarios compartidos: ${e.message}")
                         e.printStackTrace()
@@ -314,10 +387,15 @@ class ShareViewModel(
         // Añadir nuevo listener
         usersRef.child(username).child("sharedWith").addValueEventListener(sharedUsersListener!!)
     }
-    private fun observeUserNotifications(uid: String, username: String) {
-        val notificationsRef = database.getReference("notifications/$uid")
 
-        notificationsRef.addValueEventListener(object : ValueEventListener {
+    private fun observeUserNotifications(uid: String, username: String) {
+        // Remover listener anterior si existe
+        notificationListeners[uid]?.let { listener ->
+            database.getReference("notifications/$uid").removeEventListener(listener)
+        }
+
+        val notificationsRef = database.getReference("notifications/$uid")
+        val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 viewModelScope.launch {
                     try {
@@ -346,15 +424,30 @@ class ShareViewModel(
             override fun onCancelled(error: DatabaseError) {
                 println("Error al observar notificaciones de $username: ${error.message}")
             }
-        })
+        }
+
+        notificationsRef.addValueEventListener(listener)
+        notificationListeners[uid] = listener
     }
+
     override fun onCleared() {
         super.onCleared()
-        // Limpiar listener al destruir ViewModel
+
+        // Limpiar listener de autenticación
+        authStateListener?.let { listener ->
+            auth.removeAuthStateListener(listener)
+        }
+
+        // Limpiar listener de usuarios compartidos
         sharedUsersListener?.let { listener ->
             _currentUsername.value?.let { username ->
                 usersRef.child(username).child("sharedWith").removeEventListener(listener)
             }
+        }
+
+        // Limpiar listeners de notificaciones
+        notificationListeners.forEach { (uid, listener) ->
+            database.getReference("notifications/$uid").removeEventListener(listener)
         }
     }
 }

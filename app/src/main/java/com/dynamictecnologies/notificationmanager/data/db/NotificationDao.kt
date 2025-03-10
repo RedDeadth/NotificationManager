@@ -63,4 +63,9 @@ interface NotificationDao {
             )
         }
     }
+    @Query("DELETE FROM notifications")
+    suspend fun deleteAllNotifications()
+
+    @Query("UPDATE notifications SET syncStatus = 'PENDING', isSynced = 0, syncTimestamp = NULL")
+    suspend fun clearSyncStatus()
 }

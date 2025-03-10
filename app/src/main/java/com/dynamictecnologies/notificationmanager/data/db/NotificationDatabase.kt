@@ -29,7 +29,7 @@ abstract class NotificationDatabase : RoomDatabase() {
                     NotificationDatabase::class.java,
                     "notification_database"
                 )
-                    .fallbackToDestructiveMigration() // Esto permitirá recrear la base de datos si hay cambios
+                    .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
                 instance
