@@ -141,10 +141,22 @@ fun NavigationGraph(
             popEnterTransition = { NavigationAnimations.popEnterTransition() },
             popExitTransition = { NavigationAnimations.popExitTransition() }
         ) {
+            val userProfile by userViewModel.userProfile.collectAsState()
+            val errorMessage by userViewModel.errorState.collectAsState()
+            val isLoading by userViewModel.isLoading.collectAsState()
+
             ProfileScreen(
-                usernameState = userViewModel.usernameState.collectAsState().value,
+                userInfo = userProfile,
+                errorMessage = errorMessage,
+                isLoading = isLoading,
                 onCreateProfile = { username ->
                     userViewModel.registerUsername(username)
+                },
+                onRefresh = {
+                    userViewModel.refreshProfile()
+                },
+                onErrorDismiss = {
+                    userViewModel.clearError()
                 },
                 onLogout = {
                     authViewModel.signOut()

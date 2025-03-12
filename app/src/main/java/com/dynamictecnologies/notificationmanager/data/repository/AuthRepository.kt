@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import com.dynamictecnologies.notificationmanager.R
+import com.dynamictecnologies.notificationmanager.service.UserService
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
@@ -14,7 +15,9 @@ import kotlinx.coroutines.tasks.await
 
 class AuthRepository(
     private val context: Context,
-    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
+    private val auth: FirebaseAuth = FirebaseAuth.getInstance(),
+    private val userService: UserService
+
 ) {
     private val prefs: SharedPreferences = context.getSharedPreferences(
         "auth_prefs",
@@ -64,6 +67,7 @@ class AuthRepository(
         auth.signOut()
         googleSignInClient.signOut()
         clearUserSession()
+        userService.cleanup()
     }
 
     private fun saveUserSession(user: FirebaseUser) {

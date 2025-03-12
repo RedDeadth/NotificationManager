@@ -6,100 +6,90 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.dynamictecnologies.notificationmanager.data.model.UserInfo
 import com.dynamictecnologies.notificationmanager.service.UserService
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.database.FirebaseDatabase
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class UserViewModel(
-    private val userService: UserService
+    private val auth: FirebaseAuth,
+    private val database: FirebaseDatabase
 ) : ViewModel() {
-    private val _usernameState = MutableStateFlow<UsernameState>(UsernameState.Initial)
-    val usernameState = _usernameState.asStateFlow()
 
-    private val _availableUsers = MutableStateFlow<List<String>>(emptyList())
-    val availableUsers = _availableUsers.asStateFlow()
+    private val userService = UserService(
+        auth = auth,
+        database = database,
+        scope = viewModelScope
+    )
 
-    private val _sharedUsers = MutableStateFlow<List<UserInfo>>(emptyList())
-    val sharedUsers = _sharedUsers.asStateFlow()
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading = _isLoading.asStateFlow()
 
-    private val _currentUsername = MutableStateFlow<String?>(null)
-    val currentUsername = _currentUsername.asStateFlow()
+    val userProfile = userService.userProfileFlow
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = null
+        )
+
+    private val _errorState = MutableStateFlow<String?>(null)
+    val errorState = _errorState.asStateFlow()
 
     init {
-        observeAuthState()
+        refreshProfile()
     }
 
-    private fun checkUserRegistration() {
+    fun refreshProfile() {
         viewModelScope.launch {
-            _usernameState.value = UsernameState.Loading
-            userService.checkCurrentUserRegistration()
-                .onSuccess { userInfo ->
-                    if (userInfo == null) {
-                        _usernameState.value = UsernameState.Initial
-                        _currentUsername.value = null
-                    } else {
-                        _usernameState.value = UsernameState.Success(userInfo)
-                        _currentUsername.value = userInfo.username
-                    }
-                }
-                .onFailure { error ->
-                    Log.e("UserViewModel", "Error al verificar registro: ${error.message}")
-                    _usernameState.value = UsernameState.Error(error.message ?: "Error desconocido")
-                    _currentUsername.value = null
-                }
+            try {
+                _isLoading.value = true
+                userService.checkCurrentUserRegistration()
+            } catch (e: Exception) {
+                _errorState.value = e.message
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 
     fun registerUsername(username: String) {
         viewModelScope.launch {
-            Log.d("UserViewModel", "Intentando registrar username: $username")
-            _usernameState.value = UsernameState.Loading
-
-            userService.registerUsername(username)
-                .onSuccess { userInfo ->
-                    Log.d("UserViewModel", "Username registrado exitosamente: $userInfo")
-                    _usernameState.value = UsernameState.Success(userInfo)
-                    _currentUsername.value = userInfo.username
-                }
-                .onFailure { error ->
-                    Log.e("UserViewModel", "Error al registrar username: ${error.message}")
-                    _usernameState.value = UsernameState.Error(error.message ?: "Error desconocido")
-                }
-        }
-    }
-
-    fun clearState() {
-        _usernameState.value = UsernameState.Initial
-        _availableUsers.value = emptyList()
-        _sharedUsers.value = emptyList()
-        _currentUsername.value = null
-    }
-
-    private fun observeAuthState() {
-        userService.observeAuthChanges { user ->
-            if (user == null) {
-                clearState()
-            } else {
-                checkUserRegistration()
+            try {
+                _isLoading.value = true
+                _errorState.value = null
+                userService.registerUsername(username)
+            } catch (e: Exception) {
+                _errorState.value = e.message
+            } finally {
+                _isLoading.value = false
             }
         }
     }
-}
 
-sealed class UsernameState {
-    object Initial : UsernameState()
-    object Loading : UsernameState()
-    data class Success(val userInfo: UserInfo) : UsernameState()
-    data class Error(val message: String) : UsernameState()
+    fun clearError() {
+        _errorState.value = null
+    }
+
+    internal fun getUserService(): UserService = userService
+
+    override fun onCleared() {
+        super.onCleared()
+        userService.cleanup()
+    }
 }
 
 class UserViewModelFactory(
-    private val userService: UserService
+    private val auth: FirebaseAuth,
+    private val database: FirebaseDatabase
 ) : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(UserViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return UserViewModel(userService) as T
+            return UserViewModel(auth, database) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

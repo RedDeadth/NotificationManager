@@ -160,54 +160,5 @@ private fun SharedScreenContent(
                 }
             }
         }
-
-        // Lista de notificaciones por usuario
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            items(sharedUsers) { user ->
-                UserNotificationsCard(
-                    username = user.username,
-                    notifications = sharedUsersNotifications[user.username] ?: emptyList()
-                )
-            }
-        }
     }
-}
-
-@Composable
-private fun UserNotificationsCard(
-    username: String,
-    notifications: List<NotificationInfo>
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = "Notificaciones de $username",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-
-            NotificationHistoryCard(
-                notifications = notifications,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp)
-            )
-        }
-    }
-}
-
-private fun formatDate(date: Date): String {
-    val formatter = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
-    return formatter.format(date)
 }

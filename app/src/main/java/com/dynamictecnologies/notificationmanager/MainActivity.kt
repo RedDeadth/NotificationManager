@@ -19,16 +19,28 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import com.dynamictecnologies.notificationmanager.viewmodel.UserViewModel
 import com.dynamictecnologies.notificationmanager.viewmodel.ShareViewModel
-import com.dynamictecnologies.notificationmanager.viewmodel.UserViewModelFactory
 
 class MainActivity : ComponentActivity() {
     private val permissionManager by lazy {
         PermissionManager(this)
     }
 
-    // ViewModels
+    // Actualiza la creación del UserService
+    private val userViewModel: UserViewModel by viewModels {
+        UserViewModelFactory(
+            auth = FirebaseAuth.getInstance(),
+            database = FirebaseDatabase.getInstance()
+        )
+    }
+
     private val authViewModel: AuthViewModel by viewModels {
-        AuthViewModelFactory(AuthRepository(this))
+        AuthViewModelFactory(
+            AuthRepository(
+                context = this,
+                auth = FirebaseAuth.getInstance(),
+                userService = userViewModel.getUserService() // Método que añadiremos al ViewModel
+            )
+        )
     }
 
     private val permissionViewModel: PermissionViewModel by viewModels {
@@ -39,9 +51,7 @@ class MainActivity : ComponentActivity() {
         AppListViewModelFactory(applicationContext, createRepository())
     }
 
-    private val userViewModel: UserViewModel by viewModels {
-        UserViewModelFactory(createUserService())
-    }
+
     private val shareViewModel: ShareViewModel by viewModels {
         ShareViewModelFactory()
     }
@@ -88,12 +98,6 @@ class MainActivity : ComponentActivity() {
             notificationDao = database.notificationDao(),
             firebaseService = firebaseService,
             context = applicationContext
-        )
-    }
-    private fun createUserService(): UserService {
-        return UserService(
-            FirebaseAuth.getInstance(),
-            FirebaseDatabase.getInstance()
         )
     }
     private fun createFirebaseService(): FirebaseService {

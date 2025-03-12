@@ -39,8 +39,7 @@ fun AppListScreen(
     val notifications by viewModel.notifications.collectAsState()
 
     var showShareDialog by remember { mutableStateOf(false) }
-    val usernameState by userViewModel.usernameState.collectAsState()
-    val sharedUsers by userViewModel.sharedUsers.collectAsState()
+
 
     var currentScreen by remember { mutableStateOf(Screen.HOME) }
 
