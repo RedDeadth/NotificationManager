@@ -163,23 +163,30 @@ class UserService(
 
         _userProfileFlow.value = null
     }
+    private fun validateUsername(username: String): String? {
+        // Eliminar espacios al inicio y final
+        val trimmedUsername = username.trim()
 
-    private fun createUserListener(username: String): ValueEventListener {
-        return object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                updateUserProfile(snapshot, username)
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                Log.e("UserService", "Error al escuchar cambios: ${error.message}")
-                _userProfileFlow.value = null
-            }
+        return when {
+            trimmedUsername.isBlank() -> "El nombre de usuario no puede estar vacío"
+            trimmedUsername.length < 3 -> "El nombre de usuario debe tener al menos 3 caracteres"
+            trimmedUsername.length > 30 -> "El nombre de usuario no puede tener más de 30 caracteres"
+            trimmedUsername.contains(" ") -> "El nombre de usuario no puede contener espacios"
+            !trimmedUsername.matches("^[a-zA-Z0-9]+$".toRegex()) ->
+                "El nombre de usuario solo puede contener letras y números"
+            else -> null
         }
     }
+
 
     suspend fun registerUsername(username: String) {
         try {
             val currentUser = auth.currentUser ?: throw Exception("No hay usuario autenticado")
+
+            // Validar formato del username
+            validateUsername(username)?.let { error ->
+                throw Exception(error)
+            }
 
             // Verificar si el usuario ya tiene un perfil
             val existingProfileQuery = usernamesRef
@@ -216,6 +223,8 @@ class UserService(
             ).await()
 
             setupUserListener(username)
+            Log.d("UserService", "Usuario registrado exitosamente: $username")
+
         } catch (e: Exception) {
             Log.e("UserService", "Error en registro: ${e.message}")
             throw e

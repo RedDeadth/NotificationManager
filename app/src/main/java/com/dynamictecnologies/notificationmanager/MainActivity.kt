@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
 import com.dynamictecnologies.notificationmanager.data.db.NotificationDatabase
 import com.dynamictecnologies.notificationmanager.data.repository.AuthRepository
@@ -34,11 +35,21 @@ class MainActivity : ComponentActivity() {
     }
 
     private val authViewModel: AuthViewModel by viewModels {
+        val auth = FirebaseAuth.getInstance()
+        val database = FirebaseDatabase.getInstance()
+        
+        // Usar el mismo scope que se usará en UserViewModel para consistencia
+        val userService = UserService(
+            auth = auth,
+            database = database,
+            scope = lifecycleScope
+        )
+        
         AuthViewModelFactory(
             AuthRepository(
                 context = this,
-                auth = FirebaseAuth.getInstance(),
-                userService = userViewModel.getUserService() // Método que añadiremos al ViewModel
+                auth = auth,
+                userService = userService
             )
         )
     }

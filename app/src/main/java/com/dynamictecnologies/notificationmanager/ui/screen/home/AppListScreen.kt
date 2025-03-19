@@ -13,7 +13,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.dynamictecnologies.notificationmanager.ui.components.ShareDialog
 import com.dynamictecnologies.notificationmanager.viewmodel.AppListViewModel
 import com.dynamictecnologies.notificationmanager.viewmodel.UserViewModel
 import com.dynamictecnologies.notificationmanager.ui.components.InitialSelectionCard

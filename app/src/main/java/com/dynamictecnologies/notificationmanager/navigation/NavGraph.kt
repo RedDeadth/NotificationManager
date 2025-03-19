@@ -180,11 +180,10 @@ fun NavigationGraph(
             enterTransition = { NavigationAnimations.enterTransition() },
             exitTransition = { NavigationAnimations.exitTransition() },
             popEnterTransition = { NavigationAnimations.popEnterTransition() },
-            popExitTransition = { NavigationAnimations.popExitTransition() }
+            popExitTransition = { NavigationAnimations.popExitTransition() },
         ) {
             ShareScreen(
                 shareViewModel = shareViewModel,
-                userViewModel = userViewModel,
                 onNavigateToProfile = {
                     navController.navigate(Screen.Profile.route)
                 },

@@ -2,6 +2,8 @@ package com.dynamictecnologies.notificationmanager.ui.screen.home
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -10,6 +12,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.input.ImeAction  // Corrección aquí
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.dp
 import com.dynamictecnologies.notificationmanager.data.model.UserInfo
 import com.dynamictecnologies.notificationmanager.ui.components.AppBottomBar
@@ -32,20 +44,19 @@ fun ProfileScreen(
     var username by remember { mutableStateOf("") }
     var isError by remember { mutableStateOf(false) }
 
-    // Cargar perfil cuando se inicia la pantalla
+    // Cargar perfil cuando se inicia la pantalla y cuando hay cambios en userInfo o errorMessage
     LaunchedEffect(Unit) {
+        println("ProfileScreen: Iniciando carga de perfil")
         onRefresh()
     }
-
-    // Mostrar loading
-    if (isLoading) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator()
+    
+    // Debug del userInfo
+    LaunchedEffect(userInfo) {
+        if (userInfo != null) {
+            println("ProfileScreen: Perfil cargado - username=${userInfo.username}, email=${userInfo.email}")
+        } else {
+            println("ProfileScreen: userInfo es null")
         }
-        return
     }
 
     // Dialog de error
@@ -91,12 +102,19 @@ fun ProfileScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            if (userInfo != null) {
+            // Mostrar loading spinner solo si está cargando inicialmente
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            } else if (userInfo != null) {
+                // Mostrar perfil si está disponible
                 ProfileContent(
                     userInfo = userInfo,
                     onLogout = onLogout
                 )
             } else {
+                // Mostrar formulario de creación si no hay perfil
                 CreateProfileForm(
                     username = username,
                     isError = isError,
@@ -217,48 +235,78 @@ fun ProfileContent(
         }
     }
 }
-
 @Composable
 fun CreateProfileForm(
     username: String,
     isError: Boolean,
     onUsernameChange: (String) -> Unit,
-    onCreateProfile: () -> Unit
+    onCreateProfile: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
+    var showError by remember { mutableStateOf<String?>(null) }
+
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "Crea tu perfil",
+            text = "Crear Perfil",
             style = MaterialTheme.typography.headlineMedium,
             modifier = Modifier.padding(bottom = 24.dp)
         )
 
         OutlinedTextField(
             value = username,
-            onValueChange = onUsernameChange,
+            onValueChange = { value ->
+                // Eliminar espacios y caracteres no permitidos inmediatamente
+                val filtered = value.replace("\\s+".toRegex(), "")
+                    .filter { it.isLetterOrDigit() }
+                onUsernameChange(filtered)
+
+                // Mostrar error si intentan poner espacios
+                if (value.contains(" ")) {
+                    showError = "No se permiten espacios"
+                } else {
+                    showError = null
+                }
+            },
             label = { Text("Nombre de usuario") },
-            isError = isError,
+            supportingText = {
+                Column {
+                    Text("Solo letras y números permitidos")
+                    showError?.let {
+                        Text(
+                            text = it,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+            },
+            isError = isError || showError != null,
             singleLine = true,
-            modifier = Modifier.fillMaxWidth()
+            keyboardOptions = KeyboardOptions(
+                imeAction = ImeAction.Done,  // Corregido aquí
+                capitalization = KeyboardCapitalization.None,
+                keyboardType = KeyboardType.Text
+            ),
+            keyboardActions = KeyboardActions(
+                onDone = {
+                    if (username.length >= 3 && !username.contains(" ")) {
+                        onCreateProfile()
+                    }
+                }
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp)
         )
-
-        if (isError) {
-            Text(
-                text = "El nombre de usuario no puede estar vacío",
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
 
         Button(
             onClick = onCreateProfile,
+            enabled = username.length >= 3 && !username.contains(" "),
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Crear Perfil")

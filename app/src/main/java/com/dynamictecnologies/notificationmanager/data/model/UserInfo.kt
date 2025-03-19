@@ -5,5 +5,6 @@ data class UserInfo(
     val username: String = "",
     val email: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
-    val sharedWith: Map<String, String> = emptyMap()
+    val sharedWith: Map<String, String> = emptyMap(),
+    val isShared: Boolean = false
 )
