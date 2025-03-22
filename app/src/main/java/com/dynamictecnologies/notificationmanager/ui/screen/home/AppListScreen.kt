@@ -29,7 +29,8 @@ fun AppListScreen(
     userViewModel: UserViewModel,
     onLogout: () -> Unit,
     onNavigateToProfile: () -> Unit,
-    onNavigateToShared: () -> Unit
+    onNavigateToShared: () -> Unit,
+    onNavigateToSettings: () -> Unit = {}
 ) {
     val apps by viewModel.apps.collectAsState()
     val selectedApp by viewModel.selectedApp.collectAsState()
@@ -47,7 +48,8 @@ fun AppListScreen(
             AppTopBar(
                 currentScreen = currentScreen,
                 canShare = selectedApp != null,
-                onShareClick = { showShareDialog = true }
+                onShareClick = { showShareDialog = true },
+                onSettingsClick = onNavigateToSettings
             )
         },
         bottomBar = {

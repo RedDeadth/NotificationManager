@@ -68,4 +68,10 @@ interface NotificationDao {
 
     @Query("UPDATE notifications SET syncStatus = 'PENDING', isSynced = 0, syncTimestamp = NULL")
     suspend fun clearSyncStatus()
+
+    @Query("DELETE FROM notifications WHERE packageName = :packageName AND id NOT IN (SELECT id FROM notifications WHERE packageName = :packageName ORDER BY timestamp DESC LIMIT :limit)")
+    suspend fun keepOnlyRecentNotifications(packageName: String, limit: Int)
+
+    @Query("SELECT COUNT(*) FROM notifications WHERE packageName = :packageName")
+    suspend fun getNotificationCountForApp(packageName: String): Int
 }

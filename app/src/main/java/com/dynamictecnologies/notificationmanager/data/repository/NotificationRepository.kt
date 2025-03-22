@@ -30,10 +30,14 @@ class NotificationRepository(
     private val TAG = "NotificationRepo"
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
+    // Número máximo de notificaciones a mantener por app
+    private val MAX_NOTIFICATIONS_PER_APP = 50
+
     private val prefs = context.getSharedPreferences("app_preferences", Context.MODE_PRIVATE)
 
     init {
         startPeriodicSync()
+        startPeriodicCleanup()
     }
 
     private fun isAppAllowedForSync(packageName: String): Boolean {
@@ -56,6 +60,26 @@ class NotificationRepository(
             }
         }
     }
+
+    /**
+     * Inicia limpieza periódica de notificaciones antiguas
+     */
+    private fun startPeriodicCleanup() {
+        scope.launch {
+            while (isActive) {
+                try {
+                    val packageName = prefs.getString("last_selected_app", null)
+                    packageName?.let { 
+                        cleanupOldNotifications(it)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error en limpieza periódica: ${e.message}", e)
+                }
+                delay(6 * 60 * 60 * 1000) // Ejecutar cada 6 horas
+            }
+        }
+    }
+
     fun getNotifications(packageName: String): Flow<List<NotificationInfo>> {
         return notificationDao.getNotificationsForApp(packageName)
             .onStart {
@@ -99,6 +123,20 @@ class NotificationRepository(
             val notificationWithStatus = notification.copy(syncStatus = SyncStatus.PENDING)
             val id = notificationDao.insertNotification(notificationWithStatus)
             Log.d(TAG, "Notificación guardada localmente con ID: $id")
+            
+            // Verificar si necesitamos limpiar notificaciones antiguas
+            scope.launch(Dispatchers.IO) {
+                try {
+                    // Verificar cuántas notificaciones tenemos para esta app
+                    val count = notificationDao.getNotificationCountForApp(notification.packageName)
+                    if (count > MAX_NOTIFICATIONS_PER_APP) {
+                        Log.d(TAG, "Limpiando notificaciones antiguas después de insertar nueva. Total: $count")
+                        cleanupOldNotifications(notification.packageName)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error verificando límite de notificaciones: ${e.message}")
+                }
+            }
 
             if (isNetworkAvailable()) {
                 // Actualizar status a SYNCING antes de sincronizar
@@ -144,6 +182,23 @@ class NotificationRepository(
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error en syncPendingNotifications: ${e.message}")
+        }
+    }
+
+    /**
+     * Mantiene solo las notificaciones más recientes para una app específica
+     */
+    suspend fun cleanupOldNotifications(packageName: String) {
+        try {
+            val count = notificationDao.getNotificationCountForApp(packageName)
+            
+            if (count > MAX_NOTIFICATIONS_PER_APP) {
+                Log.d(TAG, "Limpiando notificaciones antiguas para $packageName. Total: $count, Manteniendo: $MAX_NOTIFICATIONS_PER_APP")
+                notificationDao.keepOnlyRecentNotifications(packageName, MAX_NOTIFICATIONS_PER_APP)
+                Log.d(TAG, "✓ Limpieza completada. Eliminadas ${count - MAX_NOTIFICATIONS_PER_APP} notificaciones antiguas")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error limpiando notificaciones antiguas: ${e.message}", e)
         }
     }
 

@@ -125,6 +125,16 @@ class AppListViewModel(
                 app?.let { selectedApp ->
                     prefs.edit().putString("last_selected_app", selectedApp.packageName).apply()
                     Log.d(TAG, "Iniciando observación de notificaciones para: ${selectedApp.name}")
+                    
+                    // Ejecutar limpieza de notificaciones antiguas al seleccionar la app
+                    launch(Dispatchers.IO) {
+                        try {
+                            Log.d(TAG, "Verificando límite de notificaciones para ${selectedApp.name}")
+                            repository.cleanupOldNotifications(selectedApp.packageName)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error limpiando notificaciones antiguas: ${e.message}")
+                        }
+                    }
 
                     notificationJob = launch {
                         repository.getNotifications(selectedApp.packageName)

@@ -100,13 +100,14 @@ class FirebaseService(
 
     suspend fun verifyConnection(): Boolean {
         return try {
-            val connectedRef = database.getReference(".info/connected")
-            val snapshot = connectedRef.get().await()
-            snapshot.getValue(Boolean::class.java) ?: false
+            val pingRef = database.getReference("system_health").child("ping")
+            pingRef.setValue(ServerValue.TIMESTAMP).await()
+            
+            Log.d(TAG, "Verificación de conexión exitosa")
+            true
         } catch (e: Exception) {
             Log.e(TAG, "Error verificando conexión: ${e.message}")
             false
         }
-
     }
 }
