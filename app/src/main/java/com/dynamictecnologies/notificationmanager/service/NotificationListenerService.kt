@@ -8,6 +8,7 @@ import android.os.Build
 import android.provider.Settings
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import android.text.TextUtils
 import android.util.Log
 import com.dynamictecnologies.notificationmanager.data.db.NotificationDatabase
 import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
@@ -61,8 +62,22 @@ class NotificationListenerService : NotificationListenerService() {
 
     override fun onCreate() {
         super.onCreate()
+        Log.i(TAG, "✅ Servicio de escucha de notificaciones creado")
         
-        Log.d(TAG, "NotificationListenerService creado")
+        // Verificar el estado de los permisos
+        val enabled = isNotificationListenerEnabled(applicationContext)
+        Log.i(TAG, "- NotificationListenerEnabled: $enabled")
+        
+        if (!enabled) {
+            Log.w(TAG, "⚠️ ¡Servicio de notificaciones deshabilitado! Intentando reiniciar...")
+            // Enviar un broadcast para mostrar diálogo de permisos
+            val intent = Intent("com.dynamictecnologies.notificationmanager.SHOW_PERMISSION_DIALOG")
+            applicationContext.sendBroadcast(intent)
+        } else {
+            // Actualizar marca de tiempo de conexión
+            val prefs = getSharedPreferences("notification_listener_prefs", Context.MODE_PRIVATE)
+            prefs.edit().putLong("last_connection_time", System.currentTimeMillis()).apply()
+        }
         
         try {
             val database = NotificationDatabase.getDatabase(applicationContext)
@@ -93,19 +108,16 @@ class NotificationListenerService : NotificationListenerService() {
             startDiagnosticReporting()
             
             // Guardar timestamp de inicio
-            val servicePrefs = applicationContext.getSharedPreferences(
-                "notification_listener_prefs", 
-                Context.MODE_PRIVATE
-            )
-            servicePrefs.edit()
+            val prefs = applicationContext.getSharedPreferences("notification_listener_prefs", Context.MODE_PRIVATE)
+            prefs.edit()
                 .putLong("last_service_start", System.currentTimeMillis())
-                .putLong("service_start_count", servicePrefs.getLong("service_start_count", 0) + 1)
+                .putLong("service_start_count", prefs.getLong("service_start_count", 0) + 1)
                 .apply()
             
             Log.d(TAG, "NotificationListenerService inicializado correctamente")
             
             // Verificar si el servicio ha sido reiniciado muchas veces en un período corto
-            checkServiceRestartPattern(servicePrefs)
+            checkServiceRestartPattern(prefs)
         } catch (e: Exception) {
             Log.e(TAG, "Error inicializando NotificationListenerService: ${e.message}", e)
         }
@@ -185,77 +197,29 @@ class NotificationListenerService : NotificationListenerService() {
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
-        if (sbn.packageName == packageName) return
-
-        serviceScope.launch {
-            try {
-                // Registrar que estamos recibiendo notificaciones
-                val prefs = applicationContext.getSharedPreferences(
-                    "notification_listener_prefs", 
-                    Context.MODE_PRIVATE
-                )
-                prefs.edit().putLong("last_notification_received", System.currentTimeMillis()).apply()
-                
-                // Log detallado de cada notificación para diagnóstico
-                Log.d(TAG, "Notificación recibida de: ${sbn.packageName} | ID: ${sbn.id} | Posted time: ${Date(sbn.postTime)}")
-                
-                val notification = sbn.notification
-                val extras = notification.extras
-
-                val title = extras.getString(Notification.EXTRA_TITLE) ?: ""
-                val text = extras.getString(Notification.EXTRA_TEXT) ?: ""
-                val timestamp = sbn.postTime
-
-                // Verificar si es una notificación de resumen
-                if (isSummaryNotification(notification, text)) {
-                    Log.d(TAG, "Ignorando notificación de resumen: $text")
-                    return@launch
-                }
-
-                // Crear clave única
-                val notificationKey = createUniqueKey(sbn.packageName, title, text, timestamp)
-
-                // Verificar duplicados
-                if (isDuplicate(notificationKey)) {
-                    Log.d(TAG, "Ignorando notificación duplicada: $title")
-                    return@launch
-                }
-
-                // Registrar la notificación en el cache
-                recentNotifications[notificationKey] = System.currentTimeMillis()
-                
-                // Incrementar contador de notificaciones
-                notificationCounter++
-
-                Log.d(TAG, "💬 Nueva notificación recibida (#$notificationCounter):")
-                Log.d(TAG, "App: ${sbn.packageName}")
-                Log.d(TAG, "Título: $title")
-                Log.d(TAG, "Contenido: $text")
-
-                withContext(Dispatchers.IO) {
-                    try {
-                        val appInfo = packageManager.getApplicationInfo(sbn.packageName, 0)
-                        val appName = packageManager.getApplicationLabel(appInfo).toString()
-
-                        val notificationInfo = NotificationInfo(
-                            packageName = sbn.packageName,
-                            appName = appName,
-                            title = title,
-                            content = text,
-                            timestamp = Date(timestamp)
-                        )
-
-                        repository.insertNotification(notificationInfo)
-                        Log.d(TAG, "✓ Notificación guardada en la base de datos")
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error obteniendo info de app: ${e.message}")
-                    }
-                }
-
-            } catch (e: Exception) {
-                Log.e(TAG, "❌ Error procesando notificación: ${e.message}")
-                e.printStackTrace()
+        val enabled = isNotificationListenerEnabled(applicationContext)
+        if (!enabled) {
+            Log.w(TAG, "⚠️ Notificación recibida pero el servicio está deshabilitado: ${sbn.packageName}")
+            return
+        }
+        
+        Log.d(TAG, "📱 Notificación recibida de: ${sbn.packageName}")
+        
+        // Actualizar marca de tiempo de última notificación
+        val prefs = getSharedPreferences("notification_listener_prefs", Context.MODE_PRIVATE)
+        prefs.edit().putLong("last_notification_received", System.currentTimeMillis()).apply()
+        
+        try {
+            if (!shouldProcessNotification(sbn)) {
+                return
             }
+            
+            // Procesamos la notificación
+            procesarNotificacion(sbn)
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error procesando notificación: ${e.message}")
+            e.printStackTrace()
         }
     }
 
@@ -315,10 +279,26 @@ class NotificationListenerService : NotificationListenerService() {
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
         isServiceRunning = false
-        Log.d(TAG, "NotificationListenerService desconectado - solicitando reconexión...")
+        Log.w(TAG, "⚠️ Servicio de escucha de notificaciones desconectado")
         
-        // Intentar reconectar inmediatamente
-        requestReconnect()
+        // Intentar reconectar el servicio
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                Log.d(TAG, "Intentando reconectar servicio de notificaciones...")
+                requestRebind(ComponentName(this, NotificationListenerService::class.java))
+            } else {
+                // Para versiones anteriores, intentar reinicio a través del ForegroundService
+                val intent = Intent(applicationContext, NotificationForegroundService::class.java)
+                intent.action = NotificationForegroundService.ACTION_RESTART_NOTIFICATION_LISTENER
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    applicationContext.startForegroundService(intent)
+                } else {
+                    applicationContext.startService(intent)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al intentar reconectar el servicio: ${e.message}")
+        }
     }
     
     override fun onDestroy() {
@@ -492,69 +472,192 @@ class NotificationListenerService : NotificationListenerService() {
         }
     }
 
+    private fun shouldProcessNotification(sbn: StatusBarNotification): Boolean {
+        try {
+            // Ignorar notificaciones de nuestra propia app
+            if (sbn.packageName == packageName) {
+                return false
+            }
+            
+            // Asegurarse que tiene extras
+            val notification = sbn.notification ?: return false
+            val extras = notification.extras ?: return false
+            
+            // Solo procesar si tiene título o texto
+            val title = extras.getString(Notification.EXTRA_TITLE)
+            val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()
+            
+            if (title.isNullOrEmpty() && text.isNullOrEmpty()) {
+                return false
+            }
+            
+            // Obtener nombre de la aplicación para comparar
+            val appName = try {
+                val packageManager = applicationContext.packageManager
+                packageManager.getApplicationLabel(packageManager.getApplicationInfo(sbn.packageName, 0)).toString()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error obteniendo nombre de app: ${e.message}")
+                sbn.packageName
+            }
+            
+            // Verificar que la app está configurada para ser monitorizada
+            val appPrefs = applicationContext.getSharedPreferences("app_preferences", Context.MODE_PRIVATE)
+            val selectedApp = appPrefs.getString("last_selected_app", null)
+            
+            if (selectedApp == null) {
+                Log.d(TAG, "No hay una app seleccionada para monitorizar")
+                return false
+            }
+            
+            // Comparamos por appName, que es lo que usamos ahora para almacenar
+            if (appName != selectedApp && sbn.packageName != selectedApp) {
+                Log.d(TAG, "Ignorando notificación de $appName (${sbn.packageName}), app seleccionada: $selectedApp")
+                return false
+            }
+            
+            // Notificación ha pasado todos los filtros, debe ser procesada
+            return true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error en shouldProcessNotification: ${e.message}")
+            return false
+        }
+    }
+
+    private fun procesarNotificacion(sbn: StatusBarNotification) {
+        try {
+            // Incrementar contador para estadísticas
+            notificationCounter++
+            
+            // Obtener detalles de la notificación
+            val notification = sbn.notification
+            val extras = notification.extras
+            
+            // Extraer información relevante
+            val title = extras.getString(Notification.EXTRA_TITLE) ?: ""
+            val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: ""
+            
+            // Obtener nombre de la aplicación
+            val appName = try {
+                val packageManager = applicationContext.packageManager
+                packageManager.getApplicationLabel(packageManager.getApplicationInfo(sbn.packageName, 0)).toString()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error obteniendo nombre de app: ${e.message}")
+                sbn.packageName // Usar packageName como fallback
+            }
+            
+            // Verificar si esta es una notificación duplicada o de resumen
+            if (text.isNotEmpty() && isSummaryNotification(notification, text)) {
+                Log.d(TAG, "Ignorando notificación de resumen: $appName - $title")
+                return
+            }
+            
+            // Crear clave única para evitar duplicados
+            val key = createUniqueKey(sbn.packageName, title, text, sbn.postTime)
+            if (isDuplicate(key)) {
+                Log.d(TAG, "Ignorando notificación duplicada: $appName - $title")
+                return
+            }
+            recentNotifications[key] = System.currentTimeMillis()
+            
+            // Crear objeto de notificación con formato simplificado
+            val notificationInfo = NotificationInfo(
+                appName = appName,
+                title = title,
+                content = text,
+                timestamp = Date(sbn.postTime)
+            )
+            
+            // Guardar en la base de datos y sincronizar
+            serviceScope.launch(Dispatchers.IO) {
+                try {
+                    // Intentar guardar la notificación usando el repositorio
+                    repository.insertNotification(notificationInfo)
+                    Log.d(TAG, "✓ Notificación guardada: $title ($appName)")
+                } catch (e: Exception) {
+                    Log.e(TAG, "❌ Error guardando notificación: ${e.message}", e)
+                }
+            }
+            
+            // Guardar información en SharedPreferences para diagnóstico
+            val prefs = getSharedPreferences("notification_listener_prefs", Context.MODE_PRIVATE)
+            prefs.edit().apply {
+                putString("last_notification_package", sbn.packageName)
+                putString("last_notification_app", appName)
+                putLong("last_notification_time", System.currentTimeMillis())
+                apply()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error procesando notificación: ${e.message}", e)
+        }
+    }
+
     companion object {
+        private const val TAG = "NotificationListener"
+        
         /**
-         * Verifica si el servicio de notificaciones está habilitado
+         * Comprueba si el servicio de escucha de notificaciones está habilitado
          */
         fun isNotificationListenerEnabled(context: Context): Boolean {
-            val cn = ComponentName(context, NotificationListenerService::class.java)
-            val flat = Settings.Secure.getString(
-                context.contentResolver,
-                "enabled_notification_listeners"
-            )
-            return flat?.contains(cn.flattenToString()) ?: false
+            try {
+                val packageName = context.packageName
+                val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+                if (flat != null && flat.isNotEmpty()) {
+                    val names = flat.split(":".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
+                    for (name in names) {
+                        val componentName = ComponentName.unflattenFromString(name)
+                        if (componentName != null && TextUtils.equals(packageName, componentName.packageName)) {
+                            // El servicio está habilitado en la configuración del sistema
+                            // Guardar estado para referencia futura
+                            val prefs = context.getSharedPreferences("notification_listener_prefs", Context.MODE_PRIVATE)
+                            prefs.edit().putBoolean("notification_listener_enabled", true).apply()
+                            return true
+                        }
+                    }
+                }
+                
+                // El servicio no está habilitado
+                val prefs = context.getSharedPreferences("notification_listener_prefs", Context.MODE_PRIVATE)
+                prefs.edit().putBoolean("notification_listener_enabled", false).apply()
+                return false
+            } catch (e: Exception) {
+                Log.e(TAG, "Error al verificar permisos de notificaciones: ${e.message}")
+                return false
+            }
         }
         
         /**
-         * Solicita un reinicio del servicio desde la actividad principal
+         * Abre la configuración de escucha de notificaciones
+         */
+        fun openNotificationListenerSettings(context: Context) {
+            try {
+                val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(intent)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error al abrir configuración de notificaciones: ${e.message}")
+                // Intenta abrir la configuración general como alternativa
+                try {
+                    val intent = Intent(Settings.ACTION_SETTINGS)
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    context.startActivity(intent)
+                } catch (e2: Exception) {
+                    Log.e(TAG, "Error al abrir configuración general: ${e2.message}")
+                }
+            }
+        }
+        
+        /**
+         * Solicita reiniciar el servicio desde el exterior
          */
         fun requestServiceReset(context: Context) {
-            try {
-                Log.d("NotificationListener", "Solicitud manual de reinicio del servicio")
-                
-                // 1. Desactivar y reactivar el componente
-                val componentName = ComponentName(context, NotificationListenerService::class.java)
-                context.packageManager.setComponentEnabledSetting(
-                    componentName,
-                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                    PackageManager.DONT_KILL_APP
-                )
-                
-                // Pequeña pausa para asegurar que los cambios se apliquen
-                Thread.sleep(500)
-                
-                context.packageManager.setComponentEnabledSetting(
-                    componentName,
-                    PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-                    PackageManager.DONT_KILL_APP
-                )
-                
-                // 2. Reiniciar el servicio en primer plano
-                val serviceIntent = Intent(context, NotificationForegroundService::class.java)
-                serviceIntent.action = NotificationForegroundService.ACTION_RESTART_NOTIFICATION_LISTENER
-                
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    context.startForegroundService(serviceIntent)
-                } else {
-                    context.startService(serviceIntent)
-                }
-                
-                // 3. Registrar el reinicio manual
-                val prefs = context.getSharedPreferences(
-                    "notification_listener_prefs", 
-                    Context.MODE_PRIVATE
-                )
-                
-                prefs.edit().apply {
-                    putLong("manual_reset_time", System.currentTimeMillis())
-                    putInt("manual_reset_count", prefs.getInt("manual_reset_count", 0) + 1)
-                    apply()
-                }
-                
-                Log.d("NotificationListener", "Solicitud de reinicio manual completada")
-            } catch (e: Exception) {
-                Log.e("NotificationListener", "Error en reinicio manual: ${e.message}", e)
+            val intent = Intent(context, NotificationForegroundService::class.java)
+            intent.action = NotificationForegroundService.ACTION_RESTART_NOTIFICATION_LISTENER
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
             }
+            Log.d(TAG, "Solicitud de reinicio del servicio enviada")
         }
     }
 }

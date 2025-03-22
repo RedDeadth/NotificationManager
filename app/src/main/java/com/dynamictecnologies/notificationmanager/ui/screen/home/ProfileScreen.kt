@@ -43,11 +43,17 @@ fun ProfileScreen(
 ) {
     var username by remember { mutableStateOf("") }
     var isError by remember { mutableStateOf(false) }
+    
+    // Estado para evitar múltiples cargas
+    var hasAttemptedLoad by remember { mutableStateOf(false) }
 
-    // Cargar perfil cuando se inicia la pantalla y cuando hay cambios en userInfo o errorMessage
+    // Cargar perfil solo la primera vez que se inicia la pantalla
     LaunchedEffect(Unit) {
         println("ProfileScreen: Iniciando carga de perfil")
-        onRefresh()
+        if (!hasAttemptedLoad) {
+            onRefresh()
+            hasAttemptedLoad = true
+        }
     }
     
     // Debug del userInfo
@@ -83,6 +89,20 @@ fun ProfileScreen(
                     }
                 }
             )
+            
+            // Botón de recargar solo si ya hay un perfil, fuera del AppTopBar
+            if (userInfo != null && !isLoading) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    IconButton(onClick = onRefresh) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Actualizar perfil")
+                    }
+                }
+            }
         },
         bottomBar = {
             AppBottomBar(
@@ -102,34 +122,49 @@ fun ProfileScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Mostrar loading spinner solo si está cargando inicialmente
-            if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            } else if (userInfo != null) {
+            // Primero determinamos si hay un perfil o no
+            if (userInfo != null) {
                 // Mostrar perfil si está disponible
                 ProfileContent(
                     userInfo = userInfo,
-                    onLogout = onLogout
+                    onLogout = onLogout,
+                    isLoading = isLoading
                 )
-            } else {
-                // Mostrar formulario de creación si no hay perfil
-                CreateProfileForm(
-                    username = username,
-                    isError = isError,
-                    onUsernameChange = {
-                        username = it
-                        isError = false
-                    },
-                    onCreateProfile = {
-                        if (username.isBlank()) {
-                            isError = true
-                        } else {
-                            onCreateProfile(username)
-                        }
+                
+                // Mostrar indicador de carga como overlay si está actualizando
+                if (isLoading) {
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
-                )
+                }
+            } else {
+                // Si no hay perfil y está cargando, mostrar loading spinner
+                if (isLoading) {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    }
+                } else {
+                    // Mostrar formulario de creación si no hay perfil y no está cargando
+                    CreateProfileForm(
+                        username = username,
+                        isError = isError,
+                        onUsernameChange = {
+                            username = it
+                            isError = false
+                        },
+                        onCreateProfile = {
+                            if (username.isBlank()) {
+                                isError = true
+                            } else {
+                                onCreateProfile(username)
+                            }
+                        }
+                    )
+                }
             }
         }
     }
@@ -167,7 +202,8 @@ private fun ProfileInfoRow(
 @Composable
 fun ProfileContent(
     userInfo: UserInfo,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    isLoading: Boolean = false
 ) {
     Column(
         modifier = Modifier

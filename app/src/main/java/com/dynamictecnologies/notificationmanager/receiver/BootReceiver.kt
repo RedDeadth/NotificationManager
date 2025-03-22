@@ -16,64 +16,63 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.GlobalScope
 
+/**
+ * Receptor que se activa cuando el dispositivo se inicia.
+ * Inicia el servicio en primer plano y verifica los permisos.
+ */
 class BootReceiver : BroadcastReceiver() {
-    private val TAG = "BootReceiver"
+    companion object {
+        private const val TAG = "BootReceiver"
+        
+        // Retraso inicial para el arranque (reducido a 10 segundos)
+        private const val STARTUP_DELAY = 10 * 1000L
+        
+        // Retraso secundario para verificación (reducido a 2 minutos)
+        private const val SECONDARY_STARTUP_DELAY = 2 * 60 * 1000L
+    }
     
     override fun onReceive(context: Context, intent: Intent) {
+        Log.d(TAG, "🔄 Boot completado o acción recibida: ${intent.action}")
+        
+        // Verificar que la acción sea la correcta
         if (intent.action == Intent.ACTION_BOOT_COMPLETED ||
-            intent.action == Intent.ACTION_MY_PACKAGE_REPLACED ||
-            intent.action == Intent.ACTION_LOCKED_BOOT_COMPLETED) {
+            intent.action == "android.intent.action.QUICKBOOT_POWERON" ||
+            intent.action == "com.htc.intent.action.QUICKBOOT_POWERON" ||
+            intent.action == "android.intent.action.MY_PACKAGE_REPLACED") {
             
-            Log.d(TAG, "Evento de arranque detectado: ${intent.action}")
-            
-            // Utilizar un Handler para retrasar el inicio y evitar problemas
-            // cuando el sistema está muy ocupado durante el arranque
-            Handler(Looper.getMainLooper()).postDelayed({
+            // Iniciar con retraso para asegurarnos de que el sistema esté completamente iniciado
+            GlobalScope.launch {
                 try {
-                    Log.d(TAG, "Iniciando servicios después del arranque (con retraso)...")
-                    enableNotificationListenerService(context)
-                    startForegroundService(context)
-                    recordBootEvent(context)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error iniciando servicios en el arranque: ${e.message}", e)
-                }
-            }, STARTUP_DELAY)
-            
-            // También iniciar usando Coroutine para mayor fiabilidad
-            CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
-                try {
-                    // Esperar a que el sistema esté más estable
-                    delay(SECONDARY_STARTUP_DELAY)
+                    // Esperar 10 segundos para que el sistema se estabilice
+                    delay(10000)
                     
-                    Log.d(TAG, "Verificando servicios (segunda comprobación)...")
-                    if (!isServiceRunning(context)) {
-                        Log.d(TAG, "Servicios no iniciados en la primera verificación, intentando nuevamente...")
-                        enableNotificationListenerService(context)
-                        startForegroundService(context)
+                    // Verificar permisos de notificación
+                    val hasPermissions = NotificationListenerService.isNotificationListenerEnabled(context)
+                    Log.d(TAG, "Estado de permisos de notificación tras arranque: $hasPermissions")
+                    
+                    // Iniciar el servicio en primer plano
+                    val serviceIntent = Intent(context, NotificationForegroundService::class.java)
+                    serviceIntent.action = NotificationForegroundService.ACTION_SCHEDULED_CHECK
+                    
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        context.startForegroundService(serviceIntent)
+                    } else {
+                        context.startService(serviceIntent)
                     }
                     
-                    // Añadir verificaciones adicionales con más retraso para asegurar el inicio
-                    // Tercer intento a los 10 minutos
-                    delay(7 * 60 * 1000L)
+                    Log.d(TAG, "✅ Servicio iniciado tras reinicio del dispositivo")
                     
-                    Log.d(TAG, "Tercera verificación de servicios...")
-                    if (!isServiceRunning(context)) {
-                        Log.d(TAG, "Servicios no detectados en tercera verificación, solicitando reinicio forzado...")
-                        enableNotificationListenerService(context)
-                        startForegroundService(context, true)
-                    }
-                    
-                    // Cuarta verificación después de 30 minutos
-                    delay(20 * 60 * 1000L)
-                    
-                    Log.d(TAG, "Verificación final de servicios...")
-                    if (!isServiceRunning(context)) {
-                        Log.d(TAG, "Los servicios siguen sin iniciarse después de múltiples intentos, realizando reinicio forzado...")
-                        performForceRestart(context)
+                    // Si no hay permisos, enviar broadcast para mostrar diálogo
+                    if (!hasPermissions) {
+                        delay(15000) // Esperar un poco más para que la UI esté lista
+                        val permIntent = Intent("com.dynamictecnologies.notificationmanager.SHOW_PERMISSION_DIALOG")
+                        context.sendBroadcast(permIntent)
+                        Log.d(TAG, "📣 Solicitando mostrar diálogo de permisos")
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error en las verificaciones secundarias: ${e.message}", e)
+                    Log.e(TAG, "❌ Error al iniciar servicio tras arranque: ${e.message}")
                 }
             }
         }
@@ -199,13 +198,5 @@ class BootReceiver : BroadcastReceiver() {
             putInt("boot_count", prefs.getInt("boot_count", 0) + 1)
             apply()
         }
-    }
-    
-    companion object {
-        // Retraso inicial para el arranque (reducido a 10 segundos)
-        private const val STARTUP_DELAY = 10 * 1000L
-        
-        // Retraso secundario para verificación (reducido a 2 minutos)
-        private const val SECONDARY_STARTUP_DELAY = 2 * 60 * 1000L
     }
 } 

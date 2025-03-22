@@ -68,8 +68,8 @@ class NotificationRepository(
         scope.launch {
             while (isActive) {
                 try {
-                    val packageName = prefs.getString("last_selected_app", null)
-                    packageName?.let { 
+                    val selectedApp = prefs.getString("last_selected_app", null)
+                    selectedApp?.let { 
                         cleanupOldNotifications(it)
                     }
                 } catch (e: Exception) {
@@ -81,17 +81,31 @@ class NotificationRepository(
     }
 
     fun getNotifications(packageName: String): Flow<List<NotificationInfo>> {
-        return notificationDao.getNotificationsForApp(packageName)
+        Log.d(TAG, "getNotifications llamado para packageName: $packageName")
+        val appName = getAppNameFromPackage(packageName)
+        Log.d(TAG, "Nombre de aplicación traducido: $appName")
+        
+        return notificationDao.getNotificationsForApp(appName)
             .onStart {
-                emit(notificationDao.getNotificationsForAppImmediate(packageName))
+                Log.d(TAG, "Emitiendo notificaciones locales iniciales para $appName")
+                val localNotifications = notificationDao.getNotificationsForAppImmediate(appName)
+                Log.d(TAG, "Encontradas ${localNotifications.size} notificaciones locales para $appName")
+                emit(localNotifications)
 
                 if (isNetworkAvailable()) {
                     try {
-                        val remoteNotifications = firebaseService.getNotifications(packageName)
+                        Log.d(TAG, "Obteniendo notificaciones remotas de Firebase...")
+                        // Obtenemos todas las notificaciones y filtramos por appName localmente
+                        val remoteNotifications = firebaseService.getNotifications()
+                            .filter { it.appName == appName || it.appName == packageName }
+                        
+                        Log.d(TAG, "Recibidas ${remoteNotifications.size} notificaciones remotas filtradas para $appName")
                         processRemoteNotifications(remoteNotifications)
                     } catch (e: Exception) {
-                        Log.e(TAG, "Error en sincronización inicial: ${e.message}")
+                        Log.e(TAG, "Error en sincronización inicial: ${e.message}", e)
                     }
+                } else {
+                    Log.d(TAG, "Red no disponible. Usando solo datos locales.")
                 }
             }
             .distinctUntilChanged()
@@ -99,64 +113,87 @@ class NotificationRepository(
     }
 
     private suspend fun processRemoteNotifications(remoteNotifications: List<NotificationInfo>) {
+        if (remoteNotifications.isEmpty()) {
+            Log.d(TAG, "No hay notificaciones remotas para procesar")
+            return
+        }
+        
+        Log.d(TAG, "Procesando ${remoteNotifications.size} notificaciones remotas")
+        var procesadas = 0
+        
         remoteNotifications.forEach { notification ->
             try {
                 // Marcar las notificaciones remotas como SYNCED
                 notificationDao.insertOrUpdateNotification(notification.copy(
                     isSynced = true,
-                    syncStatus = SyncStatus.SYNCED,
-                    syncTimestamp = System.currentTimeMillis()
+                    syncStatus = SyncStatus.SYNCED
                 ))
+                procesadas++
             } catch (e: Exception) {
-                Log.e(TAG, "Error procesando notificación remota: ${e.message}")
+                Log.e(TAG, "Error procesando notificación remota: ${e.message}", e)
             }
         }
+        
+        Log.d(TAG, "Notificaciones remotas procesadas: $procesadas/${remoteNotifications.size}")
     }
 
     suspend fun insertNotification(notification: NotificationInfo) {
         try {
-            if (!isAppAllowedForSync(notification.packageName)) {
-                Log.d(TAG, "Notificación ignorada: ${notification.packageName} no es la app seleccionada")
+            // Determinar el appName correcto (usar el proporcionado o derivarlo)
+            val appName = if (notification.appName.isNotEmpty()) {
+                notification.appName
+            } else {
+                // Si no hay appName, intentar usar la app seleccionada
+                val selectedPackage = prefs.getString("last_selected_app", null) ?: return
+                getAppNameFromPackage(selectedPackage)
+            }
+            
+            // Verificar si la app es la seleccionada
+            if (!isSelectedApp(appName)) {
+                Log.d(TAG, "Notificación ignorada: $appName no es la app seleccionada")
                 return
             }
 
-            val notificationWithStatus = notification.copy(syncStatus = SyncStatus.PENDING)
-            val id = notificationDao.insertNotification(notificationWithStatus)
-            Log.d(TAG, "Notificación guardada localmente con ID: $id")
+            // Crear la notificación para guardar
+            val notificationToSave = notification.copy(
+                appName = appName,
+                syncStatus = SyncStatus.PENDING
+            )
+
+            // Guardar en la base de datos
+            val id = notificationDao.insertNotification(notificationToSave)
+            Log.d(TAG, "✓ Notificación guardada localmente: ID=$id, App=$appName, Título='${notification.title}'")
             
             // Verificar si necesitamos limpiar notificaciones antiguas
             scope.launch(Dispatchers.IO) {
                 try {
-                    // Verificar cuántas notificaciones tenemos para esta app
-                    val count = notificationDao.getNotificationCountForApp(notification.packageName)
+                    val count = notificationDao.getNotificationCountForApp(appName)
                     if (count > MAX_NOTIFICATIONS_PER_APP) {
-                        Log.d(TAG, "Limpiando notificaciones antiguas después de insertar nueva. Total: $count")
-                        cleanupOldNotifications(notification.packageName)
+                        Log.d(TAG, "Limpiando notificaciones antiguas para $appName. Total: $count")
+                        cleanupOldNotifications(appName)
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error verificando límite de notificaciones: ${e.message}")
                 }
             }
 
+            // Sincronizar con Firebase si hay conexión
             if (isNetworkAvailable()) {
-                // Actualizar status a SYNCING antes de sincronizar
                 notificationDao.updateSyncStatus(id, SyncStatus.SYNCING)
-
-                val updatedNotification = notificationWithStatus.copy(id = id)
+                
+                val updatedNotification = notificationToSave.copy(id = id)
                 val success = firebaseService.syncNotification(updatedNotification)
 
                 if (success) {
-                    // Usar la función del DAO para actualizar el estado de sincronización
                     notificationDao.updateNotificationSyncResult(id, true)
-                    Log.d(TAG, "✓ Notificación sincronizada con Firebase")
+                    Log.d(TAG, "✓ Notificación sincronizada con Firebase: ID=$id")
                 } else {
-                    // Si falla, actualizar estado a FAILED
                     notificationDao.updateNotificationSyncResult(id, false)
-                    Log.d(TAG, "✗ Falló la sincronización con Firebase")
+                    Log.d(TAG, "✗ Falló la sincronización de notificación: ID=$id")
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error insertando notificación: ${e.message}")
+            Log.e(TAG, "❌ Error insertando notificación: ${e.message}")
         }
     }
 
@@ -188,13 +225,13 @@ class NotificationRepository(
     /**
      * Mantiene solo las notificaciones más recientes para una app específica
      */
-    suspend fun cleanupOldNotifications(packageName: String) {
+    suspend fun cleanupOldNotifications(appName: String) {
         try {
-            val count = notificationDao.getNotificationCountForApp(packageName)
+            val count = notificationDao.getNotificationCountForApp(appName)
             
             if (count > MAX_NOTIFICATIONS_PER_APP) {
-                Log.d(TAG, "Limpiando notificaciones antiguas para $packageName. Total: $count, Manteniendo: $MAX_NOTIFICATIONS_PER_APP")
-                notificationDao.keepOnlyRecentNotifications(packageName, MAX_NOTIFICATIONS_PER_APP)
+                Log.d(TAG, "Limpiando notificaciones antiguas para $appName. Total: $count, Manteniendo: $MAX_NOTIFICATIONS_PER_APP")
+                notificationDao.keepOnlyRecentNotifications(appName, MAX_NOTIFICATIONS_PER_APP)
                 Log.d(TAG, "✓ Limpieza completada. Eliminadas ${count - MAX_NOTIFICATIONS_PER_APP} notificaciones antiguas")
             }
         } catch (e: Exception) {
@@ -207,5 +244,32 @@ class NotificationRepository(
         val network = connectivityManager.activeNetwork ?: return false
         val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
         return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
+
+    /**
+     * Obtiene el nombre de la aplicación a partir del packageName
+     */
+    fun getAppNameFromPackage(packageName: String): String {
+        return try {
+            val pm = context.packageManager
+            pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0)).toString()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error obteniendo nombre de app: ${e.message}")
+            packageName // Usar packageName como fallback
+        }
+    }
+
+    /**
+     * Verifica si un appName coincide con el packageName seleccionado actualmente
+     */
+    fun isSelectedApp(appName: String): Boolean {
+        val selectedPackage = prefs.getString("last_selected_app", null) ?: return false
+        
+        // Comparar directamente con el nombre de la app seleccionada
+        if (appName == selectedPackage) return true
+        
+        // O verificar si el appName corresponde al packageName seleccionado
+        val selectedAppName = getAppNameFromPackage(selectedPackage)
+        return appName == selectedAppName
     }
 }

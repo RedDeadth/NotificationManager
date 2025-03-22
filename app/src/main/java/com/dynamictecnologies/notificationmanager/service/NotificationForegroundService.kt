@@ -23,9 +23,10 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.*
 
 class NotificationForegroundService : Service() {
-    private val TAG = "NotifForegroundService"
+    private val TAG = "NotificationFgService"
     private val CHANNEL_ID = "notification_manager_service"
     private val NOTIFICATION_ID = 1
     
@@ -37,28 +38,59 @@ class NotificationForegroundService : Service() {
     private var currentRetryAttempt = 0
     private var lastRetryTime = 0L
     
+    private var checkServiceTimer: Timer? = null
+    
     companion object {
-        const val ACTION_RESTART_NOTIFICATION_LISTENER = "com.dynamictecnologies.notificationmanager.RESTART_LISTENER"
-        const val ACTION_FORCE_RESET = "com.dynamictecnologies.notificationmanager.FORCE_RESET"
-        const val ACTION_SCHEDULED_CHECK = "com.dynamictecnologies.notificationmanager.SCHEDULED_CHECK"
+        private const val TAG = "NotificationFgService"
         
         // Clave para identificar notificación de estado
         private const val NOTIFICATION_ID_STATUS = 1000
         
         // Constante para el tiempo máximo que puede pasar sin servicios (12 horas)
         private const val MAX_TIME_WITHOUT_SERVICE = 12 * 60 * 60 * 1000L
+        
+        // Acciones que pueden ser recibidas por el servicio
+        const val ACTION_START_FOREGROUND_SERVICE = "ACTION_START_FOREGROUND_SERVICE"
+        const val ACTION_STOP_FOREGROUND_SERVICE = "ACTION_STOP_FOREGROUND_SERVICE"
+        const val ACTION_RESTART_NOTIFICATION_LISTENER = "com.dynamictecnologies.notificationmanager.RESTART_LISTENER"
+        const val ACTION_FORCE_RESET = "com.dynamictecnologies.notificationmanager.FORCE_RESET"
+        const val ACTION_SCHEDULED_CHECK = "com.dynamictecnologies.notificationmanager.SCHEDULED_CHECK"
+        
+        // Identificador de notificación
+        private const val FOREGROUND_SERVICE_ID = 101
+        
+        // Canal de notificación
+        private const val CHANNEL_NAME = "Servicio de monitoreo"
     }
 
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "Servicio en primer plano creado")
+        
+        // Crear canal de notificación para Android 8.0+
         createNotificationChannel()
-        startForeground(NOTIFICATION_ID, createNotification())
-        startWatchdogTimer()
+        
+        // Iniciar servicio en primer plano
+        startForeground(FOREGROUND_SERVICE_ID, createNotification())
+        
+        // Iniciar temporizador para verificaciones programadas
+        startPeriodicChecks()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "Servicio en primer plano iniciado. Intent action: ${intent?.action}")
+        
+        // Verificar que los permisos estén habilitados antes de realizar cualquier acción
+        if (!NotificationListenerService.isNotificationListenerEnabled(applicationContext)) {
+            Log.w(TAG, "⚠️ NotificationListenerService no está habilitado. Las acciones pueden fallar.")
+            // Enviar broadcast para mostrar diálogo de permisos si el intent lo solicita explícitamente
+            if (intent?.action == ACTION_RESTART_NOTIFICATION_LISTENER || 
+                intent?.action == ACTION_FORCE_RESET ||
+                intent?.action == ACTION_SCHEDULED_CHECK) {
+                val permIntent = Intent("com.dynamictecnologies.notificationmanager.SHOW_PERMISSION_DIALOG")
+                applicationContext.sendBroadcast(permIntent)
+            }
+        }
         
         intent?.let {
             when (it.action) {
@@ -70,6 +102,10 @@ class NotificationForegroundService : Service() {
                     Log.d(TAG, "⚠️ Acción de reinicio forzado recibida")
                     // Reinicio más agresivo para casos de emergencia
                     performForceReset()
+                }
+                ACTION_SCHEDULED_CHECK -> {
+                    Log.d(TAG, "Verificación programada recibida")
+                    checkNotificationService()
                 }
             }
         }
@@ -339,6 +375,15 @@ class NotificationForegroundService : Service() {
     
     private fun tryToRestartNotificationListenerService() {
         try {
+            // Verificar primero si los permisos están habilitados
+            if (!NotificationListenerService.isNotificationListenerEnabled(applicationContext)) {
+                Log.w(TAG, "⚠️ No se puede reiniciar el servicio: permisos no habilitados")
+                // Guardar estado para informar al usuario
+                val prefs = getSharedPreferences("notification_listener_prefs", Context.MODE_PRIVATE)
+                prefs.edit().putBoolean("restart_failed_permissions", true).apply()
+                return
+            }
+            
             // Primero, intentamos simular la desactivación y reactivación de los permisos
             // Esto puede requerir algunas acciones de usuario en versiones recientes de Android
             toggleNotificationListenerService()
@@ -347,24 +392,42 @@ class NotificationForegroundService : Service() {
             val packageManager = applicationContext.packageManager
             val componentName = ComponentName(applicationContext, NotificationListenerService::class.java)
             
-            packageManager.setComponentEnabledSetting(
-                componentName,
-                PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                PackageManager.DONT_KILL_APP
-            )
+            try {
+                packageManager.setComponentEnabledSetting(
+                    componentName,
+                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                    PackageManager.DONT_KILL_APP
+                )
+                
+                // Esperar para evitar problemas de concurrencia
+                Thread.sleep(300)
+                
+                packageManager.setComponentEnabledSetting(
+                    componentName,
+                    PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                    PackageManager.DONT_KILL_APP
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Error al cambiar estado del componente: ${e.message}")
+            }
             
-            packageManager.setComponentEnabledSetting(
-                componentName,
-                PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-                PackageManager.DONT_KILL_APP
-            )
+            // Esperar un momento para que los cambios se apliquen
+            Thread.sleep(500)
             
             // Finalmente, intentar iniciar el servicio directamente
             // (puede no funcionar en versiones recientes de Android)
-            val listenerIntent = Intent(applicationContext, NotificationListenerService::class.java)
-            applicationContext.startService(listenerIntent)
-            
-            Log.d(TAG, "Intento de reinicio del NotificationListenerService completado")
+            try {
+                val listenerIntent = Intent(applicationContext, NotificationListenerService::class.java)
+                applicationContext.startService(listenerIntent)
+                
+                // Actualizar timestamp de intento de reinicio
+                val prefs = getSharedPreferences("notification_listener_prefs", Context.MODE_PRIVATE)
+                prefs.edit().putLong("last_restart_attempt", System.currentTimeMillis()).apply()
+                
+                Log.d(TAG, "Intento de reinicio del NotificationListenerService completado")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error al iniciar servicio directamente: ${e.message}")
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error al intentar reiniciar NotificationListenerService: ${e.message}")
         }
@@ -399,10 +462,10 @@ class NotificationForegroundService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Notification Manager Service",
+                CHANNEL_NAME,
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Mantiene activo el servicio de monitoreo de notificaciones"
+                description = "Canal para el servicio de monitoreo de notificaciones"
                 setShowBadge(false)
             }
 
@@ -413,40 +476,87 @@ class NotificationForegroundService : Service() {
     }
 
     private fun createNotification(): Notification {
-        // Crear intent para abrir la aplicación cuando se toque la notificación
-        val intent = Intent(this, MainActivity::class.java)
-        val pendingIntentFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        // Crear intent para cuando el usuario toca la notificación
+        val notificationIntent = Intent(this, MainActivity::class.java)
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0, notificationIntent, 
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        } else {
-            PendingIntent.FLAG_UPDATE_CURRENT
-        }
-        val pendingIntent = PendingIntent.getActivity(this, 0, intent, pendingIntentFlags)
+        )
         
+        // Construir y retornar la notificación
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Notification Manager")
-            .setContentText("Monitoreando notificaciones...")
+            .setContentTitle("Gestor de notificaciones")
+            .setContentText("Monitoreando notificaciones activamente")
             .setSmallIcon(R.drawable.ic_notification)
-            .setOngoing(true)
             .setContentIntent(pendingIntent)
-            .apply {
-                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-                    priority = NotificationCompat.PRIORITY_LOW
-                }
-            }
+            .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        serviceScope.cancel()
-        Log.d(TAG, "Servicio en primer plano destruido. Intentando reiniciarse...")
+        Log.d(TAG, "Servicio en primer plano destruido")
         
-        // Intentar reiniciar el servicio
+        // Detener temporizador de verificación
+        checkServiceTimer?.cancel()
+        checkServiceTimer = null
+        
+        // Intentar reiniciar el servicio si fue terminado por el sistema
         val intent = Intent(applicationContext, NotificationForegroundService::class.java)
+        intent.action = ACTION_START_FOREGROUND_SERVICE
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             applicationContext.startForegroundService(intent)
         } else {
             applicationContext.startService(intent)
         }
+    }
+
+    private fun checkNotificationService() {
+        try {
+            val isListenerEnabled = NotificationListenerService.isNotificationListenerEnabled(this)
+            val prefs = getSharedPreferences("notification_listener_prefs", Context.MODE_PRIVATE)
+            
+            if (!isListenerEnabled) {
+                Log.w(TAG, "Verificación programada: NotificationListenerService no está habilitado")
+                if (System.currentTimeMillis() - prefs.getLong("last_permission_request", 0) > 4 * 60 * 60 * 1000) {
+                    // Solicitar permisos cada 4 horas como máximo
+                    val intent = Intent("com.dynamictecnologies.notificationmanager.SHOW_PERMISSION_DIALOG")
+                    applicationContext.sendBroadcast(intent)
+                    prefs.edit().putLong("last_permission_request", System.currentTimeMillis()).apply()
+                }
+                return
+            }
+            
+            // Si está habilitado pero no ha recibido notificaciones en mucho tiempo
+            val lastNotificationTime = prefs.getLong("last_notification_received", 0)
+            val lastConnectionTime = prefs.getLong("last_connection_time", 0)
+            val currentTime = System.currentTimeMillis()
+            
+            if (lastNotificationTime > 0 && (currentTime - lastNotificationTime > 4 * 60 * 60 * 1000)) {
+                Log.w(TAG, "Verificación programada: No se han recibido notificaciones en más de 4 horas")
+                performForceReset()
+            } else if (lastConnectionTime > 0 && (currentTime - lastConnectionTime > 6 * 60 * 60 * 1000)) {
+                Log.w(TAG, "Verificación programada: No hay conexión en más de 6 horas")
+                performDeepReset()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error en verificación programada: ${e.message}")
+        }
+    }
+
+    private fun startPeriodicChecks() {
+        // Cancelar temporizador existente si hay uno
+        checkServiceTimer?.cancel()
+        
+        // Crear nuevo temporizador
+        checkServiceTimer = Timer()
+        
+        // Programar verificación cada 3 horas
+        checkServiceTimer?.scheduleAtFixedRate(object : TimerTask() {
+            override fun run() {
+                Log.d(TAG, "Realizando verificación programada del servicio...")
+                checkNotificationService()
+            }
+        }, 30 * 60 * 1000L, 3 * 60 * 60 * 1000L) // Inicia a los 30 minutos, luego cada 3 horas
     }
 }

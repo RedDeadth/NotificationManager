@@ -12,6 +12,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
+import java.util.concurrent.TimeUnit
 
 class UserService(
     private val auth: FirebaseAuth,
@@ -26,8 +28,23 @@ class UserService(
 
     private var userListener: ValueEventListener? = null
     private var authStateListener: FirebaseAuth.AuthStateListener? = null
+    
+    // Caché local para reducir consultas
+    private var cachedUsername: String? = null
+    private var cachedUserInfo: UserInfo? = null
+    private var lastFetchTime: Long = 0
+    private val CACHE_VALID_TIME = TimeUnit.MINUTES.toMillis(5) // 5 minutos
 
     init {
+        // Habilitar persistencia offline para Firebase
+        try {
+            database.setPersistenceEnabled(true)
+            // Mantener referencias clave sincronizadas
+            usernamesRef.keepSynced(true)
+        } catch (e: Exception) {
+            Log.d("UserService", "Persistencia ya configurada: ${e.message}")
+        }
+        
         // Verificar estado inicial en una corrutina
         scope.launch {
             auth.currentUser?.let {
@@ -69,32 +86,89 @@ class UserService(
                 _userProfileFlow.value = null
                 return
             }
-
-            Log.d("UserService", "Verificando registro para UID: ${currentUser.uid}")
-
-            val snapshot = usernamesRef.orderByValue()
-                .equalTo(currentUser.uid)
-                .get()
-                .await()
-
-            if (!snapshot.exists()) {
-                Log.d("UserService", "No se encontró perfil para ${currentUser.uid}")
-                _userProfileFlow.value = null
+            
+            // Verificar caché primero
+            val now = System.currentTimeMillis()
+            if (cachedUserInfo != null && (now - lastFetchTime < CACHE_VALID_TIME)) {
+                Log.d("UserService", "Usando perfil cacheado: ${cachedUserInfo?.username}")
+                _userProfileFlow.value = cachedUserInfo
                 return
             }
 
-            val username = snapshot.children.firstOrNull()?.key
-            if (username != null) {
+            Log.d("UserService", "Verificando registro para UID: ${currentUser.uid}")
+            
+            // Usar timeout para limitar tiempo de espera en red
+            withTimeout(5000) {
+                // Si tenemos username en caché, saltamos la primera consulta
+                val username = if (cachedUsername != null) {
+                    cachedUsername!!
+                } else {
+                    val snapshot = usernamesRef.orderByValue()
+                        .equalTo(currentUser.uid)
+                        .get()
+                        .await()
+
+                    if (!snapshot.exists()) {
+                        Log.d("UserService", "No se encontró perfil para ${currentUser.uid}")
+                        _userProfileFlow.value = null
+                        return@withTimeout
+                    }
+
+                    val fetchedUsername = snapshot.children.firstOrNull()?.key
+                    if (fetchedUsername == null) {
+                        Log.e("UserService", "Username no encontrado para ${currentUser.uid}")
+                        _userProfileFlow.value = null
+                        return@withTimeout
+                    }
+                    
+                    // Guardar en caché
+                    cachedUsername = fetchedUsername
+                    fetchedUsername
+                }
+                
                 Log.d("UserService", "Perfil encontrado: $username")
+                
+                // Obtener los datos del perfil
+                val userRef = usersRef.child(username)
+                userRef.keepSynced(true)
+                val userSnapshot = userRef.get().await()
+                
+                if (!userSnapshot.exists()) {
+                    Log.e("UserService", "Datos de usuario no encontrados para $username")
+                    _userProfileFlow.value = null
+                    return@withTimeout
+                }
+                
+                // Crear objeto UserInfo
+                val email = userSnapshot.child("email").getValue(String::class.java) ?: ""
+                val uid = userSnapshot.child("uid").getValue(String::class.java) ?: currentUser.uid
+                val createdAt = userSnapshot.child("createdAt").getValue(Long::class.java) ?: System.currentTimeMillis()
+                
+                val userInfo = UserInfo(
+                    uid = uid,
+                    username = username,
+                    email = email,
+                    createdAt = createdAt
+                )
+                
+                // Actualizar caché y estado
+                cachedUserInfo = userInfo
+                lastFetchTime = System.currentTimeMillis()
+                _userProfileFlow.value = userInfo
+                
+                // Configurar listener para actualizaciones
                 setupUserListener(username)
-            } else {
-                Log.e("UserService", "Username no encontrado para ${currentUser.uid}")
-                _userProfileFlow.value = null
             }
         } catch (e: Exception) {
             Log.e("UserService", "Error al verificar registro: ${e.message}")
-            _userProfileFlow.value = null
-            throw e
+            
+            // Si hay error pero tenemos caché, usarla como fallback
+            if (cachedUserInfo != null) {
+                _userProfileFlow.value = cachedUserInfo
+            } else {
+                _userProfileFlow.value = null
+                throw e
+            }
         }
     }
 
@@ -113,6 +187,11 @@ class UserService(
 
             if (userInfo != null) {
                 Log.d("UserService", "Perfil actualizado: ${userInfo.username}")
+                
+                // Actualizar caché
+                cachedUserInfo = userInfo
+                lastFetchTime = System.currentTimeMillis()
+                
                 _userProfileFlow.value = userInfo
             } else {
                 Log.e("UserService", "No se pudo cargar el perfil para $username")
@@ -129,6 +208,9 @@ class UserService(
         removeUserListener()
 
         Log.d("UserService", "Configurando listener para usuario: $username")
+        
+        // Intentar mantener esta referencia sincronizada para offline
+        usersRef.child(username).keepSynced(true)
 
         userListener = usersRef.child(username).addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
@@ -163,6 +245,7 @@ class UserService(
 
         _userProfileFlow.value = null
     }
+    
     private fun validateUsername(username: String): String? {
         // Eliminar espacios al inicio y final
         val trimmedUsername = username.trim()
@@ -177,7 +260,6 @@ class UserService(
             else -> null
         }
     }
-
 
     suspend fun registerUsername(username: String) {
         try {
@@ -222,7 +304,15 @@ class UserService(
                 )
             ).await()
 
+            // Actualizar caché
+            cachedUsername = username
+            cachedUserInfo = userInfo
+            lastFetchTime = System.currentTimeMillis()
+            
+            // Configurar listener y actualizar flujo
             setupUserListener(username)
+            _userProfileFlow.value = userInfo
+            
             Log.d("UserService", "Usuario registrado exitosamente: $username")
 
         } catch (e: Exception) {

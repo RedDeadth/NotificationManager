@@ -20,25 +20,24 @@ class FirebaseService(
         return try {
             val currentUser = auth.currentUser ?: return false
             val userId = currentUser.uid
-            val encodedPackageName = encodePackageName(notification.packageName)
-
+            
+            // Mapa simplificado con solo los campos esenciales
             val notificationMap = mapOf(
+                "appName" to notification.appName,
                 "title" to notification.title,
                 "content" to notification.content,
                 "timestamp" to notification.timestamp.time,
-                "syncTimestamp" to ServerValue.TIMESTAMP,
-                "appName" to notification.appName,
-                "packageName" to notification.packageName,
-                "syncStatus" to "SYNCED"
+                "syncTimestamp" to ServerValue.TIMESTAMP
             )
 
+            // Estructura simplificada: userId/notificationId/datos
             notificationsRef
                 .child(userId)
-                .child(encodedPackageName)
                 .child(notification.id.toString())
                 .setValue(notificationMap)
                 .await()
 
+            Log.d(TAG, "Notificación sincronizada correctamente: ID=${notification.id}")
             true
         } catch (e: Exception) {
             Log.e(TAG, "Error sincronizando notificación: ${e.message}")
@@ -46,33 +45,50 @@ class FirebaseService(
         }
     }
 
-    suspend fun getNotifications(packageName: String): List<NotificationInfo> {
+    suspend fun getNotifications(): List<NotificationInfo> {
         return try {
             val userId = auth.currentUser?.uid ?: throw Exception("Usuario no autenticado")
-            val encodedPackageName = encodePackageName(packageName)
-
+            
+            Log.d(TAG, "Obteniendo notificaciones para usuario: $userId")
+            
             val snapshot = notificationsRef
                 .child(userId)
-                .child(encodedPackageName)
                 .orderByChild("timestamp")
                 .get()
                 .await()
-
+            
+            if (!snapshot.exists()) {
+                Log.d(TAG, "No se encontraron notificaciones en Firebase para el usuario")
+                return emptyList()
+            }
+            
+            Log.d(TAG, "Número de notificaciones encontradas en Firebase: ${snapshot.childrenCount}")
+            
             val notifications = mutableListOf<NotificationInfo>()
 
             snapshot.children.forEach { child ->
                 try {
-                    val id = child.key?.toLongOrNull() ?: return@forEach
+                    val id = child.key?.toLongOrNull()
+                    if (id == null) {
+                        Log.w(TAG, "Ignorando notificación con ID inválido: ${child.key}")
+                        return@forEach
+                    }
+                    
+                    val appName = child.child("appName").getValue(String::class.java) ?: ""
+                    val title = child.child("title").getValue(String::class.java) ?: ""
+                    val content = child.child("content").getValue(String::class.java) ?: ""
+                    val timestamp = child.child("timestamp").getValue(Long::class.java) ?: 0
                     val syncTimestamp = child.child("syncTimestamp").getValue(Long::class.java)
+                    
+                    Log.d(TAG, "Notificación encontrada - ID: $id, App: $appName, Título: $title")
 
                     notifications.add(
                         NotificationInfo(
                             id = id,
-                            packageName = packageName,
-                            appName = child.child("appName").getValue(String::class.java) ?: "",
-                            title = child.child("title").getValue(String::class.java) ?: "",
-                            content = child.child("content").getValue(String::class.java) ?: "",
-                            timestamp = Date(child.child("timestamp").getValue(Long::class.java) ?: 0),
+                            appName = appName,
+                            title = title,
+                            content = content,
+                            timestamp = Date(timestamp),
                             isSynced = true,
                             syncStatus = SyncStatus.SYNCED,
                             syncTimestamp = syncTimestamp
@@ -83,6 +99,7 @@ class FirebaseService(
                 }
             }
 
+            Log.d(TAG, "Total notificaciones procesadas: ${notifications.size}")
             notifications.sortedByDescending { it.timestamp }
         } catch (e: Exception) {
             Log.e(TAG, "Error obteniendo notificaciones: ${e.message}")

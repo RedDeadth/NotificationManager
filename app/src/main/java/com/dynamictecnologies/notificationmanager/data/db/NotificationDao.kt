@@ -19,11 +19,11 @@ interface NotificationDao {
     @Query("DELETE FROM notifications WHERE timestamp < :date AND isSynced = 1")
     suspend fun deleteOldSyncedNotifications(date: Date)
 
-    @Query("SELECT * FROM notifications WHERE packageName = :packageName ORDER BY timestamp DESC")
-    fun getNotificationsForApp(packageName: String): Flow<List<NotificationInfo>>
+    @Query("SELECT * FROM notifications WHERE appName = :appName ORDER BY timestamp DESC")
+    fun getNotificationsForApp(appName: String): Flow<List<NotificationInfo>>
 
-    @Query("SELECT * FROM notifications WHERE packageName = :packageName ORDER BY timestamp DESC")
-    suspend fun getNotificationsForAppImmediate(packageName: String): List<NotificationInfo>
+    @Query("SELECT * FROM notifications WHERE appName = :appName ORDER BY timestamp DESC")
+    suspend fun getNotificationsForAppImmediate(appName: String): List<NotificationInfo>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertNotification(notification: NotificationInfo): Long
@@ -69,9 +69,9 @@ interface NotificationDao {
     @Query("UPDATE notifications SET syncStatus = 'PENDING', isSynced = 0, syncTimestamp = NULL")
     suspend fun clearSyncStatus()
 
-    @Query("DELETE FROM notifications WHERE packageName = :packageName AND id NOT IN (SELECT id FROM notifications WHERE packageName = :packageName ORDER BY timestamp DESC LIMIT :limit)")
-    suspend fun keepOnlyRecentNotifications(packageName: String, limit: Int)
+    @Query("DELETE FROM notifications WHERE appName = :appName AND id NOT IN (SELECT id FROM notifications WHERE appName = :appName ORDER BY timestamp DESC LIMIT :limit)")
+    suspend fun keepOnlyRecentNotifications(appName: String, limit: Int)
 
-    @Query("SELECT COUNT(*) FROM notifications WHERE packageName = :packageName")
-    suspend fun getNotificationCountForApp(packageName: String): Int
+    @Query("SELECT COUNT(*) FROM notifications WHERE appName = :appName")
+    suspend fun getNotificationCountForApp(appName: String): Int
 }

@@ -1,0 +1,11 @@
+{
+  "rules": {
+    ".read": "auth != null",
+    ".write": "auth != null",
+    "notifications": {
+      "$uid": {
+        ".indexOn": ["timestamp"]
+      }
+    }
+  }
+} 
