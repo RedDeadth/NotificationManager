@@ -6,5 +6,6 @@ data class UserInfo(
     val email: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val sharedWith: Map<String, String> = emptyMap(),
-    val isShared: Boolean = false
+    val isShared: Boolean = false,
+    val addedAt: Long = 0L
 )
