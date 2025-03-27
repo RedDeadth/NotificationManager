@@ -44,17 +44,32 @@ fun ShareScreen(
     // Estado para controlar si el perfil del usuario está completo
     var hasValidProfile by remember { mutableStateOf(true) }
     
+    // Estado adicional para controlar la carga inicial
+    var isInitialLoading by remember { mutableStateOf(true) }
+    
     // Verificar si el perfil del usuario está completo al cargar la pantalla
     LaunchedEffect(Unit) {
-        hasValidProfile = shareViewModel.hasValidUserProfile()
-        if (hasValidProfile) {
-            // Solo cargar datos si el perfil es válido
-            shareViewModel.setupSharedUsersObserver()
-            shareViewModel.loadUsersWhoSharedWithMe() // Cargar usuarios que comparten con nosotros
+        try {
+            // Marcar como carga inicial
+            isInitialLoading = true
+            
+            // Verificar perfil silenciosamente
+            hasValidProfile = shareViewModel.hasValidUserProfile()
+            
+            if (hasValidProfile) {
+                // Solo cargar datos si el perfil es válido
+                shareViewModel.setupSharedUsersObserver()
+                shareViewModel.loadUsersWhoSharedWithMe()
+            }
+        } catch (e: Exception) {
+            // Ignorar errores durante la carga inicial para evitar mostrarlos al usuario
+            hasValidProfile = false
+        } finally {
+            // Finalizar la carga inicial después de un breve retraso para evitar parpadeos
+            kotlinx.coroutines.delay(300)
+            isInitialLoading = false
         }
     }
-
-    val currentScreen = Screen.SHARED
     
     // Controlador para Snackbar
     val snackbarHostState = remember { SnackbarHostState() }
@@ -71,12 +86,12 @@ fun ShareScreen(
         }
     }
 
-    // Mostrar error si existe
-    error?.let { errorMessage ->
+    // Mostrar error solo si no estamos en carga inicial y hay un error real para mostrar
+    if (!isInitialLoading && error != null) {
         AlertDialog(
             onDismissRequest = { shareViewModel.clearError() },
             title = { Text("Error") },
-            text = { Text(errorMessage) },
+            text = { Text(error ?: "") },
             confirmButton = {
                 TextButton(onClick = { shareViewModel.clearError() }) {
                     Text("Aceptar")
@@ -85,211 +100,201 @@ fun ShareScreen(
         )
     }
 
-    Scaffold(
-        topBar = {
-            AppTopBar(
-                currentScreen = currentScreen,
-                canShare = false
+    Box(
+        modifier = modifier.fillMaxSize()
+    ) {
+        // Si estamos en carga inicial, solo mostrar indicador de carga
+        if (isInitialLoading) {
+            CircularProgressIndicator(
+                modifier = Modifier.align(Alignment.Center)
             )
-        },
-        bottomBar = {
-            AppBottomBar(
-                currentScreen = currentScreen,
-                onScreenSelected = { screen ->
-                    when (screen) {
-                        Screen.HOME -> onNavigateToHome()
-                        Screen.SHARED -> { /* Ya estamos aquí */ }
-                        Screen.PROFILE -> onNavigateToProfile()
-                    }
-                }
-            )
-        },
-        floatingActionButton = {
-            if (hasValidProfile) {
-                FloatingActionButton(
-                    onClick = {
-                        shareViewModel.loadAvailableUsers()
-                        showAddUserDialog = true
-                    }
+        } else if (!hasValidProfile) {
+            // Mostrar mensaje de configuración de perfil si el perfil no es válido
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(48.dp)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Completa tu perfil",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Para compartir con otros usuarios, primero debes completar tu perfil",
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Button(
+                    onClick = onNavigateToProfile
                 ) {
-                    Icon(Icons.Default.PersonAdd, "Añadir usuario")
+                    Text("Ir al perfil")
                 }
             }
-        },
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            if (!hasValidProfile) {
-                // Mostrar mensaje de configuración de perfil si el perfil no es válido
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(48.dp)
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
+        } else if (isLoading && !isInitialLoading) {
+            CircularProgressIndicator(
+                modifier = Modifier.align(Alignment.Center)
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp)
+            ) {
+                // Sección 1: "Mis notificaciones compartidas"
+                item {
                     Text(
-                        text = "Completa tu perfil",
+                        text = "Lista de oyentes",
                         style = MaterialTheme.typography.headlineSmall,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(bottom = 8.dp)
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Para compartir con otros usuarios, primero debes completar tu perfil",
-                        style = MaterialTheme.typography.bodyLarge,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Button(
-                        onClick = onNavigateToProfile
-                    ) {
-                        Text("Ir al perfil")
+                }
+                
+                if (sharedUsers.isEmpty()) {
+                    item {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 16.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PersonAdd,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(40.dp)
+                                )
+                                Text(
+                                    text = "Aún no has añadido ningún oyente",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = "Pulsa el botón + para añadir usuarios a tu lista de oyentes",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    items(sharedUsers) { user ->
+                        SharedUserCard(
+                            user = user,
+                            notifications = shareViewModel.sharedUsersNotifications.value[user.uid] ?: emptyList(),
+                            onRemove = { shareViewModel.removeSharedUser(user.username) }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
-            } else if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp)
-                ) {
-                    // Sección 1: "Mis notificaciones compartidas"
+                
+                // Separador
+                item {
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
+                
+                // Sección 2: "Notificaciones compartidas conmigo"
+                item {
+                    Text(
+                        text = "Contenido de Conductores",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                }
+                
+                if (sharedByUsers.isEmpty()) {
                     item {
-                        Text(
-                            text = "Lista de oyentes",
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-                    }
-                    
-                    if (sharedUsers.isEmpty()) {
-                        item {
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 16.dp)
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 16.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Column(
-                                    modifier = Modifier.padding(16.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.PersonAdd,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(40.dp)
-                                    )
-                                    Text(
-                                        text = "Aún no has añadido ningún oyente",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        text = "Pulsa el botón + para añadir usuarios a tu lista de oyentes",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(40.dp)
+                                )
+                                Text(
+                                    text = "Ningún conductor comparte contigo",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = "Cuando un conductor te añada a su lista de oyentes, aparecerá aquí",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
-                    } else {
-                        items(sharedUsers) { user ->
-                            SharedUserCard(
-                                user = user,
-                                notifications = shareViewModel.sharedUsersNotifications.value[user.uid] ?: emptyList(),
-                                onRemove = { shareViewModel.removeSharedUser(user.username) }
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                        }
                     }
-                    
-                    // Separador
-                    item {
-                        Spacer(modifier = Modifier.height(24.dp))
-                    }
-                    
-                    // Sección 2: "Notificaciones compartidas conmigo"
-                    item {
-                        Text(
-                            text = "Contenido de Conductores",
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(vertical = 8.dp)
+                } else {
+                    items(sharedByUsers) { user ->
+                        SharedByUserCard(
+                            user = user,
+                            notifications = shareViewModel.sharedUsersNotifications.value[user.uid] ?: emptyList()
                         )
-                    }
-                    
-                    if (sharedByUsers.isEmpty()) {
-                        item {
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 16.dp)
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(16.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Person,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(40.dp)
-                                    )
-                                    Text(
-                                        text = "Ningún conductor comparte contigo",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        text = "Cuando un conductor te añada a su lista de oyentes, aparecerá aquí",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-                    } else {
-                        items(sharedByUsers) { user ->
-                            SharedByUserCard(
-                                user = user,
-                                notifications = shareViewModel.sharedUsersNotifications.value[user.uid] ?: emptyList()
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                        }
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
             }
         }
 
-        if (showAddUserDialog) {
-            AddUserDialog(
-                availableUsers = availableUsers,
-                isLoading = isLoading,
-                onDismiss = { showAddUserDialog = false },
-                onAddUser = { username ->
-                    shareViewModel.shareWithUser(username)
-                    showAddUserDialog = false
-                }
-            )
+        // Mantener el FloatingActionButton
+        if (hasValidProfile && !isInitialLoading) {
+            FloatingActionButton(
+                onClick = {
+                    shareViewModel.loadAvailableUsers()
+                    showAddUserDialog = true
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp)
+            ) {
+                Icon(Icons.Default.PersonAdd, "Añadir usuario")
+            }
         }
+
+        // SnackbarHost para mostrar mensajes
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
+    }
+
+    if (showAddUserDialog) {
+        AddUserDialog(
+            availableUsers = availableUsers,
+            isLoading = isLoading,
+            onDismiss = { showAddUserDialog = false },
+            onAddUser = { username ->
+                shareViewModel.shareWithUser(username)
+                showAddUserDialog = false
+            }
+        )
     }
 }
 
@@ -336,7 +341,13 @@ fun SharedByUserCard(
                 }
             }
 
-            if (notifications.isNotEmpty()) {
+            // Filtrar notificaciones válidas (con timestamp posterior a 1990)
+            val validNotifications = notifications.filter { 
+                val timestampMillis = it.timestamp?.time ?: 0L
+                timestampMillis > 631152000000L // 01/01/1990 en milisegundos
+            }
+
+            if (validNotifications.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Notificaciones compartidas",
@@ -345,7 +356,7 @@ fun SharedByUserCard(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Column {
-                    notifications.take(3).forEach { notification ->
+                    validNotifications.take(3).forEach { notification ->
                         NotificationItem(notification)
                         Divider()
                     }
@@ -353,7 +364,7 @@ fun SharedByUserCard(
             } else {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "No hay notificaciones disponibles",
+                    text = "No hay notificaciones recientes disponibles",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -461,20 +472,29 @@ private fun NotificationItem(notification: NotificationInfo) {
             .padding(vertical = 8.dp)
     ) {
         Text(
-            text = notification.title,
+            text = notification.title.takeIf { it.isNotBlank() } ?: "Sin título",
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold
         )
         Text(
-            text = notification.content,
+            text = notification.content.takeIf { it.isNotBlank() } ?: "Sin contenido",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
+        
+        // Verificar timestamp válido (posterior a 1990)
+        val timestamp = notification.timestamp
+        val timestampMillis = timestamp?.time ?: 0L
+        val validTimestamp = timestampMillis > 631152000000L // 01/01/1990 en milisegundos
+        
         Text(
-            text = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
-                .format(notification.timestamp), // Aquí está el cambio
+            text = if (validTimestamp) {
+                SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(timestamp)
+            } else {
+                "Fecha no disponible"
+            },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

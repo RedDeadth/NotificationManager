@@ -22,7 +22,6 @@ import com.dynamictecnologies.notificationmanager.ui.components.AppTopBar
 import com.dynamictecnologies.notificationmanager.ui.components.NotificationHistoryCard
 import com.dynamictecnologies.notificationmanager.ui.components.Screen
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppListScreen(
     viewModel: AppListViewModel,
@@ -40,167 +39,143 @@ fun AppListScreen(
 
     var showShareDialog by remember { mutableStateOf(false) }
 
-
-    var currentScreen by remember { mutableStateOf(Screen.HOME) }
-
-    Scaffold(
-        topBar = {
-            AppTopBar(
-                currentScreen = currentScreen,
-                canShare = selectedApp != null,
-                onShareClick = { showShareDialog = true },
-                onSettingsClick = onNavigateToSettings
-            )
-        },
-        bottomBar = {
-            AppBottomBar(
-                currentScreen = currentScreen,
-                onScreenSelected = { screen ->
-                    when (screen) {
-                        Screen.HOME -> currentScreen = Screen.HOME
-                        Screen.SHARED -> onNavigateToShared()
-                        Screen.PROFILE -> onNavigateToProfile()
-                    }
-                }
-            )
-        }
-    ) { paddingValues ->
-
-        Box(
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                selectedApp?.let { app ->
-                    // Diseño horizontal para ambas tarjetas al mismo nivel
-                    Row(
+            selectedApp?.let { app ->
+                // Diseño horizontal para ambas tarjetas al mismo nivel
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Min)
+                        .padding(bottom = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Tarjeta izquierda - App Seleccionada
+                    Card(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(IntrinsicSize.Min)
-                            .padding(bottom = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            .weight(1f)
+                            .fillMaxHeight(),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                     ) {
-                        // Tarjeta izquierda - App Seleccionada
-                        Card(
+                        Column(
                             modifier = Modifier
-                                .weight(1f)
+                                .padding(16.dp)
                                 .fillMaxHeight(),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Column(
-                                modifier = Modifier
-                                    .padding(16.dp)
-                                    .fillMaxHeight(),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = "Aplicación Seleccionada",
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                app.icon?.let { icon ->
-                                    Image(
-                                        bitmap = icon,
-                                        contentDescription = null,
-                                        modifier = Modifier
-                                            .size(56.dp)
-                                            .clip(RoundedCornerShape(12.dp))
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = app.name,
-                                    style = MaterialTheme.typography.bodyLarge
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                OutlinedButton(
-                                    onClick = { viewModel.toggleAppList() },
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text("Cambiar Aplicación")
-                                }
-                            }
-                        }
-
-                        // Tarjeta derecha - Visualizador
-                        Card(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight(),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .padding(16.dp)
-                                    .fillMaxHeight(),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = "Visualizador de Notificaciones",
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Icon(
-                                    imageVector = Icons.Default.ScreenShare,
+                            Text(
+                                text = "Aplicación Seleccionada",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            app.icon?.let { icon ->
+                                Image(
+                                    bitmap = icon,
                                     contentDescription = null,
-                                    modifier = Modifier.size(56.dp),
-                                    tint = MaterialTheme.colorScheme.primary
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(RoundedCornerShape(12.dp))
                                 )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "Sin conexión",
-                                    style = MaterialTheme.typography.bodyLarge
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                OutlinedButton(
-                                    onClick = { /* Función futura */ },
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text("Conectar")
-                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = app.name,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedButton(
+                                onClick = { viewModel.toggleAppList() },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Cambiar Aplicación")
                             }
                         }
                     }
 
-                    // Historial de notificaciones
-                    NotificationHistoryCard(
-                        notifications = notifications,
-                        modifier = Modifier.weight(1f)
-                    )
-                } ?: run {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
+                    // Tarjeta derecha - Visualizador
+                    Card(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                     ) {
-                        InitialSelectionCard(
-                            onSelectAppClick = { viewModel.toggleAppList() }
-                        )
+                        Column(
+                            modifier = Modifier
+                                .padding(16.dp)
+                                .fillMaxHeight(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Visualizador de Notificaciones",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Icon(
+                                imageVector = Icons.Default.ScreenShare,
+                                contentDescription = null,
+                                modifier = Modifier.size(56.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Sin conexión",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedButton(
+                                onClick = { /* Función futura */ },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Conectar")
+                            }
+                        }
                     }
                 }
-            }
 
-            if (isLoading) {
-                LoadingScreen()
-            }
-
-            if (showAppList) {
-                AppSelectionDialog(
-                    apps = apps,
-                    onAppSelected = { app ->
-                        viewModel.selectApp(app)
-                        viewModel.toggleAppList()
-                    },
-                    onDismiss = { viewModel.toggleAppList() }
+                // Historial de notificaciones
+                NotificationHistoryCard(
+                    notifications = notifications,
+                    modifier = Modifier.weight(1f)
                 )
+            } ?: run {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    InitialSelectionCard(
+                        onSelectAppClick = { viewModel.toggleAppList() }
+                    )
+                }
             }
+        }
+
+        if (isLoading) {
+            LoadingScreen()
+        }
+
+        if (showAppList) {
+            AppSelectionDialog(
+                apps = apps,
+                onAppSelected = { app ->
+                    viewModel.selectApp(app)
+                    viewModel.toggleAppList()
+                },
+                onDismiss = { viewModel.toggleAppList() }
+            )
+        }
+
+        if (showShareDialog) {
+            // Aquí iría el diálogo de compartir cuando lo implementes
+            showShareDialog = false
         }
     }
 }

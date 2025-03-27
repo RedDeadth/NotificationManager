@@ -344,8 +344,15 @@ class ShareViewModel(
                     snapshot.children.forEach { appSnapshot ->
                         appSnapshot.children.forEach { notificationSnapshot ->
                             try {
-                                // Obtener el timestamp como Long y convertirlo a Date
+                                // Obtener el timestamp como Long y validarlo
                                 val timestampLong = notificationSnapshot.child("timestamp").getValue(Long::class.java) ?: 0L
+                                
+                                // Validar que el timestamp sea razonable (posterior a 1990)
+                                if (timestampLong <= 631152000000L) { // 01/01/1990
+                                    Log.d("ShareViewModel", "Ignorando notificación con timestamp inválido: $timestampLong")
+                                    return@forEach // Saltar esta notificación
+                                }
+                                
                                 val timestamp = Date(timestampLong)
                                 
                                 // Convertir String a enum SyncStatus
@@ -356,13 +363,23 @@ class ShareViewModel(
                                     SyncStatus.PENDING // Valor por defecto si hay error
                                 }
                                 
+                                // Validar título y contenido
+                                val title = notificationSnapshot.child("title").getValue(String::class.java) ?: ""
+                                val content = notificationSnapshot.child("content").getValue(String::class.java) ?: ""
+                                
+                                // Solo agregar notificaciones con título o contenido no vacío
+                                if (title.isBlank() && content.isBlank()) {
+                                    Log.d("ShareViewModel", "Ignorando notificación sin título ni contenido")
+                                    return@forEach // Saltar esta notificación
+                                }
+                                
                                 val notification = NotificationInfo(
                                     packageName = notificationSnapshot.child("packageName").getValue(String::class.java) ?: "",
                                     appName = notificationSnapshot.child("appName").getValue(String::class.java) ?: "",
-                                    title = notificationSnapshot.child("title").getValue(String::class.java) ?: "",
-                                    content = notificationSnapshot.child("content").getValue(String::class.java) ?: "",
-                                    timestamp = timestamp, // Ya convertido a Date
-                                    syncStatus = syncStatus, // Ya convertido a enum
+                                    title = title,
+                                    content = content,
+                                    timestamp = timestamp,
+                                    syncStatus = syncStatus,
                                     syncTimestamp = notificationSnapshot.child("syncTimestamp").getValue(Long::class.java) ?: 0L
                                 )
                                 notifications.add(notification)
@@ -372,9 +389,14 @@ class ShareViewModel(
                         }
                     }
 
+                    // Limitar a 20 notificaciones para mejor rendimiento
+                    val sortedNotifications = notifications
+                        .sortedByDescending { it.timestamp }
+                        .take(20)
+
                     _sharedUsersNotifications.update { current ->
                         current.toMutableMap().apply {
-                            put(targetUid, notifications.sortedByDescending { it.timestamp })
+                            put(targetUid, sortedNotifications)
                         }
                     }
                 }

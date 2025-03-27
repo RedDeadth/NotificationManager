@@ -79,92 +79,63 @@ fun ProfileScreen(
         )
     }
 
-    Scaffold(
-        topBar = {
-            AppTopBar(
-                currentScreen = Screen.PROFILE,
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, "Regresar")
-                    }
-                }
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        // Botón de recargar en la esquina superior derecha si hay un perfil
+        if (userInfo != null && !isLoading) {
+            IconButton(
+                onClick = onRefresh,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp)
+            ) {
+                Icon(Icons.Default.Refresh, contentDescription = "Actualizar perfil")
+            }
+        }
+        
+        // Primero determinamos si hay un perfil o no
+        if (userInfo != null) {
+            // Mostrar perfil si está disponible
+            ProfileContent(
+                userInfo = userInfo,
+                onLogout = onLogout,
+                isLoading = isLoading
             )
             
-            // Botón de recargar solo si ya hay un perfil, fuera del AppTopBar
-            if (userInfo != null && !isLoading) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    IconButton(onClick = onRefresh) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Actualizar perfil")
-                    }
-                }
-            }
-        },
-        bottomBar = {
-            AppBottomBar(
-                currentScreen = Screen.PROFILE,
-                onScreenSelected = { screen ->
-                    when (screen) {
-                        Screen.HOME -> onNavigateToHome()
-                        Screen.SHARED -> onNavigateToShared()
-                        Screen.PROFILE -> { /* Ya estamos aquí */ }
-                    }
-                }
-            )
-        }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            // Primero determinamos si hay un perfil o no
-            if (userInfo != null) {
-                // Mostrar perfil si está disponible
-                ProfileContent(
-                    userInfo = userInfo,
-                    onLogout = onLogout,
-                    isLoading = isLoading
-                )
-                
-                // Mostrar indicador de carga como overlay si está actualizando
-                if (isLoading) {
-                    Box(modifier = Modifier.fillMaxWidth()) {
-                        LinearProgressIndicator(
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                }
-            } else {
-                // Si no hay perfil y está cargando, mostrar loading spinner
-                if (isLoading) {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.align(Alignment.Center)
-                        )
-                    }
-                } else {
-                    // Mostrar formulario de creación si no hay perfil y no está cargando
-                    CreateProfileForm(
-                        username = username,
-                        isError = isError,
-                        onUsernameChange = {
-                            username = it
-                            isError = false
-                        },
-                        onCreateProfile = {
-                            if (username.isBlank()) {
-                                isError = true
-                            } else {
-                                onCreateProfile(username)
-                            }
-                        }
+            // Mostrar indicador de carga como overlay si está actualizando
+            if (isLoading) {
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
+            }
+        } else {
+            // Si no hay perfil y está cargando, mostrar loading spinner
+            if (isLoading) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+            } else {
+                // Mostrar formulario de creación si no hay perfil y no está cargando
+                CreateProfileForm(
+                    username = username,
+                    isError = isError,
+                    onUsernameChange = {
+                        username = it
+                        isError = false
+                    },
+                    onCreateProfile = {
+                        if (username.isBlank()) {
+                            isError = true
+                        } else {
+                            onCreateProfile(username)
+                        }
+                    }
+                )
             }
         }
     }
