@@ -193,7 +193,7 @@ class ShareViewModel(
                     .exists()
 
                 if (isAlreadyShared) {
-                    throw Exception("Ya has compartido con este usuario")
+                    throw Exception("Este usuario ya está en tu lista de oyentes")
                 }
 
                 // Añadir el UID al subnodo sharedWith del usuario actual
@@ -204,10 +204,10 @@ class ShareViewModel(
                     .setValue(true)
                     .await()
 
-                Log.d("ShareViewModel", "Compartido exitosamente con $targetUsername")
+                Log.d("ShareViewModel", "Usuario $targetUsername añadido exitosamente a oyentes")
                 loadAvailableUsers()
                 
-                _successMessage.value = "¡Compartido exitosamente con $targetUsername!"
+                _successMessage.value = "¡$targetUsername añadido exitosamente a tu lista de oyentes!"
 
             } catch (e: Exception) {
                 Log.e("ShareViewModel", "Error compartiendo con usuario: ${e.message}")
@@ -251,9 +251,9 @@ class ShareViewModel(
                     .removeValue()
                     .await()
                 
-                _successMessage.value = "Usuario $targetUsername eliminado exitosamente"
+                _successMessage.value = "Usuario $targetUsername eliminado de tu lista de oyentes"
 
-                Log.d("ShareViewModel", "Acceso removido para $targetUsername")
+                Log.d("ShareViewModel", "Oyente removido: $targetUsername")
                 loadAvailableUsers()
 
             } catch (e: Exception) {
@@ -470,6 +470,35 @@ class ShareViewModel(
         }
         notificationListeners.clear()
     }
+    
+    /**
+     * Limpia todos los datos del ViewModel cuando el usuario cierra sesión
+     */
+    fun clearData() {
+        viewModelScope.launch {
+            try {
+                // Eliminar todos los listeners
+                notificationListeners.forEach { (_, listener) ->
+                    database.reference.removeEventListener(listener)
+                }
+                notificationListeners.clear()
+                
+                // Limpiar todos los StateFlows con datos del usuario
+                _sharedUsers.value = emptyList()
+                _availableUsers.value = emptyList()
+                _searchResults.value = emptyList()
+                _sharedByUsers.value = emptyList()
+                _sharedUsersNotifications.value = emptyMap()
+                _error.value = null
+                _successMessage.value = null
+                
+                Log.d("ShareViewModel", "Datos limpiados correctamente al cerrar sesión")
+            } catch (e: Exception) {
+                Log.e("ShareViewModel", "Error al limpiar datos: ${e.message}")
+            }
+        }
+    }
+    
     /**
      * Verifica si el usuario actual tiene un perfil completo en la base de datos
      */

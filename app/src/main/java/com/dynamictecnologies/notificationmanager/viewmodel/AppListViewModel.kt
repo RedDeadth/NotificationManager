@@ -193,6 +193,29 @@ class AppListViewModel(
         super.onCleared()
         notificationJob?.cancel()
     }
+    
+    /**
+     * Limpia todos los datos del ViewModel cuando el usuario cierra sesión
+     */
+    fun clearData() {
+        viewModelScope.launch {
+            try {
+                // Cancelar job de notificaciones
+                notificationJob?.cancel()
+                
+                // Limpiar todos los StateFlows
+                _selectedApp.value = null
+                _notifications.value = emptyList()
+                
+                // Limpiar la preferencia de la última app seleccionada
+                prefs.edit().remove("last_selected_app").apply()
+                
+                Log.d(TAG, "Datos de apps y notificaciones limpiados correctamente al cerrar sesión")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error al limpiar datos de apps: ${e.message}")
+            }
+        }
+    }
 }
 
 class AppListViewModelFactory(

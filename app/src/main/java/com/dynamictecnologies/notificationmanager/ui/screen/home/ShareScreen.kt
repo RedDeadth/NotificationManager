@@ -170,7 +170,7 @@ fun ShareScreen(
                     // Sección 1: "Mis notificaciones compartidas"
                     item {
                         Text(
-                            text = "Mis notificaciones compartidas",
+                            text = "Lista de oyentes",
                             style = MaterialTheme.typography.headlineSmall,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(bottom = 8.dp)
@@ -196,12 +196,12 @@ fun ShareScreen(
                                         modifier = Modifier.size(40.dp)
                                     )
                                     Text(
-                                        text = "Aún no has compartido con ningún usuario",
+                                        text = "Aún no has añadido ningún oyente",
                                         style = MaterialTheme.typography.titleMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     Text(
-                                        text = "Pulsa el botón + para compartir tus notificaciones",
+                                        text = "Pulsa el botón + para añadir usuarios a tu lista de oyentes",
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -227,7 +227,7 @@ fun ShareScreen(
                     // Sección 2: "Notificaciones compartidas conmigo"
                     item {
                         Text(
-                            text = "Notificaciones compartidas conmigo",
+                            text = "Contenido de Conductores",
                             style = MaterialTheme.typography.headlineSmall,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(vertical = 8.dp)
@@ -253,12 +253,12 @@ fun ShareScreen(
                                         modifier = Modifier.size(40.dp)
                                     )
                                     Text(
-                                        text = "Ningún usuario comparte contigo",
+                                        text = "Ningún conductor comparte contigo",
                                         style = MaterialTheme.typography.titleMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     Text(
-                                        text = "Cuando alguien comparta sus notificaciones contigo, aparecerán aquí",
+                                        text = "Cuando un conductor te añada a su lista de oyentes, aparecerá aquí",
                                         style = MaterialTheme.typography.bodyMedium,
                                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -339,7 +339,7 @@ fun SharedByUserCard(
             if (notifications.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Últimas notificaciones",
+                    text = "Notificaciones compartidas",
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.secondary
                 )
@@ -376,7 +376,7 @@ private fun SharedUsersContent(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "No has compartido con ningún usuario",
+                text = "No has añadido ningún oyente a tu lista",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -418,7 +418,8 @@ fun SharedUserCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Person,
@@ -443,25 +444,9 @@ fun SharedUserCard(
                 IconButton(onClick = onRemove) {
                     Icon(
                         imageVector = Icons.Default.Delete,
-                        contentDescription = "Remover usuario",
+                        contentDescription = "Remover oyente",
                         tint = MaterialTheme.colorScheme.error
                     )
-                }
-            }
-
-            if (notifications.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Últimas notificaciones",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Column {
-                    notifications.take(3).forEach { notification ->
-                        NotificationItem(notification)
-                        Divider()
-                    }
                 }
             }
         }

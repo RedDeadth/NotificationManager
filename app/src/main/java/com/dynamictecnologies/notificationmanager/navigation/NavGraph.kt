@@ -97,6 +97,11 @@ fun NavigationGraph(
                     }
                 },
                 onLogout = {
+                    // Limpiar todos los datos antes de cerrar sesión
+                    userViewModel.clearData()
+                    shareViewModel.clearData()
+                    appListViewModel.clearData() // Asumiendo que existe esta función
+                    
                     authViewModel.signOut()
                     navController.navigate(Screen.Login.route) {
                         popUpTo(0) { inclusive = true }
@@ -122,6 +127,11 @@ fun NavigationGraph(
                 viewModel = appListViewModel,
                 userViewModel = userViewModel,
                 onLogout = {
+                    // Limpiar todos los datos antes de cerrar sesión
+                    userViewModel.clearData()
+                    shareViewModel.clearData()
+                    appListViewModel.clearData() // Asumiendo que existe esta función
+                    
                     authViewModel.signOut()
                     navController.navigate(Screen.Login.route) {
                         popUpTo(0) { inclusive = true }
@@ -163,6 +173,11 @@ fun NavigationGraph(
                     userViewModel.clearError()
                 },
                 onLogout = {
+                    // Limpiar todos los datos antes de cerrar sesión
+                    userViewModel.clearData()
+                    shareViewModel.clearData()
+                    appListViewModel.clearData() // Asumiendo que existe esta función
+                    
                     authViewModel.signOut()
                     navController.navigate(Screen.Login.route) {
                         popUpTo(0) { inclusive = true }

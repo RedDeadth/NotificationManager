@@ -220,19 +220,37 @@ class UserViewModel(
      * @return mensaje de error o null si es válido
      */
     private fun validateUsername(username: String): String? {
-        val trimmed = username.trim()
         return when {
-            trimmed.isBlank() -> "El nombre de usuario no puede estar vacío"
-            trimmed.length < 3 -> "El nombre de usuario debe tener al menos 3 caracteres"
-            trimmed.length > 30 -> "El nombre de usuario no puede tener más de 30 caracteres"
-            trimmed.contains(" ") -> "El nombre de usuario no puede contener espacios"
-            !trimmed.matches("^[a-zA-Z0-9]+$".toRegex()) -> "El nombre de usuario solo puede contener letras y números"
+            username.length < 3 -> "El nombre de usuario debe tener al menos 3 caracteres"
+            username.length > 20 -> "El nombre de usuario debe tener máximo 20 caracteres"
+            !username.all { it.isLetterOrDigit() } -> "El nombre de usuario solo puede contener letras y números"
             else -> null
         }
     }
 
     fun clearError() {
         _errorState.value = null
+    }
+
+    /**
+     * Limpia todos los datos del ViewModel cuando el usuario cierra sesión
+     */
+    fun clearData() {
+        viewModelScope.launch {
+            try {
+                // Limpiar el perfil en caché
+                cachedProfile = null
+                lastProfileFetchTime = 0
+                
+                // Limpiar todos los StateFlows
+                _userProfile.value = null
+                _errorState.value = null
+                
+                Log.d("UserViewModel", "Datos de perfil limpiados correctamente al cerrar sesión")
+            } catch (e: Exception) {
+                Log.e("UserViewModel", "Error al limpiar datos de perfil: ${e.message}")
+            }
+        }
     }
 
     override fun onCleared() {
