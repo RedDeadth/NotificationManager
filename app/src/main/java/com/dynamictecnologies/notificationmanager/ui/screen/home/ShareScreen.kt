@@ -12,11 +12,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
+import com.dynamictecnologies.notificationmanager.data.model.SyncStatus
 import com.dynamictecnologies.notificationmanager.data.model.UserInfo
 import com.dynamictecnologies.notificationmanager.ui.components.AddUserDialog
 import com.dynamictecnologies.notificationmanager.ui.components.AppBottomBar
@@ -177,7 +182,7 @@ fun ShareScreen(
                     item {
                         Text(
                             text = "Lista de oyentes",
-                            style = MaterialTheme.typography.headlineSmall,
+                            style = MaterialTheme.typography.titleLarge,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
@@ -235,7 +240,7 @@ fun ShareScreen(
                     item {
                         Text(
                             text = "Contenido de Conductores",
-                            style = MaterialTheme.typography.headlineSmall,
+                            style = MaterialTheme.typography.titleLarge,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(vertical = 8.dp)
                         )
@@ -289,17 +294,24 @@ fun ShareScreen(
 
         // Mantener el FloatingActionButton
         if (hasValidProfile && !isInitialLoading) {
-            FloatingActionButton(
+            ExtendedFloatingActionButton(
                 onClick = {
                     shareViewModel.loadAvailableUsers()
                     showAddUserDialog = true
                 },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(16.dp)
-            ) {
-                Icon(Icons.Default.PersonAdd, "Añadir usuario")
-            }
+                    .padding(16.dp),
+                icon = { 
+                    Icon(
+                        imageVector = Icons.Default.PersonAdd,
+                        contentDescription = "Añadir usuario"
+                    )
+                },
+                text = { Text("Añadir oyente") },
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            )
         }
 
         // SnackbarHost para mostrar mensajes
@@ -332,7 +344,8 @@ fun SharedUserCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        shape = MaterialTheme.shapes.medium
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -377,14 +390,17 @@ fun SharedUserCard(
         }
     }
 }
+
 @Composable
 fun ConductorNotificationsCard(
     user: UserInfo,
     notifications: List<NotificationInfo>
 ) {
+    // Estado para controlar si la tarjeta está expandida como diálogo
     var expanded by remember { mutableStateOf(false) }
-
-    val validNotifications = notifications.filter {
+    
+    // Filtrar notificaciones válidas (con timestamp posterior a 1990)
+    val validNotifications = notifications.filter { 
         val timestampMillis = it.timestamp?.time ?: 0L
         timestampMillis > 631152000000L // 01/01/1990 en milisegundos
     }
@@ -395,7 +411,8 @@ fun ConductorNotificationsCard(
             .fillMaxWidth()
             .heightIn(min = 150.dp)
             .clickable { expanded = true }, // Al hacer clic, expandir la vista
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        shape = MaterialTheme.shapes.medium
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -448,7 +465,7 @@ fun ConductorNotificationsCard(
                 Text(
                     text = "Notificaciones (${validNotifications.size})",
                     style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
                 
@@ -481,7 +498,7 @@ fun ConductorNotificationsCard(
                 modifier = Modifier
                     .fillMaxWidth(0.95f)
                     .fillMaxHeight(0.8f),
-                shape = RoundedCornerShape(16.dp),
+                shape = MaterialTheme.shapes.large,
                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
             ) {
                 Column(
@@ -530,6 +547,7 @@ fun ConductorNotificationsCard(
                         ) {
                             items(
                                 items = validNotifications,
+                                key = { "${it.packageName}_${it.title}_${it.timestamp?.time}" }
                             ) { notification ->
                                 NotificationItem(notification, expanded = true)
                                 Divider(
@@ -550,52 +568,57 @@ private fun NotificationItem(
     notification: NotificationInfo,
     expanded: Boolean = false
 ) {
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp)
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.Top
     ) {
-        // Título de la notificación
-        Text(
-            text = notification.title.takeIf { it.isNotBlank() } ?: "Sin título",
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        
-        Spacer(modifier = Modifier.height(4.dp))
-        
-        // Contenido de la notificación
-        Text(
-            text = notification.content.takeIf { it.isNotBlank() } ?: "Sin contenido",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = if (expanded) Int.MAX_VALUE else 2,
-            overflow = TextOverflow.Ellipsis
-        )
-        
-        Spacer(modifier = Modifier.height(4.dp))
-        
-        // Información adicional en la parte inferior
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+        // Contenido principal de la notificación (izquierda)
+        Column(
+            modifier = Modifier.weight(1f)
         ) {
+            // Título de la notificación
+            Text(
+                text = notification.title.takeIf { it.isNotBlank() } ?: "Sin título",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
             
-            // Fecha formateada solo si está expandido
-            if (expanded) {
-                val timestamp = notification.timestamp
-                val validTimestamp = timestamp != null && timestamp.time > 631152000000L
-                
-                if (validTimestamp) {
-                    Text(
-                        text = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(timestamp),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
+            Spacer(modifier = Modifier.height(4.dp))
+            
+            // Contenido de la notificación
+            Text(
+                text = notification.content.takeIf { it.isNotBlank() } ?: "Sin contenido",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = if (expanded) Int.MAX_VALUE else 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        
+        // Información de estado y timestamp (derecha)
+        Column(
+            horizontalAlignment = Alignment.End
+        ) {
+            Spacer(modifier = Modifier.height(4.dp))
+            
+            // Timestamp
+            val timestamp = notification.timestamp
+            val validTimestamp = timestamp != null && timestamp.time > 631152000000L // 01/01/1990
+            
+            Text(
+                text = if (validTimestamp) {
+                    SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(timestamp)
+                } else {
+                    "Fecha no disponible"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

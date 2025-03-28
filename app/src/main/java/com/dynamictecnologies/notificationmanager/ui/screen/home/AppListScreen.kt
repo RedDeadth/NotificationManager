@@ -72,7 +72,7 @@ fun AppListScreen(
                             verticalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = "Aplicación Seleccionada",
+                                text = "App Seleccionada",
                                 style = MaterialTheme.typography.titleMedium
                             )
                             Spacer(modifier = Modifier.height(8.dp))
@@ -95,7 +95,7 @@ fun AppListScreen(
                                 onClick = { viewModel.toggleAppList() },
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text("Cambiar Aplicación")
+                                Text("Cambiar")
                             }
                         }
                     }
@@ -115,7 +115,7 @@ fun AppListScreen(
                             verticalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = "Visualizador de Notificaciones",
+                                text = "Visualizador",
                                 style = MaterialTheme.typography.titleMedium
                             )
                             Spacer(modifier = Modifier.height(8.dp))

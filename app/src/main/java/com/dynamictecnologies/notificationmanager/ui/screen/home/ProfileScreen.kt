@@ -82,17 +82,6 @@ fun ProfileScreen(
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
-        // Botón de recargar en la esquina superior derecha si hay un perfil
-        if (userInfo != null && !isLoading) {
-            IconButton(
-                onClick = onRefresh,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(8.dp)
-            ) {
-                Icon(Icons.Default.Refresh, contentDescription = "Actualizar perfil")
-            }
-        }
         
         // Primero determinamos si hay un perfil o no
         if (userInfo != null) {
