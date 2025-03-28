@@ -6,10 +6,13 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
@@ -21,6 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
 import com.dynamictecnologies.notificationmanager.data.model.UserInfo
 import com.dynamictecnologies.notificationmanager.ui.components.AddUserDialog
@@ -59,30 +64,6 @@ fun ShareScreen(
     // Estado adicional para controlar la carga inicial
     var isInitialLoading by remember { mutableStateOf(true) }
     
-    // Estado para mostrar animación de refresco
-    var isRefreshing by remember { mutableStateOf(false) }
-    
-    // Estado para detectar nuevas notificaciones
-    val notificationCounts = remember { mutableStateMapOf<String, Int>() }
-    
-    // Efecto para detectar cambios en las notificaciones
-    LaunchedEffect(sharedUsersNotifications) {
-        sharedUsersNotifications.forEach { (uid, notifications) ->
-            val previousCount = notificationCounts[uid] ?: 0
-            val currentCount = notifications.size
-            
-            if (previousCount > 0 && currentCount > previousCount) {
-                // Mostrar animación de refresco si hay nuevas notificaciones
-                isRefreshing = true
-                delay(500) // Mantener la animación visible brevemente
-                isRefreshing = false
-            }
-            
-            // Actualizar el conteo
-            notificationCounts[uid] = currentCount
-        }
-    }
-    
     // Verificar si el perfil del usuario está completo al cargar la pantalla
     LaunchedEffect(Unit) {
         try {
@@ -102,24 +83,8 @@ fun ShareScreen(
             hasValidProfile = false
         } finally {
             // Finalizar la carga inicial después de un breve retraso para evitar parpadeos
-            kotlinx.coroutines.delay(300)
+            delay(300)
             isInitialLoading = false
-        }
-    }
-    
-    // Configurar refresco periódico de datos
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(30000) // Actualizar cada 30 segundos
-            if (hasValidProfile && !isInitialLoading) {
-                // Mostrar animación sutil de actualización
-                isRefreshing = true
-                delay(500)
-                isRefreshing = false
-                
-                // Refrescar datos
-                shareViewModel.loadUsersWhoSharedWithMe()
-            }
         }
     }
     
@@ -203,79 +168,10 @@ fun ShareScreen(
             Column(
                 modifier = Modifier.fillMaxSize()
             ) {
-                // Botón de mantenimiento para migrar el formato de notificaciones
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Indicador de actualización
-                    AnimatedVisibility(
-                        visible = isRefreshing,
-                        enter = fadeIn(),
-                        exit = fadeOut()
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                strokeWidth = 2.dp
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Actualizando...",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                    
-                    TextButton(
-                        onClick = { 
-                            isRefreshing = true
-                            shareViewModel.migrateNotificationsFormat()
-                            kotlinx.coroutines.delay(500)
-                            isRefreshing = false
-                        },
-                        colors = ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.tertiary
-                        )
-                    ) {
-                        Text("Reparar notificaciones")
-                    }
-                }
-                
-                // Botón para actualizar manualmente
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(
-                        onClick = { 
-                            isRefreshing = true
-                            shareViewModel.loadUsersWhoSharedWithMe()
-                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
-                                delay(500)
-                                isRefreshing = false
-                            }
-                        },
-                        colors = ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.primary
-                        )
-                    ) {
-                        Text("Actualizar")
-                    }
-                }
-                
                 // Contenido principal
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp)
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 80.dp)
                 ) {
                     // Sección 1: "Mis notificaciones compartidas"
                     item {
@@ -292,7 +188,8 @@ fun ShareScreen(
                             Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(bottom = 16.dp)
+                                    .padding(bottom = 16.dp),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                             ) {
                                 Column(
                                     modifier = Modifier.padding(16.dp),
@@ -349,7 +246,8 @@ fun ShareScreen(
                             Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(bottom = 16.dp)
+                                    .padding(bottom = 16.dp),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                             ) {
                                 Column(
                                     modifier = Modifier.padding(16.dp),
@@ -378,7 +276,7 @@ fun ShareScreen(
                         }
                     } else {
                         items(sharedByUsers) { user ->
-                            SharedByUserCard(
+                            ConductorNotificationsCard(
                                 user = user,
                                 notifications = sharedUsersNotifications[user.uid] ?: emptyList()
                             )
@@ -425,148 +323,6 @@ fun ShareScreen(
 }
 
 @Composable
-fun SharedByUserCard(
-    user: UserInfo,
-    notifications: List<NotificationInfo>
-) {
-    var isExpanded by remember { mutableStateOf(false) }
-    
-    // Estado para detectar nuevas notificaciones
-    var previousCount by remember { mutableStateOf(0) }
-    var hasNewNotifications by remember { mutableStateOf(false) }
-    
-    // Detectar cambios en las notificaciones
-    LaunchedEffect(notifications) {
-        if (previousCount > 0 && notifications.size > previousCount) {
-            hasNewNotifications = true
-            delay(5000) // Mantener el indicador por 5 segundos
-            hasNewNotifications = false
-        }
-        previousCount = notifications.size
-    }
-    
-    // Filtrar notificaciones válidas (con timestamp posterior a 1990)
-    val validNotifications = notifications.filter { 
-        val timestampMillis = it.timestamp?.time ?: 0L
-        timestampMillis > 631152000000L // 01/01/1990 en milisegundos
-    }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .animateContentSize() // Añadir animación de cambio de tamaño
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Box {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.secondary
-                        )
-                        
-                        // Mostrar indicador de nuevas notificaciones
-                        if (hasNewNotifications) {
-                            Badge(
-                                modifier = Modifier.align(Alignment.TopEnd)
-                            ) {
-                                Text("nuevo")
-                            }
-                        }
-                    }
-                    
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column {
-                        Text(
-                            text = user.username,
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        user.email?.let {
-                            Text(
-                                text = it,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-                
-                // Botón para expandir/colapsar
-                TextButton(onClick = { isExpanded = !isExpanded }) {
-                    Text(if (isExpanded) "Ver menos" else "Ver más")
-                }
-            }
-
-            if (validNotifications.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Notificaciones compartidas",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.weight(1f)
-                    )
-                    
-                    // Contador de notificaciones
-                    Text(
-                        text = "${validNotifications.size}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-                
-                Spacer(modifier = Modifier.height(4.dp))
-                Column {
-                    // Mostrar 3 notificaciones si no está expandido, todas si está expandido
-                    val notificationsToShow = if (isExpanded) validNotifications else validNotifications.take(3)
-                    
-                    notificationsToShow.forEach { notification ->
-                        NotificationItem(notification)
-                        Divider()
-                    }
-                    
-                    // Mostrar indicador si hay más notificaciones
-                    if (!isExpanded && validNotifications.size > 3) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Text(
-                                text = "Hay ${validNotifications.size - 3} notificaciones más",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                }
-            } else {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "No hay notificaciones recientes disponibles",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-@Composable
 fun SharedUserCard(
     user: UserInfo,
     notifications: List<NotificationInfo>,
@@ -575,7 +331,8 @@ fun SharedUserCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
+            .padding(vertical = 4.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -620,40 +377,225 @@ fun SharedUserCard(
         }
     }
 }
+@Composable
+fun ConductorNotificationsCard(
+    user: UserInfo,
+    notifications: List<NotificationInfo>
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    val validNotifications = notifications.filter {
+        val timestampMillis = it.timestamp?.time ?: 0L
+        timestampMillis > 631152000000L // 01/01/1990 en milisegundos
+    }
+    
+    // Tarjeta normal (contraída)
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 150.dp)
+            .clickable { expanded = true }, // Al hacer clic, expandir la vista
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            // Encabezado con información del usuario
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = user.username,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    user.email?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+            
+            Divider(color = MaterialTheme.colorScheme.outlineVariant)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (validNotifications.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No hay notificaciones recientes disponibles",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                Text(
+                    text = "Notificaciones (${validNotifications.size})",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                
+                // Mostrar solo algunas notificaciones en la vista contraída
+                Column {
+                    validNotifications.take(2).forEach { notification ->
+                        NotificationItem(notification)
+                        if (notification != validNotifications.take(2).lastOrNull()) {
+                            Divider(
+                                modifier = Modifier.padding(vertical = 8.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Vista expandida como diálogo flotante
+    if (expanded) {
+        Dialog(
+            onDismissRequest = { expanded = false },
+            properties = DialogProperties(
+                dismissOnBackPress = true,
+                dismissOnClickOutside = true
+            )
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth(0.95f)
+                    .fillMaxHeight(0.8f),
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    // Encabezado con información del usuario y botón cerrar
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Notificaciones de ${user.username}",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        IconButton(onClick = { expanded = false }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Cerrar"
+                            )
+                        }
+                    }
+
+                    Divider(modifier = Modifier.padding(bottom = 8.dp))
+
+                    if (validNotifications.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No hay notificaciones disponibles",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    } else {
+                        // Lista de todas las notificaciones en vista expandida
+                        LazyColumn(
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            items(
+                                items = validNotifications,
+                            ) { notification ->
+                                NotificationItem(notification, expanded = true)
+                                Divider(
+                                    modifier = Modifier.padding(vertical = 8.dp),
+                                    color = MaterialTheme.colorScheme.outlineVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
-private fun NotificationItem(notification: NotificationInfo) {
+private fun NotificationItem(
+    notification: NotificationInfo,
+    expanded: Boolean = false
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp)
     ) {
+        // Título de la notificación
         Text(
             text = notification.title.takeIf { it.isNotBlank() } ?: "Sin título",
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
+        
+        Spacer(modifier = Modifier.height(4.dp))
+        
+        // Contenido de la notificación
         Text(
             text = notification.content.takeIf { it.isNotBlank() } ?: "Sin contenido",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 2,
+            maxLines = if (expanded) Int.MAX_VALUE else 2,
             overflow = TextOverflow.Ellipsis
         )
         
-        // Verificar timestamp válido (posterior a 1990)
-        val timestamp = notification.timestamp
-        val timestampMillis = timestamp?.time ?: 0L
-        val validTimestamp = timestampMillis > 631152000000L // 01/01/1990 en milisegundos
+        Spacer(modifier = Modifier.height(4.dp))
         
-        Text(
-            text = if (validTimestamp) {
-                SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(timestamp)
-            } else {
-                "Fecha no disponible"
-            },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        // Información adicional en la parte inferior
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            
+            // Fecha formateada solo si está expandido
+            if (expanded) {
+                val timestamp = notification.timestamp
+                val validTimestamp = timestamp != null && timestamp.time > 631152000000L
+                
+                if (validTimestamp) {
+                    Text(
+                        text = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(timestamp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
     }
 }
