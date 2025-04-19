@@ -10,14 +10,10 @@ import com.dynamictecnologies.notificationmanager.ui.screen.auth.LoginScreen
 import com.dynamictecnologies.notificationmanager.ui.screen.auth.RegisterScreen
 import com.dynamictecnologies.notificationmanager.ui.screen.home.AppListScreen
 import com.dynamictecnologies.notificationmanager.ui.components.PermissionScreen
-import com.dynamictecnologies.notificationmanager.viewmodel.AuthViewModel
-import com.dynamictecnologies.notificationmanager.viewmodel.PermissionViewModel
-import com.dynamictecnologies.notificationmanager.viewmodel.AppListViewModel
-import com.dynamictecnologies.notificationmanager.viewmodel.UserViewModel
+import com.dynamictecnologies.notificationmanager.viewmodel.*
 import androidx.compose.ui.Modifier
 import com.dynamictecnologies.notificationmanager.ui.screen.home.ProfileScreen
 import com.dynamictecnologies.notificationmanager.ui.screen.home.ShareScreen
-import com.dynamictecnologies.notificationmanager.viewmodel.ShareViewModel
 import com.dynamictecnologies.notificationmanager.navigation.NavigationAnimations
 import androidx.navigation.navigation
 import com.dynamictecnologies.notificationmanager.data.model.UserInfo
@@ -43,6 +39,7 @@ fun NavigationGraph(
     appListViewModel: AppListViewModel,
     userViewModel: UserViewModel,
     shareViewModel: ShareViewModel,
+    deviceViewModel: DeviceViewModel,
     startDestination: String
 ) {
     NavHost(
@@ -98,6 +95,7 @@ fun NavigationGraph(
                 appListViewModel = appListViewModel,
                 userViewModel = userViewModel,
                 shareViewModel = shareViewModel,
+                deviceViewModel = deviceViewModel,
                 onPermissionsGranted = {
                     navController.navigate(Screen.Main.route) {
                         popUpTo(Screen.Permission.route) { inclusive = true }
@@ -148,6 +146,7 @@ fun NavigationGraph(
                     appListViewModel = appListViewModel,
                     userViewModel = userViewModel,
                     shareViewModel = shareViewModel,
+                    deviceViewModel = deviceViewModel,
                     modifier = paddingModifier
                 )
             }
@@ -163,6 +162,7 @@ fun MainNavGraph(
     appListViewModel: AppListViewModel,
     userViewModel: UserViewModel,
     shareViewModel: ShareViewModel,
+    deviceViewModel: DeviceViewModel,
     modifier: Modifier = Modifier
 ) {
     NavHost(
@@ -181,6 +181,7 @@ fun MainNavGraph(
             AppListContent(
                 viewModel = appListViewModel,
                 userViewModel = userViewModel,
+                deviceViewModel = deviceViewModel,
                 onLogout = {
                     // Limpiar todos los datos antes de cerrar sesión
                     userViewModel.clearData()
@@ -253,11 +254,13 @@ fun MainNavGraph(
 fun AppListContent(
     viewModel: AppListViewModel,
     userViewModel: UserViewModel,
+    deviceViewModel: DeviceViewModel,
     onLogout: () -> Unit
 ) {
     AppListScreen(
         viewModel = viewModel,
         userViewModel = userViewModel,
+        deviceViewModel = deviceViewModel,
         onLogout = onLogout,
         onNavigateToProfile = { /* Manejado por BottomBar */ },
         onNavigateToShared = { /* Manejado por BottomBar */ },
@@ -306,7 +309,8 @@ fun AppNavigation(
     permissionViewModel: PermissionViewModel,
     appListViewModel: AppListViewModel,
     userViewModel: UserViewModel,
-    shareViewModel: ShareViewModel
+    shareViewModel: ShareViewModel,
+    deviceViewModel: DeviceViewModel
 ) {
     val navController = rememberNavController()
     val authState by authViewModel.authState.collectAsState()
@@ -362,7 +366,8 @@ fun AppNavigation(
         permissionViewModel = permissionViewModel,
         appListViewModel = appListViewModel,
         userViewModel = userViewModel,
-        startDestination = startDestination,
-        shareViewModel = shareViewModel
+        shareViewModel = shareViewModel,
+        deviceViewModel = deviceViewModel,
+        startDestination = startDestination
     )
 }

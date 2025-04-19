@@ -47,6 +47,14 @@ android {
     buildFeatures {
         compose = true
     }
+    
+    // Configuración necesaria para MQTT Paho
+    packaging {
+        resources {
+            excludes += setOf("META-INF/INDEX.LIST", "META-INF/io.netty.versions.properties")
+            pickFirsts += setOf("META-INF/LICENSE", "META-INF/DEPENDENCIES", "META-INF/NOTICE")
+        }
+    }
 }
 
 dependencies {
@@ -94,6 +102,13 @@ dependencies {
 
     // Google Play Services
     implementation("com.google.android.gms:play-services-auth:20.7.0")
+    
+    // MQTT Paho - Cliente MQTT para comunicación con ESP32
+    implementation("org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5")
+    implementation("org.eclipse.paho:org.eclipse.paho.android.service:1.1.1") {
+        exclude(group = "com.android.support", module = "support-v4")
+        exclude(group = "appcompat-v7")
+    }
 
     // Testing
     testImplementation("junit:junit:4.13.2")

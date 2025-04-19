@@ -1,0 +1,65 @@
+{
+  "rules": {
+    // Permitir lectura a cualquier usuario (autenticado o no)
+    ".read": true,
+
+    // Solo usuarios autenticados pueden escribir en la base de datos en general
+    ".write": true,
+
+    // Reglas específicas para dispositivos
+    "dispositivos": {
+      "$deviceId": {
+        // Los dispositivos pueden actualizar su propio estado
+        ".write": true,
+
+        // Índice para consultas de disponibilidad
+        ".indexOn": ["disponible", "vinculado"]
+      }
+    },
+
+    // Reglas para notificaciones
+    "notifications": {
+      "$uid": {
+        // El usuario propietario puede leer/escribir sus notificaciones
+        ".read": true,
+        ".write": "auth != null && auth.uid == $uid",
+
+        "$notificationId": {
+          // Indexar por timestamp para ordenamiento
+          ".indexOn": ["timestamp", "syncTimestamp"]
+        }
+      }
+    },
+
+    // Reglas para usuarios
+    "users": {
+      "$username": {
+        // El propio usuario puede modificar sus datos
+        ".write": "auth != null && (data.child('uid').val() == auth.uid || newData.child('uid').val() == auth.uid)",
+
+        // Cualquiera puede leer información básica del usuario
+        ".read": true,
+
+        // Información de dispositivos vinculados
+        "devices": {
+          ".write": "auth != null && root.child('users').child($username).child('uid').val() == auth.uid"
+        },
+
+        // Indexar por UID
+        ".indexOn": ["uid", "createdAt"]
+      }
+    },
+
+    "usernames": {
+      // Indexar por valor para búsquedas inversas
+      ".indexOn": [".value"],
+      // Solo usuarios autenticados pueden registrar usernames
+      ".write": "auth != null"
+    },
+
+    "system_health": {
+      // Permite actualizaciones del estado del sistema
+      ".write": "auth != null || (auth == null && (newData.child('ping').val() != null))"
+    }
+  }
+} 

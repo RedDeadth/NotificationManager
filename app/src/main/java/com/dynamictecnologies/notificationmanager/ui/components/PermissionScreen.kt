@@ -9,6 +9,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.dynamictecnologies.notificationmanager.ui.screen.home.AppListScreen
+import com.dynamictecnologies.notificationmanager.viewmodel.DeviceViewModel
 import com.dynamictecnologies.notificationmanager.viewmodel.ShareViewModel
 import com.dynamictecnologies.notificationmanager.viewmodel.UserViewModel
 
@@ -21,7 +22,8 @@ fun PermissionScreen(
     onLogout: () -> Unit,
     onNavigateToProfile: () -> Unit,
     onNavigateToShared: () -> Unit,
-    shareViewModel: ShareViewModel
+    shareViewModel: ShareViewModel,
+    deviceViewModel: DeviceViewModel
 ) {
     val permissionsGranted by permissionViewModel.permissionsGranted.collectAsState()
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -52,6 +54,7 @@ fun PermissionScreen(
         onLogout = onLogout,
         onNavigateToProfile = onNavigateToProfile,
         onNavigateToShared = onNavigateToShared,
+        deviceViewModel = deviceViewModel,
     )
 
     // Mostrar el diálogo de permisos si no están concedidos

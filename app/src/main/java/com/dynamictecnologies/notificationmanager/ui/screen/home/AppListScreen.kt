@@ -14,6 +14,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.dynamictecnologies.notificationmanager.viewmodel.AppListViewModel
+import com.dynamictecnologies.notificationmanager.viewmodel.DeviceViewModel
 import com.dynamictecnologies.notificationmanager.viewmodel.UserViewModel
 import com.dynamictecnologies.notificationmanager.ui.components.InitialSelectionCard
 import com.dynamictecnologies.notificationmanager.ui.components.AppSelectionDialog
@@ -21,10 +22,13 @@ import com.dynamictecnologies.notificationmanager.ui.components.AppBottomBar
 import com.dynamictecnologies.notificationmanager.ui.components.AppTopBar
 import com.dynamictecnologies.notificationmanager.ui.components.NotificationHistoryCard
 import com.dynamictecnologies.notificationmanager.ui.components.Screen
+import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
+import com.dynamictecnologies.notificationmanager.ui.components.DeviceSelectionDialog
 
 @Composable
 fun AppListScreen(
     viewModel: AppListViewModel,
+    deviceViewModel: DeviceViewModel,
     userViewModel: UserViewModel,
     onLogout: () -> Unit,
     onNavigateToProfile: () -> Unit,
@@ -37,7 +41,42 @@ fun AppListScreen(
     val showAppList by viewModel.showAppList.collectAsState()
     val notifications by viewModel.notifications.collectAsState()
 
-    var showShareDialog by remember { mutableStateOf(false) }
+    // Estados para el visualizador ESP32
+    val devices by deviceViewModel.devices.collectAsState()
+    val isSearching by deviceViewModel.isSearching.collectAsState()
+    val showDeviceDialog by deviceViewModel.showDeviceDialog.collectAsState()
+    val connectedDevice by deviceViewModel.connectedDevice.collectAsState()
+    val scanCompleted by deviceViewModel.scanCompleted.collectAsState()
+    val userId by userViewModel.userId.collectAsState()
+
+    // Inicializar conexión MQTT cuando se carga la pantalla
+    LaunchedEffect(Unit) {
+        deviceViewModel.connectToMqtt()
+    }
+    
+    // Enviar notificaciones al dispositivo conectado
+    LaunchedEffect(notifications, connectedDevice) {
+        if (connectedDevice != null && notifications.isNotEmpty()) {
+            // Crear una copia para prevenir ConcurrentModificationException
+            val notificationsCopy = notifications.toList()
+            
+            // Agrupar notificaciones y enviar cada una con un intervalo
+            var delay = 0L
+            for (notification in notificationsCopy) {
+                // Enviar cada notificación con un ligero retraso para evitar conflictos de timestamp
+                kotlinx.coroutines.delay(delay)
+                deviceViewModel.sendNotification(notification)
+                delay = 250 // 250ms de retraso entre notificaciones
+            }
+        }
+    }
+    
+    // Verificar conexión cuando cambia el estado del usuario
+    LaunchedEffect(userId) {
+        userId?.let { uid ->
+            deviceViewModel.setCurrentUserId(uid)
+        }
+    }
 
     Box(
         modifier = Modifier.fillMaxSize()
@@ -115,7 +154,7 @@ fun AppListScreen(
                             verticalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = "Visualizador",
+                                text = "Visualizador ESP32",
                                 style = MaterialTheme.typography.titleMedium
                             )
                             Spacer(modifier = Modifier.height(8.dp))
@@ -123,19 +162,46 @@ fun AppListScreen(
                                 imageVector = Icons.Default.ScreenShare,
                                 contentDescription = null,
                                 modifier = Modifier.size(56.dp),
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = if (connectedDevice != null) 
+                                    MaterialTheme.colorScheme.primary 
+                                else 
+                                    MaterialTheme.colorScheme.outline
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Sin conexión",
-                                style = MaterialTheme.typography.bodyLarge
+                                text = if (connectedDevice != null) 
+                                    "Conectado" 
+                                else 
+                                    "Sin conexión",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = if (connectedDevice != null)
+                                    MaterialTheme.colorScheme.primary
+                                else
+                                    Color.Gray
                             )
                             Spacer(modifier = Modifier.height(8.dp))
-                            OutlinedButton(
-                                onClick = { /* Función futura */ },
-                                modifier = Modifier.fillMaxWidth()
+                            Button(
+                                onClick = { 
+                                    if (connectedDevice != null) {
+                                        // Desconectar
+                                        deviceViewModel.disconnectFromMqtt()
+                                    } else {
+                                        // Mostrar diálogo para conectar
+                                        deviceViewModel.toggleDeviceDialog()
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = if (connectedDevice != null) {
+                                    ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.error
+                                    )
+                                } else {
+                                    ButtonDefaults.buttonColors()
+                                }
                             ) {
-                                Text("Conectar")
+                                Text(
+                                    if (connectedDevice != null) "Desconectar" else "Conectar"
+                                )
                             }
                         }
                     }
@@ -173,9 +239,25 @@ fun AppListScreen(
             )
         }
 
-        if (showShareDialog) {
-            // Aquí iría el diálogo de compartir cuando lo implementes
-            showShareDialog = false
+        if (showDeviceDialog) {
+            DeviceSelectionDialog(
+                isSearching = isSearching,
+                devices = devices,
+                scanCompleted = scanCompleted,
+                onSearchDevices = { 
+                    userId?.let { uid -> deviceViewModel.searchDevices(uid) } 
+                },
+                onDeviceSelected = { device ->
+                    userId?.let { uid ->
+                        deviceViewModel.connectToDevice(device.id, uid)
+                        deviceViewModel.toggleDeviceDialog()
+                    }
+                },
+                onDismiss = { 
+                    deviceViewModel.toggleDeviceDialog()
+                    deviceViewModel.clearDevices()
+                }
+            )
         }
     }
 }

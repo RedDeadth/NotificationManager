@@ -28,6 +28,10 @@ class UserViewModel(
     private val _errorState = MutableStateFlow<String?>(null)
     val errorState = _errorState.asStateFlow()
     
+    // Añadimos un StateFlow para el userId 
+    private val _userId = MutableStateFlow<String?>(null)
+    val userId = _userId.asStateFlow()
+    
     // Caché local del perfil para evitar consultas repetidas
     private var cachedProfile: UserInfo? = null
     private var lastProfileFetchTime: Long = 0
@@ -40,6 +44,11 @@ class UserViewModel(
         } catch (e: Exception) {
             // Si ya está habilitada o hay un error, continuamos
             Log.d("UserViewModel", "Persistencia ya configurada o error: ${e.message}")
+        }
+        
+        // Inicializar userId con el usuario actual
+        auth.currentUser?.let {
+            _userId.value = it.uid
         }
         
         // Precarga inicial del perfil
@@ -60,6 +69,9 @@ class UserViewModel(
                 _errorState.value = null
                 
                 val currentUser = auth.currentUser ?: throw Exception("No hay usuario autenticado")
+                // Actualizar userId
+                _userId.value = currentUser.uid
+                
                 Log.d("UserViewModel", "Refrescando perfil para: ${currentUser.uid}")
                 
                 // Usar timeout para evitar esperas muy largas
@@ -245,6 +257,7 @@ class UserViewModel(
                 // Limpiar todos los StateFlows
                 _userProfile.value = null
                 _errorState.value = null
+                _userId.value = null
                 
                 Log.d("UserViewModel", "Datos de perfil limpiados correctamente al cerrar sesión")
             } catch (e: Exception) {

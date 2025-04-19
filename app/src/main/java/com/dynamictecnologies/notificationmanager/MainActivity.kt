@@ -85,6 +85,9 @@ class MainActivity : ComponentActivity() {
         AppListViewModelFactory(applicationContext, createRepository())
     }
 
+    private val deviceViewModel: DeviceViewModel by viewModels {
+        DeviceViewModelFactory(applicationContext)
+    }
 
     private val shareViewModel: ShareViewModel by viewModels {
         ShareViewModelFactory()
@@ -153,6 +156,7 @@ class MainActivity : ComponentActivity() {
                         appListViewModel = appListViewModel,
                         userViewModel = userViewModel,
                         shareViewModel = shareViewModel,
+                        deviceViewModel = deviceViewModel
                     )
                 }
             }

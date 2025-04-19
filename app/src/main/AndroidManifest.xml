@@ -15,6 +15,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- Agregar este permiso para Android 14+ -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
@@ -65,6 +66,11 @@
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+            
+        <!-- Servicio MQTT para comunicación con ESP32 -->
+        <service 
+            android:name="org.eclipse.paho.android.service.MqttService" 
+            android:enabled="true" />
 
         <!-- Receiver para inicio en boot -->
         <receiver
