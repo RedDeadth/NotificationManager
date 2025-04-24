@@ -22,11 +22,16 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
+import javax.net.ssl.SSLSocketFactory
 
 class MqttService(private val context: Context) {
     
     private val TAG = "MqttService"
-    private val BROKER_URL = "tcp://broker.hivemq.com:1883"
+    
+    // Configuración EMQX Cloud (Reemplaza con tus datos reales)
+    private val BROKER_URL = "ssl://b5c0bf2b.ala.us-east-1.emqxsl.com:8883" // Dirección actualizada
+    private val MQTT_USERNAME = "notificationmanager"
+    private val MQTT_PASSWORD = "strongpassword123" // Actualizada para coincidir con ESP32
     private val CLIENT_ID = "NotificationManager_" + UUID.randomUUID().toString()
     
     private var mqttClient: MqttClient? = null
@@ -134,6 +139,13 @@ class MqttService(private val context: Context) {
                 connectionTimeout = 60 // Aumentar timeout de conexión a 60 segundos
                 keepAliveInterval = 120 // Aumentar keep alive a 120 segundos
                 isAutomaticReconnect = false // Manejaremos la reconexión nosotros mismos
+                
+                // Configuración de seguridad para EMQX Cloud
+                userName = MQTT_USERNAME
+                password = MQTT_PASSWORD.toCharArray()
+                
+                // Configurar SSL/TLS
+                socketFactory = SSLSocketFactory.getDefault()
             }
             
             // Verificar si el cliente ya está conectado
@@ -148,13 +160,13 @@ class MqttService(private val context: Context) {
             
             mqttClient?.connect(options)
             _connectionStatus.value = true
-            Log.d(TAG, "Conexión MQTT establecida")
+            Log.d(TAG, "Conexión MQTT establecida con EMQX Cloud")
             
             // Ya no estamos en proceso de reconexión
             isReconnecting.set(false)
             
         } catch (e: Exception) {
-            Log.e(TAG, "Error en la conexión MQTT", e)
+            Log.e(TAG, "Error en la conexión MQTT: ${e.message}", e)
             _connectionStatus.value = false
             isReconnecting.set(false)
             

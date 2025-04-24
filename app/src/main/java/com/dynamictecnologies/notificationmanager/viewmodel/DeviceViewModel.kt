@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.dynamictecnologies.notificationmanager.data.model.DeviceInfo
 import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
+import com.dynamictecnologies.notificationmanager.service.FirebaseService
 import com.dynamictecnologies.notificationmanager.service.MqttService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,6 +18,7 @@ import kotlinx.coroutines.launch
 import java.util.*
 import com.google.firebase.database.FirebaseDatabase
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.delay
 
 class DeviceViewModel(
     private val context: Context,
@@ -41,6 +43,13 @@ class DeviceViewModel(
     
     // Referencia a Firebase
     private val database = FirebaseDatabase.getInstance()
+    
+    // Añadir estas variables para monitoreo de conexión
+    private val _connectionTestResult = MutableStateFlow<Map<String, Boolean>>(emptyMap())
+    val connectionTestResult: StateFlow<Map<String, Boolean>> = _connectionTestResult.asStateFlow()
+    
+    private val _isTestingConnection = MutableStateFlow(false)
+    val isTestingConnection: StateFlow<Boolean> = _isTestingConnection.asStateFlow()
     
     init {
         viewModelScope.launch {
@@ -190,6 +199,47 @@ class DeviceViewModel(
             } catch (e: Exception) {
                 Log.e(TAG, "Error configurando usuario: ${e.message}")
             }
+        }
+    }
+    
+    // Añadir esta función para probar la conexión a MQTT y Firebase
+    fun testConnections(firebaseService: FirebaseService) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isTestingConnection.value = true
+            
+            val results = mutableMapOf<String, Boolean>()
+            
+            // Probar conexión MQTT
+            try {
+                val wasConnected = mqttService.connectionStatus.value
+                if (!wasConnected) {
+                    mqttService.connect()
+                    // Esperar un poco para ver si la conexión se establece
+                    delay(5000)
+                }
+                results["mqtt"] = mqttService.connectionStatus.value
+                Log.d(TAG, "Prueba de conexión MQTT: ${if (results["mqtt"] == true) "OK" else "Fallida"}")
+                
+                if (!wasConnected && results["mqtt"] == true) {
+                    // Desconectar si estábamos desconectados inicialmente
+                    mqttService.disconnect()
+                }
+            } catch (e: Exception) {
+                results["mqtt"] = false
+                Log.e(TAG, "Error en prueba de conexión MQTT", e)
+            }
+            
+            // Probar Firebase y otras conexiones
+            try {
+                val infrastructureResults = firebaseService.verifyInfrastructure()
+                results.putAll(infrastructureResults)
+            } catch (e: Exception) {
+                results["firebase"] = false
+                Log.e(TAG, "Error verificando infraestructura", e)
+            }
+            
+            _connectionTestResult.value = results
+            _isTestingConnection.value = false
         }
     }
 }

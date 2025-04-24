@@ -127,4 +127,41 @@ class FirebaseService(
             false
         }
     }
+
+    suspend fun verifyInfrastructure(): Map<String, Boolean> {
+        val results = mutableMapOf<String, Boolean>()
+        
+        // Verificar Firebase
+        try {
+            val pingRef = database.getReference("system_health").child("ping")
+            pingRef.setValue(ServerValue.TIMESTAMP).await()
+            results["firebase"] = true
+            Log.d(TAG, "Conexión a Firebase: OK")
+        } catch (e: Exception) {
+            results["firebase"] = false
+            Log.e(TAG, "Error verificando Firebase: ${e.message}")
+        }
+        
+        // Verificar autenticación
+        val isAuthenticated = auth.currentUser != null
+        results["auth"] = isAuthenticated
+        Log.d(TAG, "Estado de autenticación: ${if (isAuthenticated) "OK" else "No autenticado"}")
+        
+        // Verificar sincronización de notificaciones
+        try {
+            if (isAuthenticated) {
+                val userId = auth.currentUser!!.uid
+                val snapshot = notificationsRef.child(userId).limitToLast(1).get().await()
+                results["notifications"] = snapshot.exists()
+                Log.d(TAG, "Acceso a notificaciones: ${if (snapshot.exists()) "OK" else "Sin datos"}")
+            } else {
+                results["notifications"] = false
+            }
+        } catch (e: Exception) {
+            results["notifications"] = false
+            Log.e(TAG, "Error verificando notificaciones: ${e.message}")
+        }
+        
+        return results
+    }
 }
