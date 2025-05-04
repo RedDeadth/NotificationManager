@@ -92,7 +92,6 @@ class MainActivity : ComponentActivity() {
     private val shareViewModel: ShareViewModel by viewModels {
         ShareViewModelFactory()
     }
-
     private var showPermissionDialog = mutableStateOf(false)
     
     private var permissionReceiver: BroadcastReceiver? = null
@@ -207,7 +206,7 @@ class MainActivity : ComponentActivity() {
 
     private fun createRepository(): NotificationRepository {
         val database = NotificationDatabase.getDatabase(applicationContext)
-        val firebaseService = FirebaseService()
+        val firebaseService = FirebaseService(applicationContext)
         return NotificationRepository(
             notificationDao = database.notificationDao(),
             firebaseService = firebaseService,
@@ -215,7 +214,7 @@ class MainActivity : ComponentActivity() {
         )
     }
     private fun createFirebaseService(): FirebaseService {
-        return FirebaseService()
+        return FirebaseService(applicationContext)
     }
 }
 

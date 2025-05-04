@@ -81,7 +81,7 @@ class NotificationListenerService : NotificationListenerService() {
         
         try {
             val database = NotificationDatabase.getDatabase(applicationContext)
-            val firebaseService = FirebaseService()
+            val firebaseService = FirebaseService(applicationContext)
             repository = NotificationRepository(
                 notificationDao = database.notificationDao(),
                 firebaseService = firebaseService,

@@ -1,5 +1,6 @@
 package com.dynamictecnologies.notificationmanager.service
 
+import android.content.Context
 import android.util.Log
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ServerValue
@@ -7,9 +8,11 @@ import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
 import com.dynamictecnologies.notificationmanager.data.model.SyncStatus
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.tasks.await
+import org.eclipse.paho.android.service.MqttService
 import java.util.*
 
 class FirebaseService(
+    private val context: Context,
     private val auth: FirebaseAuth = FirebaseAuth.getInstance(),
     private val database: FirebaseDatabase = FirebaseDatabase.getInstance()
 ) {
@@ -38,6 +41,13 @@ class FirebaseService(
                 .await()
 
             Log.d(TAG, "Notificación sincronizada correctamente: ID=${notification.id}")
+            // Publicar por MQTT solo título y contenido
+            try {
+                val mqttService = MqttService(context = context)
+                mqttService.publishNotification(notification.title, notification.content)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error enviando notificación por MQTT: ${e.message}")
+            }
             true
         } catch (e: Exception) {
             Log.e(TAG, "Error sincronizando notificación: ${e.message}")

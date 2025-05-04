@@ -31,9 +31,10 @@ class MqttService(private val context: Context) {
     // Configuración EMQX Cloud (Reemplaza con tus datos reales)
     private val BROKER_URL = "ssl://b5c0bf2b.ala.us-east-1.emqxsl.com:8883" // Dirección actualizada
     private val MQTT_USERNAME = "notificationmanager"
-    private val MQTT_PASSWORD = "strongpassword123" // Actualizada para coincidir con ESP32
+    private val MQTT_PASSWORD = "and123..."
+
     private val CLIENT_ID = "NotificationManager_" + UUID.randomUUID().toString()
-    
+
     private var mqttClient: MqttClient? = null
     private val _connectionStatus = MutableStateFlow(false)
     val connectionStatus: StateFlow<Boolean> = _connectionStatus.asStateFlow()
@@ -59,6 +60,25 @@ class MqttService(private val context: Context) {
     
     // Control de reconexión para evitar intentos múltiples simultáneos
     private val isReconnecting = AtomicBoolean(false)
+
+    fun publishNotification(title: String, content: String) {
+        if (!_connectionStatus.value || mqttClient?.isConnected != true) {
+            Log.e(TAG, "No se puede publicar notificación: MQTT no conectado")
+            connect()
+            return
+        }
+        try {
+            val topic = "/notificaciones/general"
+            val json = JSONObject().apply {
+                put("title", title)
+                put("content", content)
+            }.toString()
+            mqttClient?.publish(topic, MqttMessage(json.toByteArray()))
+            Log.d(TAG, "Notificación publicada por MQTT: $json")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error publicando notificación por MQTT", e)
+        }
+    }
     private var reconnectJob: Job? = null
     
     // Función no suspendida para esperar

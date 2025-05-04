@@ -7,6 +7,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ScreenShare
 import androidx.compose.material3.*
+import android.content.Intent
+import androidx.compose.material3.snackbar.SnackbarDuration
+import androidx.compose.material3.snackbar.SnackbarHostState
+import androidx.compose.runtime.rememberCoroutineScope
+import com.dynamictecnologies.notificationmanager.service.NotificationForegroundService
+import kotlinx.coroutines.launch
+import android.content.Context
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,6 +48,9 @@ fun AppListScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val showAppList by viewModel.showAppList.collectAsState()
     val notifications by viewModel.notifications.collectAsState()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     // Estados para el visualizador ESP32
     val devices by deviceViewModel.devices.collectAsState()
@@ -78,10 +89,15 @@ fun AppListScreen(
         }
     }
 
-    Box(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        Column(
+    Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(16.dp),
@@ -206,6 +222,47 @@ fun AppListScreen(
                         }
                     }
                 }
+                
+                // Botón para reiniciar el servicio de notificaciones
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Servicio de notificaciones",
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Button(
+                            onClick = { 
+                                // Enviar intent para forzar el reinicio del servicio
+                                val intent = Intent(NotificationForegroundService.ACTION_FORCE_RESET)
+                                intent.setPackage("com.dynamictecnologies.notificationmanager")
+                                context.sendBroadcast(intent)
+                                
+                                // Mostrar confirmación temporal
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        message = "Servicio de notificaciones reiniciado",
+                                        duration = SnackbarDuration.Short
+                                    )
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.secondary
+                            )
+                        ) {
+                            Text("Reiniciar servicio")
+                        }
+                    }
+                }
 
                 // Historial de notificaciones
                 NotificationHistoryCard(
@@ -258,6 +315,7 @@ fun AppListScreen(
                     deviceViewModel.clearDevices()
                 }
             )
+            }
         }
     }
 }
