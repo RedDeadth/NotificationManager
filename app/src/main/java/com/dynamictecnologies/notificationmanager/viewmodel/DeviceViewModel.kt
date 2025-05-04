@@ -105,7 +105,8 @@ class DeviceViewModel(
                                 DeviceInfo(
                                     id = deviceId,
                                     name = "ESP32 Visualizador",
-                                    isConnected = vinculado
+                                    isConnected = vinculado,
+
                                 )
                             )
                         }

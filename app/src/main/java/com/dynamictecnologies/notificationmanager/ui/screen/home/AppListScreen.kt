@@ -8,8 +8,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ScreenShare
 import androidx.compose.material3.*
 import android.content.Intent
-import androidx.compose.material3.snackbar.SnackbarDuration
-import androidx.compose.material3.snackbar.SnackbarHostState
 import androidx.compose.runtime.rememberCoroutineScope
 import com.dynamictecnologies.notificationmanager.service.NotificationForegroundService
 import kotlinx.coroutines.launch

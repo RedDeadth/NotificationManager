@@ -8,6 +8,7 @@ import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
+import com.google.firebase.database.ChildEventListener
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -58,14 +59,70 @@ class MqttService(private val context: Context) {
     // Listener de notificaciones de Firebase
     private var notificationsListener: ValueEventListener? = null
     
+    private val RETRY_INTERVALS = listOf(2, 5, 15, 30, 60)
+    private var currentRetryAttempt = 0
+    private var lastRetryTime = 0L
+    
     // Control de reconexión para evitar intentos múltiples simultáneos
     private val isReconnecting = AtomicBoolean(false)
+    
+    /**
+     * Verifica si el cliente MQTT está conectado actualmente
+     */
+    fun isConnected(): Boolean {
+        return mqttClient?.isConnected == true && _connectionStatus.value
+    }
 
-    fun publishNotification(title: String, content: String) {
-        if (!_connectionStatus.value || mqttClient?.isConnected != true) {
-            Log.e(TAG, "No se puede publicar notificación: MQTT no conectado")
-            connect()
+    /**
+     * Conecta y espera hasta que la conexión esté establecida o falle
+     */
+    fun connectAndWait() {
+        // Si ya está conectado, no hacer nada
+        if (mqttClient?.isConnected == true && _connectionStatus.value) {
             return
+        }
+        
+        // Si está en proceso de reconexión, esperar
+        var attempts = 0
+        while (isReconnecting.get() && attempts < 10) {
+            delayBlocking(200)  // Esperar 200ms
+            attempts++
+            
+            // Si se conectó mientras esperábamos
+            if (mqttClient?.isConnected == true && _connectionStatus.value) {
+                return
+            }
+        }
+        
+        // Iniciar conexión
+        connect()
+        
+        // Esperar hasta 5 segundos a que se conecte
+        attempts = 0
+        while (!_connectionStatus.value && attempts < 25) {
+            delayBlocking(200)  // Esperar 200ms
+            attempts++
+        }
+    }
+    
+    /**
+     * Publica una notificación a través de MQTT
+     * Si no está conectado, intenta conectarse y espera brevemente antes de intentar publicar
+     */
+    fun publishNotification(title: String, content: String) {
+        // Si no está conectado, intenta conectar primero
+        if (!_connectionStatus.value || mqttClient?.isConnected != true) {
+            Log.d(TAG, "MQTT no conectado, intentando conectar antes de publicar")
+            connect()
+            
+            // Esperar brevemente para darle tiempo a conectarse
+            delayBlocking(1000)
+            
+            // Si todavía no está conectado después de esperar, registrar error y salir
+            if (!_connectionStatus.value || mqttClient?.isConnected != true) {
+                Log.e(TAG, "No se pudo establecer conexión MQTT, no se puede publicar notificación")
+                return
+            }
         }
         try {
             val topic = "/notificaciones/general"
@@ -523,12 +580,41 @@ class MqttService(private val context: Context) {
         }
     }
     
+    // Variable para controlar el tiempo entre envíos de notificaciones
+    private var lastNotificationTime = 0L
+    private val MIN_INTERVAL_BETWEEN_NOTIFICATIONS = 200L // ms
+    
+    /**
+     * Envía una notificación a través de MQTT al dispositivo conectado
+     * Implementa control de flujo para evitar "Demasiadas publicaciones en curso"
+     */
     fun sendNotification(notification: NotificationInfo) {
+        // Aplicar limitación de tasa para evitar sobrecarga
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - lastNotificationTime < MIN_INTERVAL_BETWEEN_NOTIFICATIONS) {
+            // Esperar un poco si se envían notificaciones demasiado rápido
+            val waitTime = MIN_INTERVAL_BETWEEN_NOTIFICATIONS - (currentTime - lastNotificationTime)
+            try {
+                Thread.sleep(waitTime)
+            } catch (e: InterruptedException) {
+                Thread.currentThread().interrupt()
+            }
+        }
+        lastNotificationTime = System.currentTimeMillis()
+
+        // Si no está conectado, intentar conectar primero
         if (!_connectionStatus.value || mqttClient?.isConnected != true) {
-            Log.e(TAG, "No se puede enviar notificación: MQTT no conectado")
-            // Intentar reconectar
+            Log.d(TAG, "MQTT no conectado, intentando conectar antes de enviar notificación")
             connect()
-            return
+            
+            // Esperar brevemente para dar tiempo a la conexión
+            delayBlocking(1000) 
+            
+            // Si todavía no está conectado, registrar error y salir
+            if (!_connectionStatus.value || mqttClient?.isConnected != true) {
+                Log.e(TAG, "No se pudo establecer conexión MQTT, no se puede enviar notificación")
+                return
+            }
         }
         
         _connectedDevice.value?.let { device ->
@@ -553,7 +639,7 @@ class MqttService(private val context: Context) {
                 }.toString()
                 
                 val mqttMessage = MqttMessage(message.toByteArray())
-                mqttMessage.qos = 2 // Aumentar QoS a 2 para garantizar entrega exactamente una vez
+                mqttMessage.qos = 1 // Usar QoS 1 para equilibrar confiabilidad y rendimiento
                 
                 mqttClient?.publish(baseTopic, mqttMessage)
                 Log.d(TAG, "Notificación enviada a ${device.id}: ${notification.title}, timestamp: $adjustedTimestamp")

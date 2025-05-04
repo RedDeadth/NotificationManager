@@ -8,7 +8,7 @@ import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
 import com.dynamictecnologies.notificationmanager.data.model.SyncStatus
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.tasks.await
-import org.eclipse.paho.android.service.MqttService
+import com.dynamictecnologies.notificationmanager.service.MqttService
 import java.util.*
 
 class FirebaseService(
@@ -16,6 +16,8 @@ class FirebaseService(
     private val auth: FirebaseAuth = FirebaseAuth.getInstance(),
     private val database: FirebaseDatabase = FirebaseDatabase.getInstance()
 ) {
+    // Mantener una sola instancia de MqttService a nivel de clase
+    private val mqttService = MqttService(context)
     private val TAG = "FirebaseService"
     private val notificationsRef = database.getReference("notifications")
 
@@ -41,12 +43,13 @@ class FirebaseService(
                 .await()
 
             Log.d(TAG, "Notificación sincronizada correctamente: ID=${notification.id}")
-            // Publicar por MQTT solo título y contenido
+            // Publicar por MQTT solo título y contenido usando la instancia persistente
             try {
-                val mqttService = MqttService(context = context)
+                Log.d(TAG, "Enviando notificación a través de MQTT: ${notification.title}")
                 mqttService.publishNotification(notification.title, notification.content)
+                Log.d(TAG, "Notificación enviada a MQTT exitosamente")
             } catch (e: Exception) {
-                Log.e(TAG, "Error enviando notificación por MQTT: ${e.message}")
+                Log.e(TAG, "Error enviando notificación por MQTT: ${e.message}", e)
             }
             true
         } catch (e: Exception) {
