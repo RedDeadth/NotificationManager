@@ -434,10 +434,15 @@ class MqttService(private val context: Context) {
             val baseTopic = "esp32/device/$deviceId"
             mqttClient?.subscribe("$baseTopic/status", 1)
             
-            // Enviar información de vinculación
+            // No podemos llamar a findUsernameByUid aquí porque es una función suspendida
+            // Usaremos un nombre genérico por ahora y lo actualizaremos más tarde
+            var userName = "Usuario"
+            
+            // Enviar información de vinculación inicial (sin nombre de usuario todavía)
             val message = JSONObject().apply {
                 put("action", "link")
                 put("userId", userId)
+                put("username", userName) // Nombre temporal, se actualizará después
                 put("clientId", CLIENT_ID)
                 put("timestamp", System.currentTimeMillis())
             }.toString()
@@ -454,7 +459,7 @@ class MqttService(private val context: Context) {
             serviceScope.launch {
                 try {
                     // Buscar nombre de usuario y correo si disponible
-                    var userName = "Usuario MQTT"
+                    var userName = "Usuario"
                     var userEmail = ""
                     findUsernameByUid(userId)?.let { username ->
                         currentUsername = username
@@ -634,8 +639,13 @@ class MqttService(private val context: Context) {
                     put("title", notification.title)
                     put("content", notification.content)
                     put("appName", notification.appName)
-                    put("timestamp", adjustedTimestamp)
+                    put("timestamp", adjustedTimestamp) // Fundamental para filtrar notificaciones antiguas
                     put("id", notification.id) // Incluir ID como referencia adicional
+                    put("userId", currentUserId) // Agregar el userId para filtrado en el ESP32
+                    // Solo agregar username si está disponible
+                    currentUsername?.let { username ->
+                        put("username", username) // Agregar el nombre de usuario al mensaje de notificación
+                    }
                 }.toString()
                 
                 val mqttMessage = MqttMessage(message.toByteArray())

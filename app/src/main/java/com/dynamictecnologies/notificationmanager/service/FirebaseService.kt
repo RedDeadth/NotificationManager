@@ -119,15 +119,6 @@ class FirebaseService(
             emptyList()
         }
     }
-
-    private fun encodePackageName(packageName: String): String {
-        return packageName.replace(".", "_")
-    }
-
-    private fun decodedPackageName(encodedPackageName: String): String {
-        return encodedPackageName.replace("_", ".")
-    }
-
     suspend fun verifyConnection(): Boolean {
         return try {
             val pingRef = database.getReference("system_health").child("ping")
