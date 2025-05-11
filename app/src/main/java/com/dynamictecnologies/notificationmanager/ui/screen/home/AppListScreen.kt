@@ -12,6 +12,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import com.dynamictecnologies.notificationmanager.service.NotificationForegroundService
 import kotlinx.coroutines.launch
 import android.content.Context
+import android.util.Log
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -239,18 +240,28 @@ fun AppListScreen(
                             modifier = Modifier.weight(1f)
                         )
                         Button(
-                            onClick = { 
-                                // Enviar intent para forzar el reinicio del servicio
-                                val intent = Intent(NotificationForegroundService.ACTION_FORCE_RESET)
-                                intent.setPackage("com.dynamictecnologies.notificationmanager")
-                                context.sendBroadcast(intent)
-                                
-                                // Mostrar confirmación temporal
-                                scope.launch {
-                                    snackbarHostState.showSnackbar(
-                                        message = "Servicio de notificaciones reiniciado",
-                                        duration = SnackbarDuration.Short
-                                    )
+                            onClick = {
+                                val serviceIntent = Intent(context, NotificationForegroundService::class.java).apply {
+                                    action = NotificationForegroundService.ACTION_FORCE_RESET
+                                }
+
+                                try {
+                                    context.startService(serviceIntent)
+                                    Log.d("Button", "Intent con ACTION_FORCE_RESET enviado a NotificationForegroundService")
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            message = "Servicio de notificaciones reiniciado",
+                                            duration = SnackbarDuration.Short
+                                        )
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e("Button", "Error al intentar enviar comando ACTION_FORCE_RESET al servicio: ${e.message}", e)
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            message = "Error al reiniciar servicio: ${e.message}",
+                                            duration = SnackbarDuration.Long
+                                        )
+                                    }
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(

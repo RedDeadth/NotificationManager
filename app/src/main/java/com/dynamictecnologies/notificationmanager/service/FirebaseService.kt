@@ -43,14 +43,6 @@ class FirebaseService(
                 .await()
 
             Log.d(TAG, "Notificación sincronizada correctamente: ID=${notification.id}")
-            // Publicar por MQTT solo título y contenido usando la instancia persistente
-            try {
-                Log.d(TAG, "Enviando notificación a través de MQTT: ${notification.title}")
-                mqttService.publishNotification(notification.title, notification.content)
-                Log.d(TAG, "Notificación enviada a MQTT exitosamente")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error enviando notificación por MQTT: ${e.message}", e)
-            }
             true
         } catch (e: Exception) {
             Log.e(TAG, "Error sincronizando notificación: ${e.message}")

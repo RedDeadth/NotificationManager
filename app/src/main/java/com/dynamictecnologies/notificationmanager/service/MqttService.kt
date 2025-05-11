@@ -52,6 +52,9 @@ class MqttService(private val context: Context) {
     // Scope para operaciones de corrutinas
     private val serviceScope = CoroutineScope(Dispatchers.IO)
     
+    // Job para la tarea de reconexión
+    private var reconnectJob: Job? = null
+    
     // Username del usuario actual para identificarlo en Firebase
     private var currentUsername: String? = null
     private var currentUserId: String? = null
@@ -106,37 +109,61 @@ class MqttService(private val context: Context) {
     }
     
     /**
-     * Publica una notificación a través de MQTT
-     * Si no está conectado, intenta conectarse y espera brevemente antes de intentar publicar
+     * Función privada unificada para publicar mensajes MQTT
      */
-    fun publishNotification(title: String, content: String) {
-        // Si no está conectado, intenta conectar primero
+    private fun publishToMqtt(topic: String, payload: String, qos: Int = 1) {
         if (!_connectionStatus.value || mqttClient?.isConnected != true) {
             Log.d(TAG, "MQTT no conectado, intentando conectar antes de publicar")
             connect()
-            
-            // Esperar brevemente para darle tiempo a conectarse
             delayBlocking(1000)
-            
-            // Si todavía no está conectado después de esperar, registrar error y salir
             if (!_connectionStatus.value || mqttClient?.isConnected != true) {
-                Log.e(TAG, "No se pudo establecer conexión MQTT, no se puede publicar notificación")
+                Log.e(TAG, "No se pudo establecer conexión MQTT, no se puede publicar")
                 return
             }
         }
         try {
-            val topic = "/notificaciones/general"
-            val json = JSONObject().apply {
-                put("title", title)
-                put("content", content)
-            }.toString()
-            mqttClient?.publish(topic, MqttMessage(json.toByteArray()))
-            Log.d(TAG, "Notificación publicada por MQTT: $json")
+            val mqttMessage = MqttMessage(payload.toByteArray())
+            mqttMessage.qos = qos
+            mqttClient?.publish(topic, mqttMessage)
+            Log.d(TAG, "Mensaje publicado en $topic: $payload")
         } catch (e: Exception) {
-            Log.e(TAG, "Error publicando notificación por MQTT", e)
+            Log.e(TAG, "Error publicando en MQTT", e)
         }
     }
-    private var reconnectJob: Job? = null
+
+    /**
+     * Envía una notificación general a través de MQTT
+     */
+    fun sendGeneralNotification(title: String, content: String) {
+        val topic = "/notificaciones/general"
+        val json = JSONObject().apply {
+            put("title", title)
+            put("content", content)
+            put("timestamp", System.currentTimeMillis())
+        }.toString()
+        publishToMqtt(topic, json)
+    }
+
+    /**
+     * Envía una notificación a un dispositivo específico
+     */
+    fun sendNotification(notification: NotificationInfo) {
+        _connectedDevice.value?.let { device ->
+            val topic = "esp32/device/${device.id}/notification"
+            val json = JSONObject().apply {
+                put("title", notification.title)
+                put("content", notification.content)
+                put("appName", notification.appName)
+                put("timestamp", notification.timestamp.time)
+                put("id", notification.id)
+                put("userId", currentUserId)
+                currentUsername?.let { username ->
+                    put("username", username)
+                }
+            }.toString()
+            publishToMqtt(topic, json)
+        }
+    }
     
     // Función no suspendida para esperar
     private fun delayBlocking(millis: Long) {
@@ -299,11 +326,6 @@ class MqttService(private val context: Context) {
                         
                         // Eliminar el nodo usuario por separado usando removeValue()
                         dispositvosRef.child(device.id).child("usuario").removeValue()
-                        
-                        // Si tenemos username, también remover el dispositivo del usuario
-                        currentUsername?.let { username ->
-                            usersRef.child(username).child("devices").child(device.id).removeValue()
-                        }
                         
                         // Enviar señal de desvinculación al dispositivo si MQTT sigue conectado
                         if (_connectionStatus.value) {
@@ -492,11 +514,6 @@ class MqttService(private val context: Context) {
                     // Guardar en el nodo del dispositivo
                     dispositvosRef.child(deviceId).updateChildren(updates)
                     
-                    // También seguir guardando la referencia bidireccional en el nodo del usuario (extra)
-                    if (currentUsername != null) {
-                        usersRef.child(currentUsername!!).child("devices").child(deviceId).setValue(true)
-                    }
-                    
                     // Configurar un listener para las notificaciones en Firebase
                     setupNotificationsListener(userId, deviceId)
                     
@@ -588,91 +605,6 @@ class MqttService(private val context: Context) {
     // Variable para controlar el tiempo entre envíos de notificaciones
     private var lastNotificationTime = 0L
     private val MIN_INTERVAL_BETWEEN_NOTIFICATIONS = 200L // ms
-    
-    /**
-     * Envía una notificación a través de MQTT al dispositivo conectado
-     * Implementa control de flujo para evitar "Demasiadas publicaciones en curso"
-     */
-    fun sendNotification(notification: NotificationInfo) {
-        // Aplicar limitación de tasa para evitar sobrecarga
-        val currentTime = System.currentTimeMillis()
-        if (currentTime - lastNotificationTime < MIN_INTERVAL_BETWEEN_NOTIFICATIONS) {
-            // Esperar un poco si se envían notificaciones demasiado rápido
-            val waitTime = MIN_INTERVAL_BETWEEN_NOTIFICATIONS - (currentTime - lastNotificationTime)
-            try {
-                Thread.sleep(waitTime)
-            } catch (e: InterruptedException) {
-                Thread.currentThread().interrupt()
-            }
-        }
-        lastNotificationTime = System.currentTimeMillis()
-
-        // Si no está conectado, intentar conectar primero
-        if (!_connectionStatus.value || mqttClient?.isConnected != true) {
-            Log.d(TAG, "MQTT no conectado, intentando conectar antes de enviar notificación")
-            connect()
-            
-            // Esperar brevemente para dar tiempo a la conexión
-            delayBlocking(1000) 
-            
-            // Si todavía no está conectado, registrar error y salir
-            if (!_connectionStatus.value || mqttClient?.isConnected != true) {
-                Log.e(TAG, "No se pudo establecer conexión MQTT, no se puede enviar notificación")
-                return
-            }
-        }
-        
-        _connectedDevice.value?.let { device ->
-            try {
-                val baseTopic = "esp32/device/${device.id}/notification"
-                
-                // Asegurar que cada mensaje tenga un timestamp único
-                // Añadir un pequeño incremento si han pasado menos de 5ms desde el último mensaje
-                val currentTime = System.currentTimeMillis()
-                val adjustedTimestamp = if (notification.timestamp.time >= currentTime - 5) {
-                    notification.timestamp.time + 5 // Añadir 5ms para diferenciar
-                } else {
-                    notification.timestamp.time
-                }
-                
-                val message = JSONObject().apply {
-                    put("title", notification.title)
-                    put("content", notification.content)
-                    put("appName", notification.appName)
-                    put("timestamp", adjustedTimestamp) // Fundamental para filtrar notificaciones antiguas
-                    put("id", notification.id) // Incluir ID como referencia adicional
-                    put("userId", currentUserId) // Agregar el userId para filtrado en el ESP32
-                    // Solo agregar username si está disponible
-                    currentUsername?.let { username ->
-                        put("username", username) // Agregar el nombre de usuario al mensaje de notificación
-                    }
-                }.toString()
-                
-                val mqttMessage = MqttMessage(message.toByteArray())
-                mqttMessage.qos = 1 // Usar QoS 1 para equilibrar confiabilidad y rendimiento
-                
-                mqttClient?.publish(baseTopic, mqttMessage)
-                Log.d(TAG, "Notificación enviada a ${device.id}: ${notification.title}, timestamp: $adjustedTimestamp")
-                
-                // También guardar la referencia de que este dispositivo procesó esta notificación
-                serviceScope.launch {
-                    try {
-                        // Solo si tenemos un username válido
-                        if (currentUsername != null) {
-                            // Registrar en Firebase que esta notificación fue enviada al dispositivo
-                            val deviceNotifPath = "users/$currentUsername/devices/${device.id}/notifications/${notification.id}"
-                            database.getReference(deviceNotifPath).setValue(adjustedTimestamp)
-                            Log.d(TAG, "Registro en Firebase: Dispositivo ${device.id} procesó notificación ${notification.id}")
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error registrando notificación en Firebase", e)
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error enviando notificación", e)
-            }
-        }
-    }
     
     private fun processMessage(topic: String?, payload: String) {
         if (topic == null) return
