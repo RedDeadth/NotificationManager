@@ -4,121 +4,174 @@ import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.dynamictecnologies.notificationmanager.data.repository.AuthRepository
-import com.google.firebase.auth.FirebaseUser
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
-import androidx.activity.result.ActivityResult
-import androidx.lifecycle.viewModelScope
+import com.dynamictecnologies.notificationmanager.data.exceptions.AuthErrorCode
+import com.dynamictecnologies.notificationmanager.data.exceptions.AuthException
+import com.dynamictecnologies.notificationmanager.data.repository.IAuthRepository
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.common.api.ApiException
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlin.coroutines.coroutineContext
+import kotlinx.coroutines.flow.Flow
+import com.google.firebase.auth.FirebaseUser
+import com.dynamictecnologies.notificationmanager.data.exceptions.toAuthException
 
 class AuthViewModel(
-    private val authRepository: AuthRepository
+    private val authRepository: IAuthRepository
 ) : ViewModel() {
-    private val _authState = MutableStateFlow(AuthState())
-    val authState = _authState.asStateFlow()
+    private val _authState = MutableStateFlow(AuthState(isSessionValid = authRepository.isSessionValid()))
+    val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
     init {
+        _authState.value = AuthState(isSessionValid = authRepository.isSessionValid())
         checkAuthState()
     }
 
     fun checkAuthState() {
         viewModelScope.launch {
-            _authState.value = _authState.value.copy(isLoading = true)
             try {
-                val user = authRepository.getCurrentUser()
-                _authState.value = AuthState(
-                    isAuthenticated = user != null,
-                    currentUser = user
-                )
+                _authState.value = _authState.value.copy(isLoading = true)
+                authRepository.getCurrentUser().collect { user ->
+                    _authState.value = AuthState(
+                        isAuthenticated = user != null,
+                        currentUser = user,
+                        isSessionValid = authRepository.isSessionValid()
+                    )
+                }
             } catch (e: Exception) {
-                _authState.value = AuthState(error = e.message)
+                handleException(e)
+            } finally {
+                _authState.value = _authState.value.copy(isLoading = false)
             }
         }
     }
 
     fun signInWithEmail(email: String, password: String) {
         viewModelScope.launch {
-            _authState.value = _authState.value.copy(isLoading = true)
             try {
-                val user = authRepository.signInWithEmail(email, password)
-                _authState.value = AuthState(
-                    isAuthenticated = true,
-                    currentUser = user
-                )
+                _authState.value = _authState.value.copy(isLoading = true)
+                val result = authRepository.signInWithEmail(email, password)
+                result.onSuccess { user ->
+                    _authState.value = AuthState(
+                        isAuthenticated = true,
+                        currentUser = user,
+                        isSessionValid = authRepository.isSessionValid()
+                    )
+                }.onFailure { error ->
+                    handleException(error)
+                }
             } catch (e: Exception) {
-                _authState.value = AuthState(error = e.message)
+                handleException(e)
+            } finally {
+                _authState.value = _authState.value.copy(isLoading = false)
             }
         }
     }
-    // Método para obtener el Intent de inicio de sesión con Google
-    fun getGoogleSignInIntent(): Intent {
+
+    fun getGoogleSignInIntent(): Flow<Intent> {
         return authRepository.getGoogleSignInIntent()
     }
 
-    // Método para manejar el resultado del inicio de sesión con Google
-    fun handleGoogleSignInResult(result: ActivityResult) {
+    fun handleGoogleSignInResult(result: Intent) {
         viewModelScope.launch {
-            _authState.value = _authState.value.copy(isLoading = true)
             try {
-                val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+                _authState.value = _authState.value.copy(isLoading = true)
+                val task = GoogleSignIn.getSignedInAccountFromIntent(result)
                 val account = task.getResult(ApiException::class.java)
-                // El token ID no será nulo aquí porque lo solicitamos en las opciones
-                val user = authRepository.handleGoogleSignIn(account.idToken!!)
-                _authState.value = AuthState(
-                    isAuthenticated = true,
-                    currentUser = user
-                )
+                val result = authRepository.handleGoogleSignIn(account.idToken!!)
+                result.onSuccess { user ->
+                    _authState.value = AuthState(
+                        isAuthenticated = true,
+                        currentUser = user,
+                        isSessionValid = authRepository.isSessionValid()
+                    )
+                }.onFailure { error ->
+                    handleException(error)
+                }
             } catch (e: Exception) {
-                _authState.value = AuthState(error = e.message)
+                handleException(e)
+            } finally {
+                _authState.value = _authState.value.copy(isLoading = false)
             }
         }
     }
 
     fun registerWithEmail(email: String, password: String) {
         viewModelScope.launch {
-            _authState.value = _authState.value.copy(isLoading = true)
             try {
-                val user = authRepository.registerWithEmail(email, password)
-                _authState.value = AuthState(
-                    isAuthenticated = true,
-                    currentUser = user
-                )
+                _authState.value = _authState.value.copy(isLoading = true)
+                val result = authRepository.registerWithEmail(email, password)
+                result.onSuccess { user ->
+                    _authState.value = AuthState(
+                        isAuthenticated = true,
+                        currentUser = user,
+                        isSessionValid = authRepository.isSessionValid()
+                    )
+                }.onFailure { error ->
+                    handleException(error)
+                }
             } catch (e: Exception) {
-                _authState.value = AuthState(error = e.message)
+                handleException(e)
+            } finally {
+                _authState.value = _authState.value.copy(isLoading = false)
             }
         }
     }
 
     fun signOut() {
         viewModelScope.launch {
-            authRepository.signOut()
-            _authState.value = AuthState()
+            try {
+                val result = authRepository.signOut()
+                result.onSuccess {
+                    _authState.value = AuthState(isSessionValid = authRepository.isSessionValid())
+                }.onFailure { error ->
+                    handleException(error)
+                }
+            } catch (e: Exception) {
+                handleException(e)
+            }
         }
     }
-}
 
-data class AuthState(
-    val isAuthenticated: Boolean = false,
-    val currentUser: FirebaseUser? = null,
-    val isLoading: Boolean = false,
-    val error: String? = null
-)
+    fun clearError() {
+        _authState.value = _authState.value.copy(error = null)
+    }
 
+    private fun handleException(error: Throwable) {
+        val authError = error.toAuthException()
+        _authState.value = _authState.value.copy(
+            error = when (authError.code) {
+                AuthErrorCode.INVALID_CREDENTIALS -> "Credenciales inválidas"
+                AuthErrorCode.USER_NOT_FOUND -> "Usuario no encontrado"
+                AuthErrorCode.WEAK_PASSWORD -> "Contraseña muy débil"
+                AuthErrorCode.EMAIL_ALREADY_IN_USE -> "Email ya en uso"
+                AuthErrorCode.NETWORK_ERROR -> "Error de red"
+                AuthErrorCode.SESSION_EXPIRED -> "Sesión expirada"
+                else -> authError.message ?: "Error desconocido"
+            }
+        )
+    }
 
+    data class AuthState(
+        val isAuthenticated: Boolean = false,
+        val isLoading: Boolean = false,
+        val error: String? = null,
+        val currentUser: FirebaseUser? = null,
+        val isSessionValid: Boolean
+    )
 
-class AuthViewModelFactory(
-    private val authRepository: AuthRepository
-) : ViewModelProvider.Factory {
-
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(AuthViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return AuthViewModel(authRepository) as T
+    class AuthViewModelFactory(
+        private val authRepository: IAuthRepository
+    ) : ViewModelProvider.Factory {
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            if (modelClass.isAssignableFrom(AuthViewModel::class.java)) {
+                @Suppress("UNCHECKED_CAST")
+                return AuthViewModel(authRepository) as T
+            }
+            throw IllegalArgumentException("Unknown ViewModel class")
         }
-        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

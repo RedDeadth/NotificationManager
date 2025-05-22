@@ -2,7 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    kotlin("kapt")
+    id("com.google.devtools.ksp") version "2.0.0-1.0.24" // Reemplaza kapt
     id("com.google.gms.google-services")
 }
 
@@ -19,12 +19,11 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        javaCompileOptions {
-            annotationProcessorOptions {
-                arguments["room.schemaLocation"] = "$projectDir/schemas"
-                arguments["room.incremental"] = "true"
-                arguments["room.expandProjection"] = "true"
-            }
+        // Configuración para Room con KSP
+        ksp {
+            arg("room.schemaLocation", "$projectDir/schemas")
+            arg("room.incremental", "true")
+            arg("room.expandProjection", "true")
         }
     }
 
@@ -47,7 +46,7 @@ android {
     buildFeatures {
         compose = true
     }
-    
+
     // Configuración necesaria para MQTT Paho
     packaging {
         resources {
@@ -88,11 +87,11 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
-    // Room
+    // Room - Migrado a KSP
     val roomVersion = "2.6.1"
     implementation("androidx.room:room-runtime:$roomVersion")
     implementation("androidx.room:room-ktx:$roomVersion")
-    kapt("androidx.room:room-compiler:$roomVersion")
+    ksp("androidx.room:room-compiler:$roomVersion") // Cambio de kapt a ksp
 
     // Firebase
     implementation(platform("com.google.firebase:firebase-bom:33.9.0"))
@@ -102,7 +101,7 @@ dependencies {
 
     // Google Play Services
     implementation("com.google.android.gms:play-services-auth:20.7.0")
-    
+
     // MQTT Paho - Cliente MQTT para comunicación con ESP32
     implementation("org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5")
     implementation("org.eclipse.paho:org.eclipse.paho.android.service:1.1.1") {

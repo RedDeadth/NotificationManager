@@ -43,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.dynamictecnologies.notificationmanager.viewmodel.AuthViewModel.AuthViewModelFactory
 
 class MainActivity : ComponentActivity() {
     private val permissionManager by lazy {

@@ -12,6 +12,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dynamictecnologies.notificationmanager.viewmodel.AuthViewModel
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.first
 
 @Composable
 fun LoginScreen(
@@ -22,6 +24,8 @@ fun LoginScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
+    var emailError by remember { mutableStateOf<String?>(null) }
+    var passwordError by remember { mutableStateOf<String?>(null) }
 
     val authState by authViewModel.authState.collectAsState()
 
@@ -29,7 +33,7 @@ fun LoginScreen(
     val googleSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        authViewModel.handleGoogleSignInResult(result)
+        authViewModel.handleGoogleSignInResult(result.data!!)
     }
 
     Column(
@@ -59,27 +63,67 @@ fun LoginScreen(
 
         OutlinedTextField(
             value = email,
-            onValueChange = { email = it },
+            onValueChange = { 
+                email = it
+                emailError = if (it.isBlank()) "Email es requerido" 
+                           else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(it).matches()) "Formato de email inválido"
+                           else null
+            },
             label = { Text("Email") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            isError = emailError != null
         )
+        if (emailError != null) {
+            Text(
+                text = emailError!!,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(start = 16.dp)
+            )
+        }
 
         Spacer(modifier = Modifier.height(8.dp))
 
         OutlinedTextField(
             value = password,
-            onValueChange = { password = it },
+            onValueChange = { 
+                password = it
+                passwordError = if (it.isBlank()) "Contraseña es requerida"
+                              else if (it.length < 6) "La contraseña debe tener al menos 6 caracteres"
+                              else null
+            },
             label = { Text("Contraseña") },
             visualTransformation = PasswordVisualTransformation(),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            isError = passwordError != null
         )
+        if (passwordError != null) {
+            Text(
+                text = passwordError!!,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(start = 16.dp)
+            )
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
         Button(
-            onClick = { authViewModel.signInWithEmail(email, password) },
-            modifier = Modifier.fillMaxWidth()
+            onClick = { 
+                if (emailError == null && passwordError == null) {
+                    authViewModel.signInWithEmail(email, password)
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = emailError == null && passwordError == null
         ) {
+            if (authState.isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .padding(end = 8.dp)
+                )
+            }
             Text("Iniciar Sesión")
         }
 
@@ -87,8 +131,10 @@ fun LoginScreen(
 
         OutlinedButton(
             onClick = {
-                // Lanzar el intent de inicio de sesión con Google
-                googleSignInLauncher.launch(authViewModel.getGoogleSignInIntent())
+                runBlocking {
+                    val intent = authViewModel.getGoogleSignInIntent().first()
+                    googleSignInLauncher.launch(intent)
+                }
             },
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -98,22 +144,25 @@ fun LoginScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         TextButton(
-            onClick = onNavigateToRegister
+            onClick = onNavigateToRegister,
+            modifier = Modifier.fillMaxWidth()
         ) {
             Text("¿No tienes cuenta? Regístrate")
         }
 
-        if (authState.isLoading) {
-            Spacer(modifier = Modifier.height(8.dp))
-            CircularProgressIndicator()
-        }
-
-        authState.error?.let { error ->
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = error,
-                color = MaterialTheme.colorScheme.error
-            )
+        if (authState.error != null) {
+            Snackbar(
+                modifier = Modifier.padding(16.dp),
+                action = {
+                    TextButton(
+                        onClick = { authViewModel.clearError() }
+                    ) {
+                        Text("Cerrar")
+                    }
+                }
+            ) {
+                Text(authState.error!!)
+            }
         }
     }
 }
