@@ -27,22 +27,17 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.Button
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import com.dynamictecnologies.notificationmanager.viewmodel.AuthViewModel.AuthViewModelFactory
 
 class MainActivity : ComponentActivity() {
@@ -50,7 +45,7 @@ class MainActivity : ComponentActivity() {
         PermissionManager(this)
     }
 
-    // Actualiza la creación del UserService
+    // ViewModels
     private val userViewModel: UserViewModel by viewModels {
         UserViewModelFactory(
             auth = FirebaseAuth.getInstance(),
@@ -61,14 +56,13 @@ class MainActivity : ComponentActivity() {
     private val authViewModel: AuthViewModel by viewModels {
         val auth = FirebaseAuth.getInstance()
         val database = FirebaseDatabase.getInstance()
-        
-        // Usar el mismo scope que se usará en UserViewModel para consistencia
+
         val userService = UserService(
             auth = auth,
             database = database,
             scope = lifecycleScope
         )
-        
+
         AuthViewModelFactory(
             AuthRepository(
                 context = this,
@@ -93,63 +87,41 @@ class MainActivity : ComponentActivity() {
     private val shareViewModel: ShareViewModel by viewModels {
         ShareViewModelFactory()
     }
-    private var showPermissionDialog = mutableStateOf(false)
-    
+
+    // Estado para el diálogo de permisos
+    private val showPermissionDialog = mutableStateOf(false)
+
     private var permissionReceiver: BroadcastReceiver? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         initializeFirebase()
-        
-        // Verificar si el servicio de notificaciones está habilitado
-        if (!NotificationListenerService.isNotificationListenerEnabled(this)) {
-            showPermissionDialog.value = true
-        }
-        
-        // Registrar receptor para mostrar el diálogo de permisos
-        permissionReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                if (intent?.action == "com.dynamictecnologies.notificationmanager.SHOW_PERMISSION_DIALOG") {
-                    showPermissionDialog.value = true
-                }
-            }
-        }
-        
-        registerReceiver(
-            permissionReceiver,
-            IntentFilter("com.dynamictecnologies.notificationmanager.SHOW_PERMISSION_DIALOG")
-        )
-        
-        // Iniciar el servicio en primer plano
-        val serviceIntent = Intent(this, NotificationForegroundService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent)
-        } else {
-            startService(serviceIntent)
-        }
-        
+        setupPermissionReceiver()
+        startNotificationService()
+
+        // Verificar permisos iniciales
+        checkInitialPermissions()
+
         setContent {
             NotificationManagerTheme {
                 var showDialog by remember { showPermissionDialog }
-                
+
                 // Diálogo de permisos de notificación
                 if (showDialog) {
                     NotificationPermissionDialog(
                         onDismiss = { showDialog = false },
                         onConfirm = {
                             showDialog = false
-                            NotificationListenerService.openNotificationListenerSettings(this)
+                            NotificationListenerService.openNotificationListenerSettings(this@MainActivity)
                         }
                     )
                 }
-                
+
                 // Contenido principal de la aplicación
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    val navController = rememberNavController()
-                    
                     AppNavigation(
                         authViewModel = authViewModel,
                         permissionViewModel = permissionViewModel,
@@ -166,30 +138,12 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         permissionViewModel.checkPermissions()
-        
-        // Re-verificar permisos cuando la actividad vuelve a primer plano
-        val hasPermissions = NotificationListenerService.isNotificationListenerEnabled(this)
-        val prefs = getSharedPreferences("notification_listener_prefs", Context.MODE_PRIVATE)
-        prefs.edit().putBoolean("permissions_enabled", hasPermissions).apply()
-        
-        // Si se necesita reiniciar el servicio después de obtener permisos
-        if (hasPermissions && !prefs.getBoolean("service_started_after_permission", false)) {
-            NotificationListenerService.requestServiceReset(this)
-            prefs.edit().putBoolean("service_started_after_permission", true).apply()
-        }
+        handlePermissionsOnResume()
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        
-        // Desregistrar el receptor de transmisión
-        permissionReceiver?.let {
-            try {
-                unregisterReceiver(it)
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Error al desregistrar receptor: ${e.message}")
-            }
-        }
+        unregisterPermissionReceiver()
     }
 
     private fun initializeFirebase() {
@@ -201,8 +155,79 @@ class MainActivity : ComponentActivity() {
                 setPersistenceEnabled(true)
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("MainActivity", "Error inicializando Firebase: ${e.message}", e)
         }
+    }
+
+    private fun setupPermissionReceiver() {
+        permissionReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action == "com.dynamictecnologies.notificationmanager.SHOW_PERMISSION_DIALOG") {
+                    showPermissionDialog.value = true
+                }
+            }
+        }
+
+        try {
+            val filter = IntentFilter("com.dynamictecnologies.notificationmanager.SHOW_PERMISSION_DIALOG")
+
+            // Para Android 13+ (API 33+) es obligatorio especificar el flag
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                // RECEIVER_NOT_EXPORTED porque es un receiver interno de la app
+                registerReceiver(permissionReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                registerReceiver(permissionReceiver, filter)
+            }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error registrando receiver: ${e.message}", e)
+        }
+    }
+
+    private fun startNotificationService() {
+        try {
+            val serviceIntent = Intent(this, NotificationForegroundService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent)
+            } else {
+                startService(serviceIntent)
+            }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error iniciando servicio: ${e.message}", e)
+        }
+    }
+
+    private fun checkInitialPermissions() {
+        if (!NotificationListenerService.isNotificationListenerEnabled(this)) {
+            showPermissionDialog.value = true
+        }
+    }
+
+    private fun handlePermissionsOnResume() {
+        val hasPermissions = NotificationListenerService.isNotificationListenerEnabled(this)
+        val prefs = getSharedPreferences("notification_listener_prefs", Context.MODE_PRIVATE)
+
+        prefs.edit().putBoolean("permissions_enabled", hasPermissions).apply()
+
+        // Si se obtuvieron permisos y el servicio no se ha reiniciado
+        if (hasPermissions && !prefs.getBoolean("service_started_after_permission", false)) {
+            try {
+                NotificationListenerService.requestServiceReset(this)
+                prefs.edit().putBoolean("service_started_after_permission", true).apply()
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error reiniciando servicio: ${e.message}", e)
+            }
+        }
+    }
+
+    private fun unregisterPermissionReceiver() {
+        permissionReceiver?.let {
+            try {
+                unregisterReceiver(it)
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error al desregistrar receiver: ${e.message}", e)
+            }
+        }
+        permissionReceiver = null
     }
 
     private fun createRepository(): NotificationRepository {
@@ -214,9 +239,6 @@ class MainActivity : ComponentActivity() {
             context = applicationContext
         )
     }
-    private fun createFirebaseService(): FirebaseService {
-        return FirebaseService(applicationContext)
-    }
 }
 
 @Composable
@@ -226,12 +248,14 @@ fun NotificationPermissionDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Permisos necesarios") },
-        text = { 
+        title = {
+            Text("Permisos necesarios")
+        },
+        text = {
             Text(
                 "Para que la aplicación pueda monitorear tus notificaciones, debes habilitarla en la configuración del sistema.\n\n" +
-                "En la pantalla siguiente, encuentra 'NotificationManager' y actívalo."
-            ) 
+                        "En la pantalla siguiente, encuentra 'NotificationManager' y actívalo."
+            )
         },
         confirmButton = {
             Button(onClick = onConfirm) {
@@ -245,4 +269,3 @@ fun NotificationPermissionDialog(
         }
     )
 }
-
