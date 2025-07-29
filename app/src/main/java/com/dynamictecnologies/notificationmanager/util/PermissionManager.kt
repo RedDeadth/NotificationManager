@@ -12,14 +12,7 @@ import android.util.Log
 class PermissionManager(private val context: Context) {
     private val TAG = "PermissionManager"
 
-    fun hasNotificationPermission(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
-                    android.content.pm.PackageManager.PERMISSION_GRANTED
-        } else {
-            true
-        }
-    }
+
 
     fun isNotificationListenerEnabled(): Boolean {
         try {

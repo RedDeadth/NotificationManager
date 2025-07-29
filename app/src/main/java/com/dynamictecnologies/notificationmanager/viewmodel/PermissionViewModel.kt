@@ -20,9 +20,6 @@ class PermissionViewModel(
     private val _isCheckingPermissions = MutableStateFlow(false)
     val isCheckingPermissions = _isCheckingPermissions.asStateFlow()
 
-    private val _shouldShowPermissionDialog = MutableStateFlow(false)
-    val shouldShowPermissionDialog = _shouldShowPermissionDialog.asStateFlow()
-
     init {
         checkPermissions()
     }
@@ -35,21 +32,14 @@ class PermissionViewModel(
                 // Dar un pequeño delay para evitar checks muy rápidos
                 delay(500)
 
-                val hasNotificationPermission = permissionManager.hasNotificationPermission()
                 val hasListenerEnabled = permissionManager.isNotificationListenerEnabled()
 
-                Log.d("PermissionViewModel", "Notification permission: $hasNotificationPermission")
                 Log.d("PermissionViewModel", "Listener enabled: $hasListenerEnabled")
 
                 // Para que la app funcione, solo necesitamos el NotificationListener habilitado
                 // El permiso de notificaciones regulares no es crítico para esta funcionalidad
                 val allPermissionsGranted = hasListenerEnabled
                 _permissionsGranted.value = allPermissionsGranted
-
-                // Mostrar diálogo solo si falta el permiso crítico (NotificationListener)
-                if (!hasListenerEnabled) {
-                    _shouldShowPermissionDialog.value = true
-                }
 
             } catch (e: Exception) {
                 Log.e("PermissionViewModel", "Error checking permissions: ${e.message}", e)
@@ -66,29 +56,6 @@ class PermissionViewModel(
             delay(1000)
             checkPermissions()
         }
-    }
-
-    fun openNotificationSettings() {
-        try {
-            // Si no tienes el permiso de notificaciones regular, pide ese primero
-            if (!permissionManager.hasNotificationPermission()) {
-
-            } else if (!permissionManager.isNotificationListenerEnabled()) {
-                // Si ya tienes el permiso regular, ve al NotificationListener
-                permissionManager.openNotificationSettings()
-            }
-            _shouldShowPermissionDialog.value = false
-        } catch (e: Exception) {
-            Log.e("PermissionViewModel", "Error opening notification settings: ${e.message}", e)
-        }
-    }
-
-    fun dismissPermissionDialog() {
-        _shouldShowPermissionDialog.value = false
-    }
-
-    fun onPermissionDialogConfirm() {
-        openNotificationSettings()
     }
 
     fun closeApp() {

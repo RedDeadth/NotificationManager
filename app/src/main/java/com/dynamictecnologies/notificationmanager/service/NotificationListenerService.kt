@@ -70,9 +70,7 @@ class NotificationListenerService : NotificationListenerService() {
         
         if (!enabled) {
             Log.w(TAG, "⚠️ ¡Servicio de notificaciones deshabilitado! Intentando reiniciar...")
-            // Enviar un broadcast para mostrar diálogo de permisos
-            val intent = Intent("com.dynamictecnologies.notificationmanager.SHOW_PERMISSION_DIALOG")
-            applicationContext.sendBroadcast(intent)
+
         } else {
             // Actualizar marca de tiempo de conexión
             val prefs = getSharedPreferences("notification_listener_prefs", Context.MODE_PRIVATE)
