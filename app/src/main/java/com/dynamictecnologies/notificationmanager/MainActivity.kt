@@ -134,6 +134,10 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+
+
+    
+
     private fun createRepository(): NotificationRepository {
         val database = NotificationDatabase.getDatabase(applicationContext)
         val firebaseService = FirebaseService(applicationContext)
