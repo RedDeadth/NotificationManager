@@ -9,7 +9,6 @@ import androidx.navigation.compose.rememberNavController
 import com.dynamictecnologies.notificationmanager.ui.screen.auth.LoginScreen
 import com.dynamictecnologies.notificationmanager.ui.screen.auth.RegisterScreen
 import com.dynamictecnologies.notificationmanager.ui.screen.home.AppListScreen
-import com.dynamictecnologies.notificationmanager.ui.components.PermissionScreen
 import com.dynamictecnologies.notificationmanager.viewmodel.*
 import androidx.compose.ui.Modifier
 import com.dynamictecnologies.notificationmanager.ui.screen.home.ProfileScreen
@@ -22,20 +21,15 @@ import com.dynamictecnologies.notificationmanager.ui.screen.MainScreen
 sealed class Screen(val route: String) {
     object Login : Screen("login")
     object Register : Screen("register")
-    object Permission : Screen("permission")
     object Main : Screen("main") // Nueva ruta raíz para el flujo principal
     // Las siguientes rutas se mantienen por compatibilidad, pero ahora están dentro de MainRoutes
     object AppList : Screen("app_list")
-    object Profile : Screen("profile") 
-    object Share : Screen("share")
-    object Settings : Screen("settings")
 }
 
 @Composable
 fun NavigationGraph(
     navController: NavHostController,
     authViewModel: AuthViewModel,
-    permissionViewModel: PermissionViewModel,
     appListViewModel: AppListViewModel,
     userViewModel: UserViewModel,
     shareViewModel: ShareViewModel,
@@ -60,9 +54,7 @@ fun NavigationGraph(
                     navController.navigate(Screen.Register.route)
                 },
                 onLoginSuccess = {
-                    navController.navigate(Screen.Permission.route) {
-                        popUpTo(Screen.Login.route) { inclusive = true }
-                    }
+                    navController.navigate(Screen.AppList.route)
                 }
             )
         }
@@ -78,49 +70,6 @@ fun NavigationGraph(
                 authViewModel = authViewModel,
                 onNavigateToLogin = {
                     navController.popBackStack()
-                }
-            )
-        }
-
-        // Pantalla de permisos
-        composable(
-            route = Screen.Permission.route,
-            enterTransition = { NavigationAnimations.enterTransition() },
-            exitTransition = { NavigationAnimations.exitTransition() },
-            popEnterTransition = { NavigationAnimations.popEnterTransition() },
-            popExitTransition = { NavigationAnimations.popExitTransition() }
-        ) {
-            PermissionScreen(
-                permissionViewModel = permissionViewModel,
-                appListViewModel = appListViewModel,
-                userViewModel = userViewModel,
-                shareViewModel = shareViewModel,
-                deviceViewModel = deviceViewModel,
-                onPermissionsGranted = {
-                    navController.navigate(Screen.Main.route) {
-                        popUpTo(Screen.Permission.route) { inclusive = true }
-                    }
-                },
-                onLogout = {
-                    // Limpiar todos los datos antes de cerrar sesión
-                    userViewModel.clearData()
-                    shareViewModel.clearData()
-                    appListViewModel.clearData()
-                    
-                    authViewModel.signOut()
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(0) { inclusive = true }
-                    }
-                },
-                onNavigateToProfile = {
-                    navController.navigate(Screen.Main.route) {
-                        popUpTo(Screen.Permission.route) { inclusive = true }
-                    }
-                },
-                onNavigateToShared = {
-                    navController.navigate(Screen.Main.route) {
-                        popUpTo(Screen.Permission.route) { inclusive = true }
-                    }
                 }
             )
         }
@@ -306,7 +255,7 @@ fun ShareContent(
 @Composable
 fun AppNavigation(
     authViewModel: AuthViewModel,
-    permissionViewModel: PermissionViewModel,
+
     appListViewModel: AppListViewModel,
     userViewModel: UserViewModel,
     shareViewModel: ShareViewModel,
@@ -314,12 +263,11 @@ fun AppNavigation(
 ) {
     val navController = rememberNavController()
     val authState by authViewModel.authState.collectAsState()
-    val permissionsGranted by permissionViewModel.permissionsGranted.collectAsState()
+
 
     // Determinar la pantalla inicial basada en el estado de autenticación
     val startDestination = when {
         !authState.isAuthenticated -> Screen.Login.route
-        !permissionsGranted -> Screen.Permission.route
         else -> Screen.Main.route // Ahora navegamos al contenedor principal
     }
 
@@ -340,30 +288,12 @@ fun AppNavigation(
             authState.isLoading -> {
                 // Opcionalmente mostrar un indicador de carga
             }
-            // Si está autenticado y no está loading, verificar permisos
-            else -> {
-                if (!permissionsGranted) {
-                    navController.navigate(Screen.Permission.route) {
-                        popUpTo(Screen.Login.route) { inclusive = true }
-                    }
-                }
-            }
-        }
-    }
-
-    // Efecto separado para manejar los permisos
-    LaunchedEffect(permissionsGranted) {
-        if (authState.isAuthenticated && permissionsGranted) {
-            navController.navigate(Screen.Main.route) {
-                popUpTo(0) { inclusive = true }
-            }
         }
     }
 
     NavigationGraph(
         navController = navController,
         authViewModel = authViewModel,
-        permissionViewModel = permissionViewModel,
         appListViewModel = appListViewModel,
         userViewModel = userViewModel,
         shareViewModel = shareViewModel,

@@ -21,7 +21,6 @@ import com.dynamictecnologies.notificationmanager.service.NotificationForeground
 import com.dynamictecnologies.notificationmanager.service.NotificationListenerService
 import com.dynamictecnologies.notificationmanager.service.UserService
 import com.dynamictecnologies.notificationmanager.ui.theme.NotificationManagerTheme
-import com.dynamictecnologies.notificationmanager.util.PermissionManager
 import com.dynamictecnologies.notificationmanager.viewmodel.*
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
@@ -41,9 +40,6 @@ import androidx.compose.ui.Modifier
 import com.dynamictecnologies.notificationmanager.viewmodel.AuthViewModel.AuthViewModelFactory
 
 class MainActivity : ComponentActivity() {
-    private val permissionManager by lazy {
-        PermissionManager(this)
-    }
 
     // ViewModels
     private val userViewModel: UserViewModel by viewModels {
@@ -72,10 +68,6 @@ class MainActivity : ComponentActivity() {
         )
     }
 
-    private val permissionViewModel: PermissionViewModel by viewModels {
-        PermissionViewModelFactory(permissionManager)
-    }
-
     private val appListViewModel: AppListViewModel by viewModels {
         AppListViewModelFactory(applicationContext, createRepository())
     }
@@ -102,7 +94,6 @@ class MainActivity : ComponentActivity() {
                 ) {
                     AppNavigation(
                         authViewModel = authViewModel,
-                        permissionViewModel = permissionViewModel,
                         appListViewModel = appListViewModel,
                         userViewModel = userViewModel,
                         shareViewModel = shareViewModel,
@@ -111,11 +102,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        permissionViewModel.checkPermissions()
     }
 
     override fun onDestroy() {

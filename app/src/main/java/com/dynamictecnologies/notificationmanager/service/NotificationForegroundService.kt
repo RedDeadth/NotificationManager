@@ -83,13 +83,7 @@ class NotificationForegroundService : Service() {
         // Verificar que los permisos estén habilitados antes de realizar cualquier acción
         if (!NotificationListenerService.isNotificationListenerEnabled(applicationContext)) {
             Log.w(TAG, "⚠️ NotificationListenerService no está habilitado. Las acciones pueden fallar.")
-            // Enviar broadcast para mostrar diálogo de permisos si el intent lo solicita explícitamente
-            if (intent?.action == ACTION_RESTART_NOTIFICATION_LISTENER || 
-                intent?.action == ACTION_FORCE_RESET ||
-                intent?.action == ACTION_SCHEDULED_CHECK) {
-                val permIntent = Intent("com.dynamictecnologies.notificationmanager.SHOW_PERMISSION_DIALOG")
-                applicationContext.sendBroadcast(permIntent)
-            }
+
         }
         
         intent?.let {
@@ -375,15 +369,6 @@ class NotificationForegroundService : Service() {
     
     private fun tryToRestartNotificationListenerService() {
         try {
-            // Verificar primero si los permisos están habilitados
-            if (!NotificationListenerService.isNotificationListenerEnabled(applicationContext)) {
-                Log.w(TAG, "⚠️ No se puede reiniciar el servicio: permisos no habilitados")
-                // Guardar estado para informar al usuario
-                val prefs = getSharedPreferences("notification_listener_prefs", Context.MODE_PRIVATE)
-                prefs.edit().putBoolean("restart_failed_permissions", true).apply()
-                return
-            }
-            
             // Primero, intentamos simular la desactivación y reactivación de los permisos
             // Esto puede requerir algunas acciones de usuario en versiones recientes de Android
             toggleNotificationListenerService()
