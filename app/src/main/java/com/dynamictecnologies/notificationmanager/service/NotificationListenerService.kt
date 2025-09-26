@@ -531,6 +531,7 @@ class NotificationListenerService : NotificationListenerService() {
             val extras = notification.extras
             
             // Extraer información relevante
+            //EDITAR AQUI PARA APPS EN ESPACIFICO
             val title = extras.getString(Notification.EXTRA_TITLE) ?: ""
             val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: ""
             
@@ -542,7 +543,7 @@ class NotificationListenerService : NotificationListenerService() {
                 Log.e(TAG, "Error obteniendo nombre de app: ${e.message}")
                 sbn.packageName // Usar packageName como fallback
             }
-            
+            //AQUI TAMBIEN
             // Verificar si esta es una notificación duplicada o de resumen
             if (text.isNotEmpty() && isSummaryNotification(notification, text)) {
                 Log.d(TAG, "Ignorando notificación de resumen: $appName - $title")
@@ -564,7 +565,7 @@ class NotificationListenerService : NotificationListenerService() {
                 content = text,
                 timestamp = Date(sbn.postTime)
             )
-            
+            //AQUI EDITAMOS PARA EVITAR EL GUARDADO EN FIREBASE Y EVITAS COSTOS
             // Guardar en la base de datos y sincronizar
             serviceScope.launch(Dispatchers.IO) {
                 try {

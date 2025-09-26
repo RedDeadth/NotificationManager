@@ -36,7 +36,7 @@ class NotificationRepository(
     private val prefs = context.getSharedPreferences("app_preferences", Context.MODE_PRIVATE)
 
     init {
-        startPeriodicSync()
+        //startPeriodicSync()
         startPeriodicCleanup()
     }
 
@@ -44,6 +44,7 @@ class NotificationRepository(
         val allowedApp = prefs.getString("last_selected_app", null)
         return allowedApp == packageName
     }
+    /*
 
     private fun startPeriodicSync() {
         scope.launch {
@@ -60,6 +61,8 @@ class NotificationRepository(
             }
         }
     }
+
+     */
 
     /**
      * Inicia limpieza periódica de notificaciones antiguas
@@ -178,7 +181,7 @@ class NotificationRepository(
             }
 
             // Sincronizar con Firebase si hay conexión
-            if (isNetworkAvailable()) {
+            /*if (isNetworkAvailable()) {
                 notificationDao.updateSyncStatus(id, SyncStatus.SYNCING)
                 
                 val updatedNotification = notificationToSave.copy(id = id)
@@ -191,12 +194,12 @@ class NotificationRepository(
                     notificationDao.updateNotificationSyncResult(id, false)
                     Log.d(TAG, "✗ Falló la sincronización de notificación: ID=$id")
                 }
-            }
+            }*/
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error insertando notificación: ${e.message}")
         }
     }
-
+    /*
     private suspend fun syncPendingNotifications() {
         try {
             val unsynced = notificationDao.getUnSyncedNotifications()
@@ -221,6 +224,8 @@ class NotificationRepository(
             Log.e(TAG, "Error en syncPendingNotifications: ${e.message}")
         }
     }
+
+     */
 
     /**
      * Mantiene solo las notificaciones más recientes para una app específica
