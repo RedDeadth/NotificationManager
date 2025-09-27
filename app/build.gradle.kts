@@ -2,7 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    id("com.google.devtools.ksp") version "2.0.0-1.0.24" // Reemplaza kapt
+    id("com.google.devtools.ksp") version "2.0.0-1.0.24"
     id("com.google.gms.google-services")
 }
 
@@ -91,7 +91,10 @@ dependencies {
     val roomVersion = "2.6.1"
     implementation("androidx.room:room-runtime:$roomVersion")
     implementation("androidx.room:room-ktx:$roomVersion")
-    ksp("androidx.room:room-compiler:$roomVersion") // Cambio de kapt a ksp
+    ksp("androidx.room:room-compiler:$roomVersion")
+
+    ksp("com.google.dagger:hilt-compiler:2.48")
+    ksp("androidx.hilt:hilt-compiler:1.1.0")
 
     // Firebase
     implementation(platform("com.google.firebase:firebase-bom:33.9.0"))
