@@ -8,6 +8,7 @@ import com.dynamictecnologies.notificationmanager.data.db.NotificationDao
 import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
 import com.dynamictecnologies.notificationmanager.data.model.SyncStatus
 import com.dynamictecnologies.notificationmanager.service.FirebaseService
+import com.dynamictecnologies.notificationmanager.service.NotificationListenerService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -36,33 +37,46 @@ class NotificationRepository(
     private val prefs = context.getSharedPreferences("app_preferences", Context.MODE_PRIVATE)
 
     init {
-        //startPeriodicSync()
+        // Verificar permisos al inicializar
+        checkNotificationPermissions()
         startPeriodicCleanup()
+    }
+
+    /**
+     * Verifica si los permisos de notificación están activos
+     */
+    private fun checkNotificationPermissions() {
+        val hasPermissions = NotificationListenerService.isNotificationListenerEnabled(context)
+        Log.d(TAG, "Estado de permisos de notificación: $hasPermissions")
+
+        if (!hasPermissions) {
+            Log.w(TAG, "⚠️ ADVERTENCIA: Los permisos de NotificationListener no están activos")
+            Log.w(TAG, "📱 La recolección de notificaciones no funcionará hasta que se otorguen los permisos")
+
+            // Enviar broadcast para notificar a la UI que necesita mostrar permisos
+            val permIntent = android.content.Intent("com.dynamictecnologies.notificationmanager.NEED_PERMISSIONS")
+            context.sendBroadcast(permIntent)
+        }
+    }
+
+    /**
+     * Verifica permisos antes de procesar notificaciones
+     */
+    private fun ensurePermissions(): Boolean {
+        val hasPermissions = NotificationListenerService.isNotificationListenerEnabled(context)
+        if (!hasPermissions) {
+            Log.w(TAG, "⚠️ Operación cancelada: Sin permisos de NotificationListener")
+            // Enviar broadcast cada vez que se detecte falta de permisos
+            val permIntent = android.content.Intent("com.dynamictecnologies.notificationmanager.NEED_PERMISSIONS")
+            context.sendBroadcast(permIntent)
+        }
+        return hasPermissions
     }
 
     private fun isAppAllowedForSync(packageName: String): Boolean {
         val allowedApp = prefs.getString("last_selected_app", null)
         return allowedApp == packageName
     }
-    /*
-
-    private fun startPeriodicSync() {
-        scope.launch {
-            while (isActive) {
-                try {
-                    if (isNetworkAvailable()) {
-                        firebaseService.verifyConnection()
-                        syncPendingNotifications()
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error en sincronización periódica: ${e.message}")
-                }
-                delay(30_000) // Intentar cada 30 segundos
-            }
-        }
-    }
-
-     */
 
     /**
      * Inicia limpieza periódica de notificaciones antiguas
@@ -72,7 +86,7 @@ class NotificationRepository(
             while (isActive) {
                 try {
                     val selectedApp = prefs.getString("last_selected_app", null)
-                    selectedApp?.let { 
+                    selectedApp?.let {
                         cleanupOldNotifications(it)
                     }
                 } catch (e: Exception) {
@@ -85,9 +99,19 @@ class NotificationRepository(
 
     fun getNotifications(packageName: String): Flow<List<NotificationInfo>> {
         Log.d(TAG, "getNotifications llamado para packageName: $packageName")
+
+        // Verificar permisos antes de proceder
+        if (!ensurePermissions()) {
+            // Si no hay permisos, devolver solo datos locales existentes
+            Log.w(TAG, "Sin permisos - devolviendo solo datos locales existentes")
+            val appName = getAppNameFromPackage(packageName)
+            return notificationDao.getNotificationsForApp(appName)
+                .flowOn(Dispatchers.IO)
+        }
+
         val appName = getAppNameFromPackage(packageName)
         Log.d(TAG, "Nombre de aplicación traducido: $appName")
-        
+
         return notificationDao.getNotificationsForApp(appName)
             .onStart {
                 Log.d(TAG, "Emitiendo notificaciones locales iniciales para $appName")
@@ -101,7 +125,7 @@ class NotificationRepository(
                         // Obtenemos todas las notificaciones y filtramos por appName localmente
                         val remoteNotifications = firebaseService.getNotifications()
                             .filter { it.appName == appName || it.appName == packageName }
-                        
+
                         Log.d(TAG, "Recibidas ${remoteNotifications.size} notificaciones remotas filtradas para $appName")
                         processRemoteNotifications(remoteNotifications)
                     } catch (e: Exception) {
@@ -120,10 +144,10 @@ class NotificationRepository(
             Log.d(TAG, "No hay notificaciones remotas para procesar")
             return
         }
-        
+
         Log.d(TAG, "Procesando ${remoteNotifications.size} notificaciones remotas")
         var procesadas = 0
-        
+
         remoteNotifications.forEach { notification ->
             try {
                 // Marcar las notificaciones remotas como SYNCED
@@ -136,12 +160,19 @@ class NotificationRepository(
                 Log.e(TAG, "Error procesando notificación remota: ${e.message}", e)
             }
         }
-        
+
         Log.d(TAG, "Notificaciones remotas procesadas: $procesadas/${remoteNotifications.size}")
     }
 
     suspend fun insertNotification(notification: NotificationInfo) {
         try {
+            // CRÍTICO: Verificar permisos antes de insertar
+            if (!ensurePermissions()) {
+                Log.w(TAG, "❌ Notificación rechazada: Sin permisos de NotificationListener")
+                Log.w(TAG, "📱 Para recolectar notificaciones, otorga permisos en Configuración > Notificaciones > Acceso de notificaciones")
+                return
+            }
+
             // Determinar el appName correcto (usar el proporcionado o derivarlo)
             val appName = if (notification.appName.isNotEmpty()) {
                 notification.appName
@@ -150,7 +181,7 @@ class NotificationRepository(
                 val selectedPackage = prefs.getString("last_selected_app", null) ?: return
                 getAppNameFromPackage(selectedPackage)
             }
-            
+
             // Verificar si la app es la seleccionada
             if (!isSelectedApp(appName)) {
                 Log.d(TAG, "Notificación ignorada: $appName no es la app seleccionada")
@@ -165,8 +196,8 @@ class NotificationRepository(
 
             // Guardar en la base de datos
             val id = notificationDao.insertNotification(notificationToSave)
-            Log.d(TAG, "✓ Notificación guardada localmente: ID=$id, App=$appName, Título='${notification.title}'")
-            
+            Log.d(TAG, "✅ Notificación guardada localmente: ID=$id, App=$appName, Título='${notification.title}'")
+
             // Verificar si necesitamos limpiar notificaciones antiguas
             scope.launch(Dispatchers.IO) {
                 try {
@@ -181,51 +212,12 @@ class NotificationRepository(
             }
 
             // Sincronizar con Firebase si hay conexión
-            /*if (isNetworkAvailable()) {
-                notificationDao.updateSyncStatus(id, SyncStatus.SYNCING)
-                
-                val updatedNotification = notificationToSave.copy(id = id)
-                val success = firebaseService.syncNotification(updatedNotification)
+            // (código de sincronización comentado como en el original)
 
-                if (success) {
-                    notificationDao.updateNotificationSyncResult(id, true)
-                    Log.d(TAG, "✓ Notificación sincronizada con Firebase: ID=$id")
-                } else {
-                    notificationDao.updateNotificationSyncResult(id, false)
-                    Log.d(TAG, "✗ Falló la sincronización de notificación: ID=$id")
-                }
-            }*/
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error insertando notificación: ${e.message}")
+            Log.e(TAG, "❌ Error insertando notificación: ${e.message}", e)
         }
     }
-    /*
-    private suspend fun syncPendingNotifications() {
-        try {
-            val unsynced = notificationDao.getUnSyncedNotifications()
-            if (unsynced.isNotEmpty()) {
-                Log.d(TAG, "Sincronizando ${unsynced.size} notificaciones pendientes...")
-                unsynced.forEach { notification ->
-                    // Actualizar a SYNCING durante el intento
-                    notificationDao.updateSyncStatus(notification.id, SyncStatus.SYNCING)
-
-                    val success = firebaseService.syncNotification(notification)
-                    // Usar la función del DAO para actualizar el estado
-                    notificationDao.updateNotificationSyncResult(notification.id, success)
-
-                    if (success) {
-                        Log.d(TAG, "✓ Sincronizada notificación: ${notification.title}")
-                    } else {
-                        Log.d(TAG, "✗ Falló la sincronización de notificación: ${notification.title}")
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error en syncPendingNotifications: ${e.message}")
-        }
-    }
-
-     */
 
     /**
      * Mantiene solo las notificaciones más recientes para una app específica
@@ -233,7 +225,7 @@ class NotificationRepository(
     suspend fun cleanupOldNotifications(appName: String) {
         try {
             val count = notificationDao.getNotificationCountForApp(appName)
-            
+
             if (count > MAX_NOTIFICATIONS_PER_APP) {
                 Log.d(TAG, "Limpiando notificaciones antiguas para $appName. Total: $count, Manteniendo: $MAX_NOTIFICATIONS_PER_APP")
                 notificationDao.keepOnlyRecentNotifications(appName, MAX_NOTIFICATIONS_PER_APP)
@@ -269,12 +261,35 @@ class NotificationRepository(
      */
     fun isSelectedApp(appName: String): Boolean {
         val selectedPackage = prefs.getString("last_selected_app", null) ?: return false
-        
+
         // Comparar directamente con el nombre de la app seleccionada
         if (appName == selectedPackage) return true
-        
+
         // O verificar si el appName corresponde al packageName seleccionado
         val selectedAppName = getAppNameFromPackage(selectedPackage)
         return appName == selectedAppName
+    }
+
+    /**
+     * Función pública para verificar el estado de los permisos
+     */
+    fun hasNotificationPermissions(): Boolean {
+        return NotificationListenerService.isNotificationListenerEnabled(context)
+    }
+
+    /**
+     * Función para forzar verificación de permisos
+     */
+    fun recheckPermissions() {
+        Log.d(TAG, "🔄 Reverificando permisos por solicitud externa")
+        checkNotificationPermissions()
+
+        // Log del estado actual
+        val hasPermissions = hasNotificationPermissions()
+        if (hasPermissions) {
+            Log.d(TAG, "✅ Permisos confirmados tras reverificación")
+        } else {
+            Log.w(TAG, "❌ Permisos aún no otorgados")
+        }
     }
 }
