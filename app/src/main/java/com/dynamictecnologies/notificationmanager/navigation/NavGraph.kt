@@ -54,7 +54,11 @@ fun NavigationGraph(
                     navController.navigate(Screen.Register.route)
                 },
                 onLoginSuccess = {
-                    navController.navigate(Screen.AppList.route)
+                    // Navigate to main route which contains the nested navigation
+                    navController.navigate(Screen.Main.route) {
+                        // Clear the back stack so user can't go back to login screen
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
                 }
             )
         }

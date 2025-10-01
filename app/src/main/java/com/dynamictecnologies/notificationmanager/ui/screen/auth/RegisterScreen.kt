@@ -14,28 +14,53 @@ import com.dynamictecnologies.notificationmanager.viewmodel.AuthViewModel
 @Composable
 fun RegisterScreen(
     authViewModel: AuthViewModel,
-    onNavigateToLogin: () -> Unit
+    onNavigateToLogin: () -> Unit,
+    onRegisterSuccess: () -> Unit = {}
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
-    var showError by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf("") }
+    var localError by remember { mutableStateOf<String?>(null) }
 
     val authState by authViewModel.authState.collectAsState()
-
-    // Efecto para manejar errores de validación
-    LaunchedEffect(email, password, confirmPassword) {
-        showError = false
+    val snackbarHostState = remember { SnackbarHostState() }
+    
+    // Observar el estado de autenticación exitosa
+    LaunchedEffect(authState.isAuthenticated) {
+        if (authState.isAuthenticated) {
+            onRegisterSuccess()
+        }
+    }
+    
+    // Mostrar errores en Snackbar
+    LaunchedEffect(authState.error, localError) {
+        authState.error?.let { error ->
+            snackbarHostState.showSnackbar(
+                message = error,
+                duration = SnackbarDuration.Short
+            )
+            authViewModel.clearError()
+        }
+        localError?.let { error ->
+            snackbarHostState.showSnackbar(
+                message = error,
+                duration = SnackbarDuration.Short
+            )
+            localError = null
+        }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
         // Mensaje de bienvenida
         Text(
             text = "Hola, empecemos por crear una cuenta",
@@ -50,6 +75,7 @@ fun RegisterScreen(
             onValueChange = { email = it },
             label = { Text("Email") },
             modifier = Modifier.fillMaxWidth(),
+            enabled = !authState.isLoading,
             singleLine = true
         )
         
@@ -62,6 +88,7 @@ fun RegisterScreen(
             label = { Text("Contraseña") },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth(),
+            enabled = !authState.isLoading,
             singleLine = true
         )
         
@@ -74,6 +101,7 @@ fun RegisterScreen(
             label = { Text("Confirmar Contraseña") },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth(),
+            enabled = !authState.isLoading,
             singleLine = true
         )
         
@@ -82,17 +110,17 @@ fun RegisterScreen(
         Button(
             onClick = {
                 when {
-                    email.isEmpty() -> {
-                        showError = true
-                        errorMessage = "El email es requerido"
+                    email.isBlank() -> {
+                        localError = "El email es requerido"
                     }
-                    password.isEmpty() -> {
-                        showError = true
-                        errorMessage = "La contraseña es requerida"
+                    password.isBlank() -> {
+                        localError = "La contraseña es requerida"
                     }
                     password != confirmPassword -> {
-                        showError = true
-                        errorMessage = "Las contraseñas no coinciden"
+                        localError = "Las contraseñas no coinciden"
+                    }
+                    password.length < 6 -> {
+                        localError = "La contraseña debe tener al menos 6 caracteres"
                     }
                     else -> {
                         authViewModel.registerWithEmail(email, password)
@@ -107,9 +135,9 @@ fun RegisterScreen(
                     modifier = Modifier.size(24.dp),
                     color = MaterialTheme.colorScheme.onPrimary
                 )
-            } else {
-                Text("Registrarse")
+                Spacer(modifier = Modifier.width(8.dp))
             }
+            Text("Registrarse")
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -120,21 +148,6 @@ fun RegisterScreen(
         ) {
             Text("¿Ya tienes cuenta? Inicia sesión")
         }
-
-        if (showError) {
-            Text(
-                text = errorMessage,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(top = 8.dp)
-            )
-        }
-
-        authState.error?.let { error ->
-            Text(
-                text = error,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(top = 8.dp)
-            )
         }
     }
 }

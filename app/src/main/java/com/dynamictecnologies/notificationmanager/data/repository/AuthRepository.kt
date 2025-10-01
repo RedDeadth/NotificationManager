@@ -2,10 +2,12 @@ package com.dynamictecnologies.notificationmanager.data.repository
 
 import android.content.Context
 import android.content.Intent
-import android.content.SharedPreferences
 import com.dynamictecnologies.notificationmanager.R
 import com.dynamictecnologies.notificationmanager.data.exceptions.AuthException
-import com.dynamictecnologies.notificationmanager.data.exceptions.AuthErrorCode
+import com.dynamictecnologies.notificationmanager.data.exceptions.toAuthException
+import com.dynamictecnologies.notificationmanager.data.mapper.AuthErrorMapper
+import com.dynamictecnologies.notificationmanager.data.session.SessionManager
+import com.dynamictecnologies.notificationmanager.data.validator.AuthValidator
 import com.dynamictecnologies.notificationmanager.service.UserService
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
@@ -17,18 +19,23 @@ import com.google.firebase.auth.GoogleAuthProvider
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
-import java.util.concurrent.TimeUnit
-import com.dynamictecnologies.notificationmanager.data.exceptions.toAuthException
 
+/**
+ * Repositorio de autenticación que implementa el patrón Repository y sigue principios SOLID.
+ * 
+ * Principios aplicados:
+ * - SRP: Delega validación a AuthValidator, mapeo de errores a AuthErrorMapper y sesión a SessionManager
+ * - OCP: Extensible para nuevos métodos de autenticación
+ * - DIP: Depende de abstracciones (IAuthRepository, FirebaseAuth)
+ */
 class AuthRepository(
     private val context: Context,
     private val auth: FirebaseAuth = FirebaseAuth.getInstance(),
-    private val userService: UserService
+    private val userService: UserService,
+    private val validator: AuthValidator = AuthValidator(),
+    private val errorMapper: AuthErrorMapper = AuthErrorMapper(),
+    private val sessionManager: SessionManager = SessionManager(context)
 ) : IAuthRepository {
-    private val prefs: SharedPreferences = context.getSharedPreferences(
-        "auth_prefs",
-        Context.MODE_PRIVATE
-    )
 
     private val googleSignInClient: GoogleSignInClient by lazy {
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
@@ -44,23 +51,81 @@ class AuthRepository(
 
     override suspend fun signInWithEmail(email: String, password: String): Result<FirebaseUser> {
         return try {
-            validateCredentials(email, password)
+            // Validar credenciales antes de hacer la llamada a Firebase
+            val validationResult = validator.validateLoginCredentials(email, password)
+            if (validationResult is AuthValidator.ValidationResult.Invalid) {
+                return Result.failure(
+                    AuthException(
+                        code = when (validationResult.error) {
+                            AuthValidator.ValidationError.EMPTY_EMAIL,
+                            AuthValidator.ValidationError.INVALID_EMAIL_FORMAT -> 
+                                com.dynamictecnologies.notificationmanager.data.exceptions.AuthErrorCode.INVALID_CREDENTIALS
+                            AuthValidator.ValidationError.EMPTY_PASSWORD,
+                            AuthValidator.ValidationError.WEAK_PASSWORD -> 
+                                com.dynamictecnologies.notificationmanager.data.exceptions.AuthErrorCode.WEAK_PASSWORD
+                            else -> com.dynamictecnologies.notificationmanager.data.exceptions.AuthErrorCode.UNKNOWN_ERROR
+                        },
+                        message = validator.getErrorMessage(validationResult.error)
+                    )
+                )
+            }
+            
+            // Autenticar con Firebase
             val result = auth.signInWithEmailAndPassword(email, password).await()
-            saveUserSession(result.user!!)
-            Result.success(result.user!!)
+            val user = result.user ?: throw AuthException(
+                code = com.dynamictecnologies.notificationmanager.data.exceptions.AuthErrorCode.UNKNOWN_ERROR,
+                message = "Usuario no disponible después de la autenticación"
+            )
+            
+            // Guardar sesión
+            saveUserSession(user)
+            Result.success(user)
         } catch (e: FirebaseAuthException) {
-            Result.failure(e.toAuthException())
+            Result.failure(errorMapper.mapFirebaseException(e))
+        } catch (e: AuthException) {
+            Result.failure(e)
+        } catch (e: Exception) {
+            Result.failure(errorMapper.mapException(e))
         }
     }
 
     override suspend fun registerWithEmail(email: String, password: String): Result<FirebaseUser> {
         return try {
-            validateCredentials(email, password)
+            // Validar credenciales antes de crear la cuenta
+            val validationResult = validator.validateLoginCredentials(email, password)
+            if (validationResult is AuthValidator.ValidationResult.Invalid) {
+                return Result.failure(
+                    AuthException(
+                        code = when (validationResult.error) {
+                            AuthValidator.ValidationError.EMPTY_EMAIL,
+                            AuthValidator.ValidationError.INVALID_EMAIL_FORMAT -> 
+                                com.dynamictecnologies.notificationmanager.data.exceptions.AuthErrorCode.INVALID_CREDENTIALS
+                            AuthValidator.ValidationError.EMPTY_PASSWORD,
+                            AuthValidator.ValidationError.WEAK_PASSWORD -> 
+                                com.dynamictecnologies.notificationmanager.data.exceptions.AuthErrorCode.WEAK_PASSWORD
+                            else -> com.dynamictecnologies.notificationmanager.data.exceptions.AuthErrorCode.UNKNOWN_ERROR
+                        },
+                        message = validator.getErrorMessage(validationResult.error)
+                    )
+                )
+            }
+            
+            // Crear cuenta en Firebase
             val result = auth.createUserWithEmailAndPassword(email, password).await()
-            saveUserSession(result.user!!)
-            Result.success(result.user!!)
+            val user = result.user ?: throw AuthException(
+                code = com.dynamictecnologies.notificationmanager.data.exceptions.AuthErrorCode.UNKNOWN_ERROR,
+                message = "Usuario no disponible después del registro"
+            )
+            
+            // Guardar sesión
+            saveUserSession(user)
+            Result.success(user)
         } catch (e: FirebaseAuthException) {
-            Result.failure(e.toAuthException())
+            Result.failure(errorMapper.mapFirebaseException(e))
+        } catch (e: AuthException) {
+            Result.failure(e)
+        } catch (e: Exception) {
+            Result.failure(errorMapper.mapException(e))
         }
     }
 
@@ -72,10 +137,19 @@ class AuthRepository(
         return try {
             val credential = GoogleAuthProvider.getCredential(idToken, null)
             val result = auth.signInWithCredential(credential).await()
-            saveUserSession(result.user!!)
-            Result.success(result.user!!)
+            val user = result.user ?: throw AuthException(
+                code = com.dynamictecnologies.notificationmanager.data.exceptions.AuthErrorCode.UNKNOWN_ERROR,
+                message = "Usuario no disponible después de autenticación con Google"
+            )
+            
+            saveUserSession(user)
+            Result.success(user)
+        } catch (e: FirebaseAuthException) {
+            Result.failure(errorMapper.mapFirebaseException(e))
+        } catch (e: AuthException) {
+            Result.failure(e)
         } catch (e: Exception) {
-            Result.failure(e.toAuthException())
+            Result.failure(errorMapper.mapException(e))
         }
     }
 
@@ -87,48 +161,30 @@ class AuthRepository(
             userService.cleanup()
             Result.success(Unit)
         } catch (e: Exception) {
-            Result.failure(e.toAuthException())
+            Result.failure(errorMapper.mapException(e))
         }
     }
 
     override fun saveUserSession(user: FirebaseUser): Result<Unit> {
         return try {
-            prefs.edit().apply {
-                putString("user_id", user.uid)
-                putString("user_email", user.email)
-                putLong("session_expiration", System.currentTimeMillis() + TimeUnit.HOURS.toMillis(24))
-                apply()
-            }
+            sessionManager.saveSession(user)
             Result.success(Unit)
         } catch (e: Exception) {
-            Result.failure(e.toAuthException())
+            Result.failure(errorMapper.mapException(e))
         }
     }
 
     override fun clearUserSession(): Result<Unit> {
         return try {
-            prefs.edit().clear().apply()
+            sessionManager.clearSession()
             Result.success(Unit)
         } catch (e: Exception) {
-            Result.failure(e.toAuthException())
+            Result.failure(errorMapper.mapException(e))
         }
     }
 
     override fun isSessionValid(): Boolean {
-        val expiration = prefs.getLong("session_expiration", 0)
-        return expiration > System.currentTimeMillis()
-    }
-
-    private fun validateCredentials(email: String, password: String) {
-        if (email.isBlank()) {
-            throw AuthException(AuthErrorCode.INVALID_CREDENTIALS, "Email is required")
-        }
-        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            throw AuthException(AuthErrorCode.INVALID_CREDENTIALS, "Invalid email format")
-        }
-        if (password.length < 6) {
-            throw AuthException(AuthErrorCode.WEAK_PASSWORD, "Password must be at least 6 characters")
-        }
+        return sessionManager.isSessionValid()
     }
 
     companion object {

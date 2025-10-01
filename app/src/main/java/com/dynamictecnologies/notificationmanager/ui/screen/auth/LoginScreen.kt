@@ -12,8 +12,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dynamictecnologies.notificationmanager.viewmodel.AuthViewModel
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(
@@ -24,25 +23,46 @@ fun LoginScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
-    var emailError by remember { mutableStateOf<String?>(null) }
-    var passwordError by remember { mutableStateOf<String?>(null) }
 
     val authState by authViewModel.authState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     // Configurar el launcher para el inicio de sesión con Google
     val googleSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        authViewModel.handleGoogleSignInResult(result.data!!)
+        authViewModel.handleGoogleSignInResult(result.data)
+    }
+    
+    // Observar el estado de autenticación exitosa
+    LaunchedEffect(authState.isAuthenticated) {
+        if (authState.isAuthenticated) {
+            onLoginSuccess()
+        }
+    }
+    
+    // Mostrar errores en Snackbar
+    LaunchedEffect(authState.error) {
+        authState.error?.let { error ->
+            snackbarHostState.showSnackbar(
+                message = error,
+                duration = SnackbarDuration.Short
+            )
+            authViewModel.clearError()
+        }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
         // Mensaje de bienvenida
         Text(
             text = "Bienvenido usuario, ¿cómo deberíamos llamarte?",
@@ -63,80 +83,53 @@ fun LoginScreen(
 
         OutlinedTextField(
             value = email,
-            onValueChange = { 
-                email = it
-                emailError = if (it.isBlank()) "Email es requerido" 
-                           else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(it).matches()) "Formato de email inválido"
-                           else null
-            },
+            onValueChange = { email = it },
             label = { Text("Email") },
             modifier = Modifier.fillMaxWidth(),
-            isError = emailError != null
+            enabled = !authState.isLoading,
+            singleLine = true
         )
-        if (emailError != null) {
-            Text(
-                text = emailError!!,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(start = 16.dp)
-            )
-        }
 
         Spacer(modifier = Modifier.height(8.dp))
 
         OutlinedTextField(
             value = password,
-            onValueChange = { 
-                password = it
-                passwordError = if (it.isBlank()) "Contraseña es requerida"
-                              else if (it.length < 6) "La contraseña debe tener al menos 6 caracteres"
-                              else null
-            },
+            onValueChange = { password = it },
             label = { Text("Contraseña") },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth(),
-            isError = passwordError != null
+            enabled = !authState.isLoading,
+            singleLine = true
         )
-        if (passwordError != null) {
-            Text(
-                text = passwordError!!,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(start = 16.dp)
-            )
-        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
         Button(
-            onClick = { 
-                if (emailError == null && passwordError == null) {
-                    authViewModel.signInWithEmail(email, password)
-                }
-            },
+            onClick = { authViewModel.signInWithEmail(email, password) },
             modifier = Modifier.fillMaxWidth(),
-            enabled = emailError == null && passwordError == null
+            enabled = !authState.isLoading && email.isNotBlank() && password.isNotBlank()
         ) {
             if (authState.isLoading) {
                 CircularProgressIndicator(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .padding(end = 8.dp)
+                    modifier = Modifier.size(24.dp),
+                    color = MaterialTheme.colorScheme.onPrimary
                 )
+                Spacer(modifier = Modifier.width(8.dp))
             }
-            Text("Iniciar Sesión")
         }
 
         Spacer(modifier = Modifier.height(8.dp))
 
         OutlinedButton(
             onClick = {
-                runBlocking {
-                    val intent = authViewModel.getGoogleSignInIntent().first()
-                    googleSignInLauncher.launch(intent)
+                kotlinx.coroutines.MainScope().launch {
+                    authViewModel.getGoogleSignInIntent().collect { intent ->
+                        googleSignInLauncher.launch(intent)
+                    }
                 }
             },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !authState.isLoading
         ) {
             Text("Iniciar Sesión con Google")
         }
@@ -145,24 +138,10 @@ fun LoginScreen(
 
         TextButton(
             onClick = onNavigateToRegister,
-            modifier = Modifier.fillMaxWidth()
+            enabled = !authState.isLoading
         ) {
             Text("¿No tienes cuenta? Regístrate")
         }
-
-        if (authState.error != null) {
-            Snackbar(
-                modifier = Modifier.padding(16.dp),
-                action = {
-                    TextButton(
-                        onClick = { authViewModel.clearError() }
-                    ) {
-                        Text("Cerrar")
-                    }
-                }
-            ) {
-                Text(authState.error!!)
-            }
         }
     }
 }
