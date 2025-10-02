@@ -15,7 +15,6 @@ import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
 import com.dynamictecnologies.notificationmanager.data.db.NotificationDatabase
-import com.dynamictecnologies.notificationmanager.data.repository.AuthRepository
 import com.dynamictecnologies.notificationmanager.data.repository.NotificationRepository
 import com.dynamictecnologies.notificationmanager.navigation.AppNavigation
 import com.dynamictecnologies.notificationmanager.service.FirebaseService
@@ -25,6 +24,7 @@ import com.dynamictecnologies.notificationmanager.service.UserService
 import com.dynamictecnologies.notificationmanager.ui.theme.NotificationManagerTheme
 import com.dynamictecnologies.notificationmanager.util.PermissionHelper
 import com.dynamictecnologies.notificationmanager.viewmodel.*
+import com.dynamictecnologies.notificationmanager.di.AuthModule
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
@@ -40,34 +40,32 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.dynamictecnologies.notificationmanager.viewmodel.AuthViewModel.AuthViewModelFactory
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 
 class MainActivity : ComponentActivity() {
 
+    // UserService para inyección de dependencias
+    private val userService: UserService by lazy {
+        UserService(
+            auth = FirebaseAuth.getInstance(),
+            database = FirebaseDatabase.getInstance(),
+            scope = CoroutineScope(SupervisorJob())
+        )
+    }
+
     // ViewModels
+    private val authViewModel: AuthViewModel by viewModels {
+        AuthModule.provideAuthViewModelFactory(
+            context = applicationContext,
+            userService = userService
+        )
+    }
+
     private val userViewModel: UserViewModel by viewModels {
         UserViewModelFactory(
             auth = FirebaseAuth.getInstance(),
             database = FirebaseDatabase.getInstance()
-        )
-    }
-
-    private val authViewModel: AuthViewModel by viewModels {
-        val auth = FirebaseAuth.getInstance()
-        val database = FirebaseDatabase.getInstance()
-
-        val userService = UserService(
-            auth = auth,
-            database = database,
-            scope = lifecycleScope
-        )
-
-        AuthViewModelFactory(
-            AuthRepository(
-                context = this,
-                auth = auth,
-                userService = userService
-            )
         )
     }
 

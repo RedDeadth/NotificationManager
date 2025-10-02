@@ -17,7 +17,6 @@ import com.dynamictecnologies.notificationmanager.domain.usecases.SignOutUseCase
 import com.dynamictecnologies.notificationmanager.domain.usecases.ValidateSessionUseCase
 import com.dynamictecnologies.notificationmanager.service.UserService
 import com.dynamictecnologies.notificationmanager.ui.auth.GoogleSignInHelper
-import com.dynamictecnologies.notificationmanager.viewmodel.AuthViewModelNew
 import com.google.firebase.auth.FirebaseAuth
 
 /**
@@ -129,10 +128,10 @@ object AuthModule {
     fun provideAuthViewModelFactory(
         context: Context,
         userService: UserService
-    ): AuthViewModelNew.Factory {
+    ): com.dynamictecnologies.notificationmanager.viewmodel.AuthViewModel.Factory {
         val authRepository = provideAuthRepository(context, userService)
         
-        return AuthViewModelNew.Factory(
+        return com.dynamictecnologies.notificationmanager.viewmodel.AuthViewModel.Factory(
             signInWithEmailUseCase = provideSignInWithEmailUseCase(authRepository),
             registerWithEmailUseCase = provideRegisterWithEmailUseCase(authRepository),
             signInWithGoogleUseCase = provideSignInWithGoogleUseCase(authRepository),

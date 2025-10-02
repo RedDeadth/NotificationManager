@@ -122,11 +122,8 @@ fun LoginScreen(
 
         OutlinedButton(
             onClick = {
-                kotlinx.coroutines.MainScope().launch {
-                    authViewModel.getGoogleSignInIntent().collect { intent ->
-                        googleSignInLauncher.launch(intent)
-                    }
-                }
+                val intent = authViewModel.getGoogleSignInIntent()
+                googleSignInLauncher.launch(intent)
             },
             modifier = Modifier.fillMaxWidth(),
             enabled = !authState.isLoading

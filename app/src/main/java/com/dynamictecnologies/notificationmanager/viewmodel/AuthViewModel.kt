@@ -6,44 +6,52 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.dynamictecnologies.notificationmanager.data.exceptions.AuthException
 import com.dynamictecnologies.notificationmanager.data.mapper.AuthErrorMapper
-import com.dynamictecnologies.notificationmanager.data.repository.IAuthRepository
-import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.dynamictecnologies.notificationmanager.domain.entities.User
+import com.dynamictecnologies.notificationmanager.domain.usecases.GetCurrentUserUseCase
+import com.dynamictecnologies.notificationmanager.domain.usecases.RegisterWithEmailUseCase
+import com.dynamictecnologies.notificationmanager.domain.usecases.SignInWithEmailUseCase
+import com.dynamictecnologies.notificationmanager.domain.usecases.SignInWithGoogleUseCase
+import com.dynamictecnologies.notificationmanager.domain.usecases.SignOutUseCase
+import com.dynamictecnologies.notificationmanager.domain.usecases.ValidateSessionUseCase
+import com.dynamictecnologies.notificationmanager.ui.auth.GoogleSignInHelper
 import com.google.android.gms.common.api.ApiException
-import com.google.firebase.auth.FirebaseUser
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-/**
- * ViewModel de autenticación que maneja el estado de la UI y coordina las operaciones de autenticación.
- * 
- * Principios aplicados:
- * - SRP: Solo maneja el estado de UI y coordina llamadas al repository
- * - DIP: Depende de la abstracción IAuthRepository
- */
 class AuthViewModel(
-    private val authRepository: IAuthRepository,
-    private val errorMapper: AuthErrorMapper = AuthErrorMapper()
+    private val signInWithEmailUseCase: SignInWithEmailUseCase,
+    private val registerWithEmailUseCase: RegisterWithEmailUseCase,
+    private val signInWithGoogleUseCase: SignInWithGoogleUseCase,
+    private val signOutUseCase: SignOutUseCase,
+    private val getCurrentUserUseCase: GetCurrentUserUseCase,
+    private val validateSessionUseCase: ValidateSessionUseCase,
+    private val googleSignInHelper: GoogleSignInHelper,
+    private val errorMapper: AuthErrorMapper
 ) : ViewModel() {
-    private val _authState = MutableStateFlow(AuthState(isSessionValid = authRepository.isSessionValid()))
+
+    private val _authState = MutableStateFlow(AuthState())
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
     init {
-        _authState.value = AuthState(isSessionValid = authRepository.isSessionValid())
         checkAuthState()
     }
 
+    /**
+     * Verifica el estado de autenticación actual
+     */
     fun checkAuthState() {
         viewModelScope.launch {
             try {
                 _authState.value = _authState.value.copy(isLoading = true)
-                authRepository.getCurrentUser().collect { user ->
+                val isSessionValid = validateSessionUseCase()
+
+                getCurrentUserUseCase().collect { user ->
                     _authState.value = AuthState(
                         isAuthenticated = user != null,
                         currentUser = user,
-                        isSessionValid = authRepository.isSessionValid()
+                        isSessionValid = isSessionValid
                     )
                 }
             } catch (e: Exception) {
@@ -59,79 +67,8 @@ class AuthViewModel(
      */
     fun signInWithEmail(email: String, password: String) {
         viewModelScope.launch {
-            try {
-                _authState.value = _authState.value.copy(isLoading = true, error = null)
-                val result = authRepository.signInWithEmail(email, password)
-                result.onSuccess { user ->
-                    _authState.value = AuthState(
-                        isAuthenticated = true,
-                        currentUser = user,
-                        isSessionValid = authRepository.isSessionValid()
-                    )
-                }.onFailure { error ->
-                    handleException(error)
-                }
-            } catch (e: Exception) {
-                handleException(e)
-            } finally {
-                _authState.value = _authState.value.copy(isLoading = false)
-            }
-        }
-    }
-
-    /**
-     * Obtiene el intent de Google Sign In
-     */
-    fun getGoogleSignInIntent(): Flow<Intent> {
-        return authRepository.getGoogleSignInIntent()
-    }
-
-    /**
-     * Maneja el resultado del inicio de sesión con Google
-     */
-    fun handleGoogleSignInResult(result: Intent?) {
-        viewModelScope.launch {
-            try {
-                _authState.value = _authState.value.copy(isLoading = true, error = null)
-                
-                if (result == null) {
-                    _authState.value = _authState.value.copy(
-                        error = "Error al obtener resultado de Google Sign In",
-                        isLoading = false
-                    )
-                    return@launch
-                }
-                
-                val task = GoogleSignIn.getSignedInAccountFromIntent(result)
-                val account = task.getResult(ApiException::class.java)
-                
-                if (account?.idToken == null) {
-                    _authState.value = _authState.value.copy(
-                        error = "No se pudo obtener el token de Google",
-                        isLoading = false
-                    )
-                    return@launch
-                }
-                
-                val authResult = authRepository.handleGoogleSignIn(account.idToken!!)
-                authResult.onSuccess { user ->
-                    _authState.value = AuthState(
-                        isAuthenticated = true,
-                        currentUser = user,
-                        isSessionValid = authRepository.isSessionValid()
-                    )
-                }.onFailure { error ->
-                    handleException(error)
-                }
-            } catch (e: ApiException) {
-                _authState.value = _authState.value.copy(
-                    error = "Error de Google Sign In: ${e.localizedMessage}",
-                    isLoading = false
-                )
-            } catch (e: Exception) {
-                handleException(e)
-            } finally {
-                _authState.value = _authState.value.copy(isLoading = false)
+            executeAuthOperation {
+                signInWithEmailUseCase(email, password)
             }
         }
     }
@@ -141,22 +78,52 @@ class AuthViewModel(
      */
     fun registerWithEmail(email: String, password: String) {
         viewModelScope.launch {
+            executeAuthOperation {
+                registerWithEmailUseCase(email, password)
+            }
+        }
+    }
+
+    /**
+     * Obtiene el intent de Google Sign In
+     */
+    fun getGoogleSignInIntent(): Intent {
+        return googleSignInHelper.getSignInIntent()
+    }
+
+    /**
+     * Maneja el resultado del inicio de sesión con Google
+     */
+    fun handleGoogleSignInResult(result: Intent?) {
+        viewModelScope.launch {
             try {
                 _authState.value = _authState.value.copy(isLoading = true, error = null)
-                val result = authRepository.registerWithEmail(email, password)
-                result.onSuccess { user ->
-                    _authState.value = AuthState(
-                        isAuthenticated = true,
-                        currentUser = user,
-                        isSessionValid = authRepository.isSessionValid()
+
+                if (result == null) {
+                    _authState.value = _authState.value.copy(
+                        error = "Error al obtener resultado de Google Sign In",
+                        isLoading = false
                     )
-                }.onFailure { error ->
-                    handleException(error)
+                    return@launch
                 }
+
+                val idToken = googleSignInHelper.getIdTokenFromIntent(result)
+                executeAuthOperation {
+                    signInWithGoogleUseCase(idToken)
+                }
+
+            } catch (e: ApiException) {
+                _authState.value = _authState.value.copy(
+                    error = "Error de Google Sign In: ${e.localizedMessage}",
+                    isLoading = false
+                )
+            } catch (e: IllegalStateException) {
+                _authState.value = _authState.value.copy(
+                    error = e.message ?: "Error desconocido",
+                    isLoading = false
+                )
             } catch (e: Exception) {
                 handleException(e)
-            } finally {
-                _authState.value = _authState.value.copy(isLoading = false)
             }
         }
     }
@@ -168,9 +135,12 @@ class AuthViewModel(
         viewModelScope.launch {
             try {
                 _authState.value = _authState.value.copy(isLoading = true, error = null)
-                val result = authRepository.signOut()
+
+                val result = signOutUseCase()
                 result.onSuccess {
-                    _authState.value = AuthState(isSessionValid = authRepository.isSessionValid())
+                    googleSignInHelper.signOut()
+                    val isSessionValid = validateSessionUseCase()
+                    _authState.value = AuthState(isSessionValid = isSessionValid)
                 }.onFailure { error ->
                     handleException(error)
                 }
@@ -190,7 +160,34 @@ class AuthViewModel(
     }
 
     /**
-     * Maneja excepciones y las convierte en mensajes de error localizados
+     * Función privada que encapsula la lógica común de operaciones de autenticación.
+     * Aplica principio DRY evitando código duplicado.
+     */
+    private suspend fun executeAuthOperation(operation: suspend () -> Result<User>) {
+        try {
+            _authState.value = _authState.value.copy(isLoading = true, error = null)
+
+            val result = operation()
+            result.onSuccess { user ->
+                val isSessionValid = validateSessionUseCase()
+                _authState.value = AuthState(
+                    isAuthenticated = true,
+                    currentUser = user,
+                    isSessionValid = isSessionValid
+                )
+            }.onFailure { error ->
+                handleException(error)
+            }
+        } catch (e: Exception) {
+            handleException(e)
+        } finally {
+            _authState.value = _authState.value.copy(isLoading = false)
+        }
+    }
+
+    /**
+     * Maneja excepciones y las convierte en mensajes de error localizados.
+     * Aplica principio DRY evitando código duplicado.
      */
     private fun handleException(error: Throwable) {
         val errorMessage = if (error is AuthException) {
@@ -199,25 +196,47 @@ class AuthViewModel(
             val authException = errorMapper.mapException(error)
             errorMapper.getLocalizedErrorMessage(authException)
         }
-        
+
         _authState.value = _authState.value.copy(error = errorMessage)
     }
 
+    /**
+     * Estado de autenticación
+     */
     data class AuthState(
         val isAuthenticated: Boolean = false,
         val isLoading: Boolean = false,
         val error: String? = null,
-        val currentUser: FirebaseUser? = null,
-        val isSessionValid: Boolean
+        val currentUser: User? = null,
+        val isSessionValid: Boolean = false
     )
 
-    class AuthViewModelFactory(
-        private val authRepository: IAuthRepository
+    /**
+     * Factory para crear instancias del ViewModel con inyección de dependencias
+     */
+    class Factory(
+        private val signInWithEmailUseCase: SignInWithEmailUseCase,
+        private val registerWithEmailUseCase: RegisterWithEmailUseCase,
+        private val signInWithGoogleUseCase: SignInWithGoogleUseCase,
+        private val signOutUseCase: SignOutUseCase,
+        private val getCurrentUserUseCase: GetCurrentUserUseCase,
+        private val validateSessionUseCase: ValidateSessionUseCase,
+        private val googleSignInHelper: GoogleSignInHelper,
+        private val errorMapper: AuthErrorMapper
     ) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(AuthViewModel::class.java)) {
                 @Suppress("UNCHECKED_CAST")
-                return AuthViewModel(authRepository) as T
+                return AuthViewModel(
+                    signInWithEmailUseCase,
+                    registerWithEmailUseCase,
+                    signInWithGoogleUseCase,
+                    signOutUseCase,
+                    getCurrentUserUseCase,
+                    validateSessionUseCase,
+                    googleSignInHelper,
+                    errorMapper
+                ) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class")
         }
