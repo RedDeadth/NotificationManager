@@ -28,6 +28,8 @@ import com.dynamictecnologies.notificationmanager.domain.usecases.user.GetUserPr
 import com.dynamictecnologies.notificationmanager.domain.usecases.user.RefreshUserProfileUseCase
 import com.dynamictecnologies.notificationmanager.domain.usecases.user.RegisterUsernameUseCase
 import com.dynamictecnologies.notificationmanager.domain.usecases.user.ValidateUsernameUseCase
+import com.dynamictecnologies.notificationmanager.viewmodel.AuthViewModel
+import com.dynamictecnologies.notificationmanager.viewmodel.UserViewModelFactory
 
 /**
  * Módulo de inyección de dependencias para autenticación y perfiles de usuario.
@@ -168,13 +170,35 @@ object AuthModule {
     /**
      * Provee UserProfileRepository
      */
-    fun provideUserProfileRepository(): UserProfileRepository {
+    fun provideUserProfileRepository(authRepository: AuthRepository): UserProfileRepository {
         return UserProfileRepositoryImpl(
             remoteDataSource = provideRemoteUserDataSource(),
             localDataSource = provideLocalUserDataSource(),
             usernameValidator = provideUsernameValidator(),
-            firebaseAuth = firebaseAuth
+            firebaseAuth = firebaseAuth,
+            authRepository = authRepository
         )
+    }
+    fun provideSharedAuthRepository(
+        context: Context,
+        userService: UserService
+    ): Triple<AuthRepository, AuthViewModel.Factory, UserViewModelFactory> {
+        val authRepository = provideAuthRepository(context, userService)
+
+        val authViewModelFactory = AuthViewModel.Factory(
+            signInWithEmailUseCase = provideSignInWithEmailUseCase(authRepository),
+            registerWithEmailUseCase = provideRegisterWithEmailUseCase(authRepository),
+            signInWithGoogleUseCase = provideSignInWithGoogleUseCase(authRepository),
+            signOutUseCase = provideSignOutUseCase(authRepository),
+            getCurrentUserUseCase = provideGetCurrentUserUseCase(authRepository),
+            validateSessionUseCase = provideValidateSessionUseCase(authRepository),
+            googleSignInHelper = provideGoogleSignInHelper(context),
+            errorMapper = provideAuthErrorMapper()
+        )
+
+        val userViewModelFactory = provideUserViewModelFactory(authRepository)
+
+        return Triple(authRepository, authViewModelFactory, userViewModelFactory)
     }
     
     /**
@@ -216,8 +240,8 @@ object AuthModule {
     /**
      * Provee el UserViewModelFactory con todas las dependencias
      */
-    fun provideUserViewModelFactory(): com.dynamictecnologies.notificationmanager.viewmodel.UserViewModelFactory {
-        val userProfileRepository = provideUserProfileRepository()
+    fun provideUserViewModelFactory(authRepository: AuthRepository): com.dynamictecnologies.notificationmanager.viewmodel.UserViewModelFactory {
+        val userProfileRepository = provideUserProfileRepository(authRepository)  // ← PASAR PARÁMETRO
         
         return com.dynamictecnologies.notificationmanager.viewmodel.UserViewModelFactory(
             getUserProfileUseCase = provideGetUserProfileUseCase(userProfileRepository),

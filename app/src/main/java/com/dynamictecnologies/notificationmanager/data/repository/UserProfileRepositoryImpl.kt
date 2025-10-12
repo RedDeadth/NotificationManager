@@ -10,7 +10,8 @@ import com.dynamictecnologies.notificationmanager.domain.repositories.UserProfil
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-
+import com.dynamictecnologies.notificationmanager.domain.repositories.AuthRepository
+import kotlinx.coroutines.flow.first
 /**
  * Implementación del repositorio de perfiles de usuario.
  * Coordina entre data sources local y remoto.
@@ -26,34 +27,49 @@ class UserProfileRepositoryImpl(
     private val remoteDataSource: RemoteUserDataSource,
     private val localDataSource: LocalUserDataSource,
     private val usernameValidator: UsernameValidator,
-    private val firebaseAuth: FirebaseAuth
+    private val firebaseAuth: FirebaseAuth,
+    private val authRepository: AuthRepository
 ) : UserProfileRepository {
     
     companion object {
         private const val TAG = "UserProfileRepo"
     }
-    
+
     override fun getUserProfile(): Flow<UserProfile?> {
-        val currentUser = firebaseAuth.currentUser
-        
-        if (currentUser == null) {
-            Log.d(TAG, "No hay usuario autenticado")
-            return kotlinx.coroutines.flow.flowOf(null)
-        }
-        
-        // Primero intentar devolver desde caché
-        val cachedProfile = localDataSource.getProfile()
-        if (cachedProfile != null && localDataSource.isCacheValid()) {
-            Log.d(TAG, "Retornando perfil desde caché")
-        }
-        
-        // Observar cambios remotos y actualizar caché
-        return remoteDataSource.getUserProfileByUid(currentUser.uid)
-            .map { userInfo ->
-                userInfo?.let {
-                    localDataSource.saveProfile(it)
-                    UserProfileMapper.toDomain(it)
+        return authRepository.getFirebaseAuthState()
+            .map { firebaseUser ->
+                if (firebaseUser == null) {
+                    Log.d(TAG, "No hay usuario autenticado")
+                    return@map null
                 }
+
+                // 🔥 PRESERVAR LÓGICA DE CACHÉ EXISTENTE
+                val cachedProfile = localDataSource.getProfile()
+                if (cachedProfile != null && localDataSource.isCacheValid()) {
+                    Log.d(TAG, "Retornando perfil desde caché")
+                    return@map UserProfileMapper.toDomain(cachedProfile)
+                }
+
+                // 🔥 PRESERVAR SINCRONIZACIÓN REMOTA
+                try {
+                    val userInfoFlow = remoteDataSource.getUserProfileByUid(firebaseUser.uid)
+                    // Necesitamos obtener el primer valor del Flow
+                    val userInfo = userInfoFlow.first() // ← CORRECCIÓN DE TIPO
+                    userInfo?.let {
+                        localDataSource.saveProfile(it)
+                        return@map UserProfileMapper.toDomain(it)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error obteniendo perfil remoto: ${e.message}")
+                }
+
+                // 🔥 PRESERVAR FALLBACK A CACHÉ
+                cachedProfile?.let {
+                    Log.d(TAG, "Fallback a caché por error remoto")
+                    return@map UserProfileMapper.toDomain(it)
+                }
+
+                null
             }
     }
     

@@ -10,6 +10,7 @@ import com.dynamictecnologies.notificationmanager.domain.entities.User
 import com.dynamictecnologies.notificationmanager.domain.repositories.AuthRepository
 import com.dynamictecnologies.notificationmanager.service.UserService
 import com.google.firebase.auth.FirebaseAuthException
+import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -132,6 +133,13 @@ class AuthRepositoryImpl(
             code = code,
             message = validator.getErrorMessage(error)
         )
+    }
+    override fun getFirebaseAuthState(): Flow<FirebaseUser?> {
+        return remoteDataSource.getCurrentUser()
+    }
+
+    override suspend fun awaitFirebaseUser(): FirebaseUser? {
+        return remoteDataSource.getCurrentUserSync()
     }
 
     /**

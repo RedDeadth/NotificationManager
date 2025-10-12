@@ -40,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.dynamictecnologies.notificationmanager.domain.repositories.AuthRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 
@@ -54,7 +55,15 @@ class MainActivity : ComponentActivity() {
         )
     }
 
-    // ViewModels
+
+    // Crear authRepository compartido
+    private val authRepository: AuthRepository by lazy {
+        AuthModule.provideAuthRepository(
+            context = applicationContext,
+            userService = userService
+        )
+    }
+
     private val authViewModel: AuthViewModel by viewModels {
         AuthModule.provideAuthViewModelFactory(
             context = applicationContext,
@@ -63,7 +72,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private val userViewModel: UserViewModel by viewModels {
-        AuthModule.provideUserViewModelFactory()
+        AuthModule.provideUserViewModelFactory(authRepository)
     }
 
     private val appListViewModel: AppListViewModel by viewModels {
