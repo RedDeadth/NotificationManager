@@ -15,6 +15,21 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import java.util.concurrent.TimeUnit
 
+/**
+ * @deprecated Este servicio será eliminado en futuras versiones.
+ * Usa UserProfileRepository + UseCases en su lugar.
+ * 
+ * Razón: Violaba Clean Architecture al mezclar lógica de negocio con acceso a datos.
+ * Migración: Ver UserProfileRepository, RegisterUsernameUseCase, GetUserProfileUseCase
+ */
+@Deprecated(
+    message = "Use UserProfileRepository con UseCases en su lugar",
+    replaceWith = ReplaceWith(
+        "UserProfileRepositoryImpl",
+        "com.dynamictecnologies.notificationmanager.data.repository.UserProfileRepositoryImpl"
+    ),
+    level = DeprecationLevel.WARNING
+)
 class UserService(
     private val auth: FirebaseAuth,
     private val database: FirebaseDatabase,

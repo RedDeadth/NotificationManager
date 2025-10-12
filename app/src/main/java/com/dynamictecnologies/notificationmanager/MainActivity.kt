@@ -63,10 +63,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private val userViewModel: UserViewModel by viewModels {
-        UserViewModelFactory(
-            auth = FirebaseAuth.getInstance(),
-            database = FirebaseDatabase.getInstance()
-        )
+        AuthModule.provideUserViewModelFactory()
     }
 
     private val appListViewModel: AppListViewModel by viewModels {

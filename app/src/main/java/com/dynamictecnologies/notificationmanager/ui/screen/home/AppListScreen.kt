@@ -57,7 +57,8 @@ fun AppListScreen(
     val showDeviceDialog by deviceViewModel.showDeviceDialog.collectAsState()
     val connectedDevice by deviceViewModel.connectedDevice.collectAsState()
     val scanCompleted by deviceViewModel.scanCompleted.collectAsState()
-    val userId by userViewModel.userId.collectAsState()
+    val userProfile by userViewModel.userProfile.collectAsState()
+    val userId = userProfile?.uid
 
     // Inicializar conexión MQTT cuando se carga la pantalla
     LaunchedEffect(Unit) {
@@ -80,10 +81,10 @@ fun AppListScreen(
             }
         }
     }
-    
+
     // Verificar conexión cuando cambia el estado del usuario
-    LaunchedEffect(userId) {
-        userId?.let { uid ->
+    LaunchedEffect(userProfile) {
+        userProfile?.uid?.let { uid ->
             deviceViewModel.setCurrentUserId(uid)
         }
     }
@@ -310,16 +311,17 @@ fun AppListScreen(
                 isSearching = isSearching,
                 devices = devices,
                 scanCompleted = scanCompleted,
-                onSearchDevices = { 
-                    userId?.let { uid -> deviceViewModel.searchDevices(uid) } 
+                onSearchDevices = {
+                    userId?.let { uid -> deviceViewModel.searchDevices(uid) }
                 },
+
                 onDeviceSelected = { device ->
                     userId?.let { uid ->
                         deviceViewModel.connectToDevice(device.id, uid)
                         deviceViewModel.toggleDeviceDialog()
                     }
                 },
-                onDismiss = { 
+                onDismiss = {
                     deviceViewModel.toggleDeviceDialog()
                     deviceViewModel.clearDevices()
                 }

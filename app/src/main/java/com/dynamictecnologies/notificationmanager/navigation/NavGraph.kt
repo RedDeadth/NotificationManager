@@ -15,7 +15,8 @@ import com.dynamictecnologies.notificationmanager.ui.screen.home.ProfileScreen
 import com.dynamictecnologies.notificationmanager.ui.screen.home.ShareScreen
 import com.dynamictecnologies.notificationmanager.navigation.NavigationAnimations
 import androidx.navigation.navigation
-import com.dynamictecnologies.notificationmanager.data.model.UserInfo
+import com.dynamictecnologies.notificationmanager.domain.entities.UserProfile
+import com.dynamictecnologies.notificationmanager.domain.entities.toUserInfo
 import com.dynamictecnologies.notificationmanager.ui.screen.MainScreen
 
 sealed class Screen(val route: String) {
@@ -223,7 +224,7 @@ fun AppListContent(
 
 @Composable
 fun ProfileContent(
-    userInfo: UserInfo?,
+    userInfo: UserProfile?,
     errorMessage: String?,
     isLoading: Boolean,
     onCreateProfile: (String) -> Unit,
@@ -231,8 +232,11 @@ fun ProfileContent(
     onErrorDismiss: () -> Unit,
     onLogout: () -> Unit
 ) {
+    // Convertir UserProfile a UserInfo para compatibilidad con ProfileScreen
+    val userInfoCompat = userInfo?.toUserInfo()
+    
     ProfileScreen(
-        userInfo = userInfo,
+        userInfo = userInfoCompat,
         errorMessage = errorMessage,
         isLoading = isLoading,
         onCreateProfile = onCreateProfile,
