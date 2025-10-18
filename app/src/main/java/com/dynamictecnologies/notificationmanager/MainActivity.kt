@@ -158,18 +158,27 @@ class MainActivity : ComponentActivity() {
      * Registra el BroadcastReceiver para permisos
      */
     private fun registerPermissionReceiver() {
-        try {
-            val filter = IntentFilter().apply {
-                addAction("com.dynamictecnologies.notificationmanager.NEED_PERMISSIONS")
-                addAction("com.dynamictecnologies.notificationmanager.SHOW_PERMISSION_DIALOG")
-                addAction("com.dynamictecnologies.notificationmanager.PERMISSIONS_GRANTED")
-            }
-            registerReceiver(permissionBroadcastReceiver, filter)
-            Log.d("MainActivity", "✅ BroadcastReceiver de permisos registrado")
-        } catch (e: Exception) {
-            Log.e("MainActivity", "❌ Error registrando BroadcastReceiver: ${e.message}")
+    try {
+        val filter = IntentFilter().apply {
+            addAction("com.dynamictecnologies.notificationmanager.NEED_PERMISSIONS")
+            addAction("com.dynamictecnologies.notificationmanager.SHOW_PERMISSION_DIALOG")
+            addAction("com.dynamictecnologies.notificationmanager.PERMISSIONS_GRANTED")
         }
+        // ✅ CORRECCIÓN PARA ANDROID 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(
+                permissionBroadcastReceiver,
+                filter,
+                RECEIVER_NOT_EXPORTED  // ← REQUERIDO EN ANDROID 13+
+            )
+        } else {
+            registerReceiver(permissionBroadcastReceiver, filter)
+        }
+        Log.d("MainActivity", "✅ BroadcastReceiver de permisos registrado")
+    } catch (e: Exception) {
+        Log.e("MainActivity", "❌ Error registrando BroadcastReceiver: ${e.message}")
     }
+}
 
     /**
      * Verificación de permisos al iniciar la app
