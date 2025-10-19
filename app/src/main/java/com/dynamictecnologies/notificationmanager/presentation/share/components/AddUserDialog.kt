@@ -1,4 +1,4 @@
-package com.dynamictecnologies.notificationmanager.ui.components
+package com.dynamictecnologies.notificationmanager.presentation.share.components
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,7 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.dynamictecnologies.notificationmanager.data.model.UserInfo
-import com.dynamictecnologies.notificationmanager.ui.items.AvailableUserItem
+import com.dynamictecnologies.notificationmanager.presentation.share.components.AvailableUserItem
 
 @Composable
 fun AddUserDialog(

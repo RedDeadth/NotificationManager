@@ -201,7 +201,10 @@ fun MainNavGraph(
             popExitTransition = { NavigationAnimations.popExitTransition() }
         ) {
             ShareScreen(
-                shareViewModel = shareViewModel
+                shareViewModel = shareViewModel,
+                onNavigateToProfile = {
+                    navController.navigate(AppRoutes.MainScreen.Profile.route)
+                }
             )
         }
     }

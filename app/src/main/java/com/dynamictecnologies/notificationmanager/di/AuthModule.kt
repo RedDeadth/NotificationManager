@@ -16,7 +16,7 @@ import com.dynamictecnologies.notificationmanager.domain.usecases.SignInWithGoog
 import com.dynamictecnologies.notificationmanager.domain.usecases.SignOutUseCase
 import com.dynamictecnologies.notificationmanager.domain.usecases.ValidateSessionUseCase
 import com.dynamictecnologies.notificationmanager.service.UserService
-import com.dynamictecnologies.notificationmanager.ui.auth.GoogleSignInHelper
+import com.dynamictecnologies.notificationmanager.presentation.auth.GoogleSignInHelper
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import com.dynamictecnologies.notificationmanager.data.datasource.RemoteUserDataSource

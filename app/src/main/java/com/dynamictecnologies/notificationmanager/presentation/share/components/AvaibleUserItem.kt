@@ -1,30 +1,31 @@
-package com.dynamictecnologies.notificationmanager.ui.items
+package com.dynamictecnologies.notificationmanager.presentation.share.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dynamictecnologies.notificationmanager.data.model.UserInfo
 
 @Composable
-fun SharedUserItem(
+fun AvailableUserItem(
     user: UserInfo,
-    onRemove: () -> Unit
+    onAdd: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -48,25 +49,19 @@ fun SharedUserItem(
                     text = user.username,
                     style = MaterialTheme.typography.bodyLarge
                 )
-                user.email?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
             }
         }
-        IconButton(
-            onClick = onRemove
+
+        // Botón horizontal en lugar de vertical
+        Button(
+            onClick = onAdd,
+            modifier = Modifier
+                .padding(start = 8.dp)
+                .height(36.dp)
+                .widthIn(min = 80.dp),
+            shape = RoundedCornerShape(8.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.Delete,
-                contentDescription = "Eliminar usuario",
-                tint = MaterialTheme.colorScheme.error
-            )
+            Text(text = "Añadir")
         }
     }
 }

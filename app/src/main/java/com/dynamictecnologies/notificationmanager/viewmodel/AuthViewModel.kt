@@ -13,7 +13,7 @@ import com.dynamictecnologies.notificationmanager.domain.usecases.SignInWithEmai
 import com.dynamictecnologies.notificationmanager.domain.usecases.SignInWithGoogleUseCase
 import com.dynamictecnologies.notificationmanager.domain.usecases.SignOutUseCase
 import com.dynamictecnologies.notificationmanager.domain.usecases.ValidateSessionUseCase
-import com.dynamictecnologies.notificationmanager.ui.auth.GoogleSignInHelper
+import com.dynamictecnologies.notificationmanager.presentation.auth.GoogleSignInHelper
 import com.google.android.gms.common.api.ApiException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
