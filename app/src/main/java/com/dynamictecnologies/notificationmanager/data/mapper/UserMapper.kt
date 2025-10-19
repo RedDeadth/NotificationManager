@@ -20,7 +20,7 @@ object UserMapper {
             id = firebaseUser.uid,
             email = firebaseUser.email,
             displayName = firebaseUser.displayName,
-            photoUrl = firebaseUser.photoUrl?.toString(),
+
             isEmailVerified = firebaseUser.isEmailVerified
         )
     }

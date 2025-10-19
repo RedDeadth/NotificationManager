@@ -20,11 +20,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.dynamictecnologies.notificationmanager.data.model.UserInfo
+import com.dynamictecnologies.notificationmanager.domain.entities.User
 
 @Composable
 fun AvailableUserItem(
-    user: UserInfo,
+    user: User,
     onAdd: () -> Unit
 ) {
     Row(

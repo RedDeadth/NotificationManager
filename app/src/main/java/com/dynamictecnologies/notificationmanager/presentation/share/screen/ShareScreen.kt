@@ -192,7 +192,7 @@ fun ShareScreen(
                         items(sharedUsers) { user ->
                             SharedUserCard(
                                 user = user,
-                                notifications = sharedUsersNotifications[user.uid] ?: emptyList(),
+                                notifications = sharedUsersNotifications[user.id] ?: emptyList(),
                                 onRemove = { shareViewModel.removeSharedUser(user.username) }
                             )
                             Spacer(modifier = Modifier.height(8.dp))
@@ -251,7 +251,7 @@ fun ShareScreen(
                         items(sharedByUsers) { user ->
                             ConductorNotificationsCard(
                                 user = user,
-                                notifications = sharedUsersNotifications[user.uid] ?: emptyList()
+                                notifications = sharedUsersNotifications[user.id] ?: emptyList()
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                         }

@@ -6,7 +6,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
 import com.dynamictecnologies.notificationmanager.data.model.SyncStatus
-import com.dynamictecnologies.notificationmanager.data.model.UserInfo
+import com.dynamictecnologies.notificationmanager.domain.entities.User
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.database.DataSnapshot
@@ -29,16 +29,16 @@ class ShareViewModel(
     private val notificationsRef = database.getReference("notifications")
     private val sharedAccessRef = database.getReference("shared_access")
 
-    private val _sharedUsers = MutableStateFlow<List<UserInfo>>(emptyList())
+    private val _sharedUsers = MutableStateFlow<List<User>>(emptyList())
     val sharedUsers = _sharedUsers.asStateFlow()
 
-    private val _availableUsers = MutableStateFlow<List<UserInfo>>(emptyList())
+    private val _availableUsers = MutableStateFlow<List<User>>(emptyList())
     val availableUsers = _availableUsers.asStateFlow()
 
-    private val _searchResults = MutableStateFlow<List<UserInfo>>(emptyList())
+    private val _searchResults = MutableStateFlow<List<User>>(emptyList())
     val searchResults = _searchResults.asStateFlow()
 
-    private val _sharedByUsers = MutableStateFlow<List<UserInfo>>(emptyList())
+    private val _sharedByUsers = MutableStateFlow<List<User>>(emptyList())
     val sharedByUsers = _sharedByUsers.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)
@@ -99,7 +99,7 @@ class ShareViewModel(
                         override fun onDataChange(snapshot: DataSnapshot) {
                             viewModelScope.launch {
                                 try {
-                                    val sharedUsersList = mutableListOf<UserInfo>()
+                                    val sharedUsersList = mutableListOf<User>()
     
                                     // Iterar sobre cada entrada en el nodo sharedWith
                                     snapshot.children.forEach { sharedUserSnapshot ->
@@ -116,8 +116,8 @@ class ShareViewModel(
                                                 val userDataSnapshot = usersRef.child(targetUsername).get().await()
                                                 
                                                 if (userDataSnapshot.exists()) {
-                                                    val userInfo = UserInfo(
-                                                        uid = targetUid,
+                                                    val userInfo = User(
+                                                        id = targetUid,
                                                         username = targetUsername,
                                                         email = userDataSnapshot.child("email").getValue(String::class.java),
                                                         createdAt = userDataSnapshot.child("createdAt").getValue(Long::class.java)
@@ -747,7 +747,7 @@ class ShareViewModel(
                     .toSet()
 
                 // Obtener todos los usuarios excepto el actual y los ya compartidos
-                val availableUsersList = mutableListOf<UserInfo>()
+                val availableUsersList = mutableListOf<User>()
                 
                 // Obtener todos los usernames
                 val allUsersSnapshot = usersRef.get().await()
@@ -764,8 +764,8 @@ class ShareViewModel(
                         val userEmail = userSnapshot.child("email").getValue(String::class.java)
                         val userCreatedAt = userSnapshot.child("createdAt").getValue(Long::class.java) ?: System.currentTimeMillis()
                         
-                        val userInfo = UserInfo(
-                            uid = uid,
+                        val userInfo = User(
+                            id = uid,
                             username = userUsername,
                             email = userEmail,
                             createdAt = userCreatedAt
@@ -890,7 +890,7 @@ class ShareViewModel(
                 Log.d("ShareViewModel", "Buscando usuarios que comparten con UID: ${currentUser.uid}")
                 
                 // Lista de usuarios que han compartido con el usuario actual
-                val sharedByUsersList = mutableListOf<UserInfo>()
+                val sharedByUsersList = mutableListOf<User>()
                 
                 // Buscar todos los usuarios que tienen en su sharedWith el UID del usuario actual
                 val allUsersSnapshot = usersRef.get().await()
@@ -940,8 +940,8 @@ class ShareViewModel(
                                 if (sharerUid != null && sharerUid != currentUser.uid) {
                                     Log.d("ShareViewModel", "Añadiendo usuario compartido: $sharerUsername (UID: $sharerUid)")
                                     
-                                    val userInfo = UserInfo(
-                                        uid = sharerUid,
+                                    val userInfo = User(
+                                        id = sharerUid,
                                         username = sharerUsername,
                                         email = sharerEmail,
                                         createdAt = sharerCreatedAt,

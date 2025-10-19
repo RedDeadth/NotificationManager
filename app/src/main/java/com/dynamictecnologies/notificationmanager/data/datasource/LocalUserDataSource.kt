@@ -1,6 +1,6 @@
 package com.dynamictecnologies.notificationmanager.data.datasource
 
-import com.dynamictecnologies.notificationmanager.data.model.UserInfo
+import com.dynamictecnologies.notificationmanager.domain.entities.User
 import java.util.concurrent.TimeUnit
 
 /**
@@ -17,14 +17,14 @@ class LocalUserDataSource {
         private val CACHE_VALID_DURATION = TimeUnit.MINUTES.toMillis(5) // 5 minutos
     }
     
-    private var cachedProfile: UserInfo? = null
+    private var cachedProfile: User? = null
     private var cachedUsername: String? = null
     private var lastFetchTime: Long = 0
     
     /**
      * Guarda el perfil en caché
      */
-    fun saveProfile(profile: UserInfo) {
+    fun saveProfile(profile: User) {
         cachedProfile = profile
         cachedUsername = profile.username
         lastFetchTime = System.currentTimeMillis()
@@ -33,7 +33,7 @@ class LocalUserDataSource {
     /**
      * Obtiene el perfil del caché si es válido
      */
-    fun getProfile(): UserInfo? {
+    fun getProfile(): User? {
         return if (isCacheValid()) cachedProfile else null
     }
     

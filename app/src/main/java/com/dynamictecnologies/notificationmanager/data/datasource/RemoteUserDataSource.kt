@@ -1,7 +1,7 @@
 package com.dynamictecnologies.notificationmanager.data.datasource
 
 import android.util.Log
-import com.dynamictecnologies.notificationmanager.data.model.UserInfo
+import com.dynamictecnologies.notificationmanager.domain.entities.User
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
@@ -46,7 +46,7 @@ class RemoteUserDataSource(
     /**
      * Obtiene el perfil del usuario por UID como Flow reactivo
      */
-    fun getUserProfileByUid(uid: String): Flow<UserInfo?> = callbackFlow {
+    fun getUserProfileByUid(uid: String): Flow<User?> = callbackFlow {
         try {
             // Primero buscar el username
             val usernameSnapshot = withTimeout(TIMEOUT_MS) {
@@ -85,8 +85,8 @@ class RemoteUserDataSource(
                     val createdAt = snapshot.child("createdAt").getValue(Long::class.java) 
                         ?: System.currentTimeMillis()
                     
-                    val userInfo = UserInfo(
-                        uid = storedUid,
+                    val userInfo = User(
+                        id = storedUid,
                         username = username,
                         email = email,
                         createdAt = createdAt
@@ -165,7 +165,7 @@ class RemoteUserDataSource(
     /**
      * Obtiene el perfil de forma síncrona (sin listener)
      */
-    suspend fun getUserProfileSync(uid: String): UserInfo? {
+    suspend fun getUserProfileSync(uid: String): User? {
         return try {
             withTimeout(TIMEOUT_MS) {
                 val usernameSnapshot = usernamesRef.orderByValue()
@@ -187,8 +187,8 @@ class RemoteUserDataSource(
                 val createdAt = userSnapshot.child("createdAt").getValue(Long::class.java)
                     ?: System.currentTimeMillis()
                 
-                UserInfo(
-                    uid = storedUid,
+                User(
+                    id = storedUid,
                     username = username,
                     email = email,
                     createdAt = createdAt

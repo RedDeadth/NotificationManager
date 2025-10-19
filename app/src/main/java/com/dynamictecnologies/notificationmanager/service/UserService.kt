@@ -1,7 +1,7 @@
 package com.dynamictecnologies.notificationmanager.service
 
 import android.util.Log
-import com.dynamictecnologies.notificationmanager.data.model.UserInfo
+import com.dynamictecnologies.notificationmanager.domain.entities.User
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
@@ -38,7 +38,7 @@ class UserService(
     private val usersRef = database.getReference("users")
     private val usernamesRef = database.getReference("usernames")
 
-    private val _userProfileFlow = MutableStateFlow<UserInfo?>(null)
+    private val _userProfileFlow = MutableStateFlow<User?>(null)
     val userProfileFlow = _userProfileFlow.asStateFlow()
 
     private var userListener: ValueEventListener? = null
@@ -46,7 +46,7 @@ class UserService(
     
     // Caché local para reducir consultas
     private var cachedUsername: String? = null
-    private var cachedUserInfo: UserInfo? = null
+    private var cachedUserInfo: User? = null
     private var lastFetchTime: Long = 0
     private val CACHE_VALID_TIME = TimeUnit.MINUTES.toMillis(5) // 5 minutos
 
@@ -159,8 +159,8 @@ class UserService(
                 val uid = userSnapshot.child("uid").getValue(String::class.java) ?: currentUser.uid
                 val createdAt = userSnapshot.child("createdAt").getValue(Long::class.java) ?: System.currentTimeMillis()
                 
-                val userInfo = UserInfo(
-                    uid = uid,
+                val userInfo = User(
+                    id = uid,
                     username = username,
                     email = email,
                     createdAt = createdAt
@@ -195,9 +195,9 @@ class UserService(
                 return
             }
 
-            val userInfo = snapshot.getValue(UserInfo::class.java)?.copy(
+            val userInfo = snapshot.getValue(User::class.java)?.copy(
                 username = username,
-                uid = auth.currentUser?.uid ?: ""
+                id = auth.currentUser?.uid ?: ""
             )
 
             if (userInfo != null) {
@@ -304,8 +304,8 @@ class UserService(
             }
 
             // Crear el perfil
-            val userInfo = UserInfo(
-                uid = currentUser.uid,
+            val userInfo = User(
+                id = currentUser.uid,
                 username = username,
                 email = currentUser.email ?: "",
                 createdAt = System.currentTimeMillis()
@@ -336,8 +336,8 @@ class UserService(
         }
     }
 
-    private fun UserInfo.toMap() = mapOf(
-        "uid" to uid,
+    private fun User.toMap() = mapOf(
+        "uid" to id,
         "email" to email,
         "createdAt" to createdAt
     )

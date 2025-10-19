@@ -8,10 +8,15 @@ package com.dynamictecnologies.notificationmanager.domain.entities
  * - Clean Architecture: Entidad pura del dominio sin dependencias externas
  * - SRP: Solo representa los datos del usuario
  */
+// domain/entities/User.kt
 data class User(
     val id: String,
-    val email: String?,
-    val displayName: String?,
-    val photoUrl: String? = null,
-    val isEmailVerified: Boolean = false
+    val username: String = "",
+    val email: String? = null,
+    val displayName: String? = null,
+    val isEmailVerified: Boolean = false,
+    val createdAt: Long = System.currentTimeMillis(),
+    val sharedWith: Map<String, String> = emptyMap(),
+    val isShared: Boolean = false,
+    val addedAt: Long = 0L
 )

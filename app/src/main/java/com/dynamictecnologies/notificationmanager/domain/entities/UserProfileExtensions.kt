@@ -1,7 +1,5 @@
 package com.dynamictecnologies.notificationmanager.domain.entities
 
-import com.dynamictecnologies.notificationmanager.data.model.UserInfo
-
 /**
  * Extensiones para UserProfile para facilitar la interoperabilidad con código legacy.
  * Permite convertir entre UserProfile (domain) y UserInfo (data) sin modificar UI existente.
@@ -14,9 +12,9 @@ import com.dynamictecnologies.notificationmanager.data.model.UserInfo
 /**
  * Convierte UserProfile a UserInfo para compatibilidad con UI existente
  */
-fun UserProfile.toUserInfo(): UserInfo {
-    return UserInfo(
-        uid = this.uid,
+fun UserProfile.toUserInfo(): User {
+    return User(
+        id = this.uid,
         username = this.username,
         email = this.email,
         createdAt = this.createdAt
@@ -26,9 +24,9 @@ fun UserProfile.toUserInfo(): UserInfo {
 /**
  * Convierte UserInfo a UserProfile
  */
-fun UserInfo.toUserProfile(): UserProfile {
+fun User.toUserProfile(): UserProfile {
     return UserProfile(
-        uid = this.uid,
+        uid = this.id,
         username = this.username,
         email = this.email ?: "",
         createdAt = this.createdAt

@@ -36,13 +36,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
-import com.dynamictecnologies.notificationmanager.data.model.UserInfo
+import com.dynamictecnologies.notificationmanager.domain.entities.User
 import com.dynamictecnologies.notificationmanager.presentation.share.components.*
 
 
 @Composable
 fun ConductorNotificationsCard(
-    user: UserInfo,
+    user: User,
     notifications: List<NotificationInfo>
 ) {
     // Estado para controlar si la tarjeta está expandida como diálogo

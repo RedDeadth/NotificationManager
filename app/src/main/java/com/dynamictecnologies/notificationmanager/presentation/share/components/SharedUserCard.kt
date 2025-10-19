@@ -21,11 +21,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
-import com.dynamictecnologies.notificationmanager.data.model.UserInfo
+import com.dynamictecnologies.notificationmanager.domain.entities.User
 
 @Composable
 fun SharedUserCard(
-    user: UserInfo,
+    user: User,
     notifications: List<NotificationInfo>,
     onRemove: () -> Unit
 ) {

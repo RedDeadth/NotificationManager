@@ -13,12 +13,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.dynamictecnologies.notificationmanager.data.model.UserInfo
+import com.dynamictecnologies.notificationmanager.domain.entities.User
 import com.dynamictecnologies.notificationmanager.presentation.share.components.AvailableUserItem
 
 @Composable
 fun AddUserDialog(
-    availableUsers: List<UserInfo>,
+    availableUsers: List<User>,
     isLoading: Boolean,
     onDismiss: () -> Unit,
     onAddUser: (String) -> Unit

@@ -1,6 +1,6 @@
 package com.dynamictecnologies.notificationmanager.data.mapper
 
-import com.dynamictecnologies.notificationmanager.data.model.UserInfo
+import com.dynamictecnologies.notificationmanager.domain.entities.User
 import com.dynamictecnologies.notificationmanager.domain.entities.UserProfile
 
 /**
@@ -9,18 +9,18 @@ import com.dynamictecnologies.notificationmanager.domain.entities.UserProfile
  */
 object UserProfileMapper {
     
-    fun toDomain(userInfo: UserInfo): UserProfile {
+    fun toDomain(userInfo: User): UserProfile {
         return UserProfile(
-            uid = userInfo.uid,
+            uid = userInfo.id,
             username = userInfo.username,
             email = userInfo.email ?: "",
             createdAt = userInfo.createdAt
         )
     }
     
-    fun toData(userProfile: UserProfile): UserInfo {
-        return UserInfo(
-            uid = userProfile.uid,
+    fun toData(userProfile: UserProfile): User {
+        return User(
+            id = userProfile.uid,
             username = userProfile.username,
             email = userProfile.email,
             createdAt = userProfile.createdAt

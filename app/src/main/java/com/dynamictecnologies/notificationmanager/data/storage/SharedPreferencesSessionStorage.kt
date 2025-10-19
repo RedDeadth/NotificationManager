@@ -26,7 +26,6 @@ class SharedPreferencesSessionStorage(context: Context) : SessionStorage {
             putString(KEY_USER_ID, user.id)
             putString(KEY_USER_EMAIL, user.email)
             putString(KEY_USER_DISPLAY_NAME, user.displayName)
-            putString(KEY_USER_PHOTO_URL, user.photoUrl)
             putBoolean(KEY_EMAIL_VERIFIED, user.isEmailVerified)
             putLong(KEY_SESSION_EXPIRATION, expirationTime)
             putLong(KEY_LAST_LOGIN, System.currentTimeMillis())
