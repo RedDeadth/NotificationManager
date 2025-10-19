@@ -16,12 +16,12 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
 import com.dynamictecnologies.notificationmanager.data.db.NotificationDatabase
 import com.dynamictecnologies.notificationmanager.data.repository.NotificationRepository
-import com.dynamictecnologies.notificationmanager.navigation.AppNavigation
+import com.dynamictecnologies.notificationmanager.presentation.core.navigation.AppNavigation
 import com.dynamictecnologies.notificationmanager.service.FirebaseService
 import com.dynamictecnologies.notificationmanager.service.NotificationForegroundService
 import com.dynamictecnologies.notificationmanager.service.NotificationListenerService
 import com.dynamictecnologies.notificationmanager.service.UserService
-import com.dynamictecnologies.notificationmanager.ui.theme.NotificationManagerTheme
+import com.dynamictecnologies.notificationmanager.presentation.core.theme.NotificationManagerTheme
 import com.dynamictecnologies.notificationmanager.util.PermissionHelper
 import com.dynamictecnologies.notificationmanager.viewmodel.*
 import com.dynamictecnologies.notificationmanager.di.AuthModule
