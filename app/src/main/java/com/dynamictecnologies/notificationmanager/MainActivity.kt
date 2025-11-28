@@ -20,7 +20,7 @@ import com.dynamictecnologies.notificationmanager.presentation.core.navigation.A
 import com.dynamictecnologies.notificationmanager.service.FirebaseService
 import com.dynamictecnologies.notificationmanager.service.NotificationForegroundService
 import com.dynamictecnologies.notificationmanager.service.NotificationListenerService
-import com.dynamictecnologies.notificationmanager.service.UserService
+
 import com.dynamictecnologies.notificationmanager.presentation.core.theme.NotificationManagerTheme
 import com.dynamictecnologies.notificationmanager.util.PermissionHelper
 import com.dynamictecnologies.notificationmanager.viewmodel.*
@@ -46,28 +46,16 @@ import kotlinx.coroutines.SupervisorJob
 
 class MainActivity : ComponentActivity() {
 
-    // UserService para inyección de dependencias
-    private val userService: UserService by lazy {
-        UserService(
-            auth = FirebaseAuth.getInstance(),
-            database = FirebaseDatabase.getInstance(),
-            scope = CoroutineScope(SupervisorJob())
-        )
-    }
-
-
     // Crear authRepository compartido
     private val authRepository: AuthRepository by lazy {
         AuthModule.provideAuthRepository(
-            context = applicationContext,
-            userService = userService
+            context = applicationContext
         )
     }
 
     private val authViewModel: AuthViewModel by viewModels {
         AuthModule.provideAuthViewModelFactory(
-            context = applicationContext,
-            userService = userService
+            context = applicationContext
         )
     }
 

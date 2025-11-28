@@ -6,7 +6,11 @@ import com.dynamictecnologies.notificationmanager.data.datasource.RemoteAuthData
 import com.dynamictecnologies.notificationmanager.data.mapper.AuthErrorMapper
 import com.dynamictecnologies.notificationmanager.data.repository.AuthRepositoryImpl
 import com.dynamictecnologies.notificationmanager.data.storage.SessionStorage
-import com.dynamictecnologies.notificationmanager.data.storage.SharedPreferencesSessionStorage
+import com.dynamictecnologies.notificationmanager.data.storage.SecureSessionStorage
+import com.dynamictecnologies.notificationmanager.data.network.RetryPolicy
+import com.dynamictecnologies.notificationmanager.util.logging.Logger
+import com.dynamictecnologies.notificationmanager.util.logging.AndroidLogger
+import com.dynamictecnologies.notificationmanager.util.logging.AuthLogger
 import com.dynamictecnologies.notificationmanager.data.validator.AuthValidator
 import com.dynamictecnologies.notificationmanager.domain.repositories.AuthRepository
 import com.dynamictecnologies.notificationmanager.domain.usecases.GetCurrentUserUseCase
@@ -15,7 +19,7 @@ import com.dynamictecnologies.notificationmanager.domain.usecases.SignInWithEmai
 import com.dynamictecnologies.notificationmanager.domain.usecases.SignInWithGoogleUseCase
 import com.dynamictecnologies.notificationmanager.domain.usecases.SignOutUseCase
 import com.dynamictecnologies.notificationmanager.domain.usecases.ValidateSessionUseCase
-import com.dynamictecnologies.notificationmanager.service.UserService
+
 import com.dynamictecnologies.notificationmanager.presentation.auth.GoogleSignInHelper
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
@@ -51,11 +55,23 @@ object AuthModule {
     }
     
     /**
-     * Provee el SessionStorage
+     * Provee el SessionStorage seguro con encriptación
      */
     fun provideSessionStorage(context: Context): SessionStorage {
-        return SharedPreferencesSessionStorage(context)
+        return SecureSessionStorage(context)
     }
+    
+    /**
+     * Provee el Logger
+     */
+    /**
+     * Provee el Logger
+     */
+    fun provideLogger(): Logger {
+        return AndroidLogger()
+    }
+    
+
     
     /**
      * Provee el AuthValidator
@@ -89,16 +105,12 @@ object AuthModule {
     /**
      * Provee el AuthRepository
      */
-    fun provideAuthRepository(
-        context: Context,
-        userService: UserService
-    ): AuthRepository {
+    fun provideAuthRepository(context: Context): AuthRepository {
         return AuthRepositoryImpl(
             remoteDataSource = provideRemoteAuthDataSource(),
             localDataSource = provideLocalAuthDataSource(context),
             validator = provideAuthValidator(),
-            errorMapper = provideAuthErrorMapper(),
-            userService = userService
+            errorMapper = provideAuthErrorMapper()
         )
     }
     
@@ -123,8 +135,8 @@ object AuthModule {
         return SignInWithGoogleUseCase(authRepository)
     }
     
-    fun provideSignOutUseCase(authRepository: AuthRepository): SignOutUseCase {
-        return SignOutUseCase(authRepository)
+    fun provideSignOutUseCase(authRepository: AuthRepository, userProfileRepository: UserProfileRepository): SignOutUseCase {
+        return SignOutUseCase(authRepository, userProfileRepository)
     }
     
     fun provideGetCurrentUserUseCase(authRepository: AuthRepository): GetCurrentUserUseCase {
@@ -179,27 +191,7 @@ object AuthModule {
             authRepository = authRepository
         )
     }
-    fun provideSharedAuthRepository(
-        context: Context,
-        userService: UserService
-    ): Triple<AuthRepository, AuthViewModel.Factory, UserViewModelFactory> {
-        val authRepository = provideAuthRepository(context, userService)
 
-        val authViewModelFactory = AuthViewModel.Factory(
-            signInWithEmailUseCase = provideSignInWithEmailUseCase(authRepository),
-            registerWithEmailUseCase = provideRegisterWithEmailUseCase(authRepository),
-            signInWithGoogleUseCase = provideSignInWithGoogleUseCase(authRepository),
-            signOutUseCase = provideSignOutUseCase(authRepository),
-            getCurrentUserUseCase = provideGetCurrentUserUseCase(authRepository),
-            validateSessionUseCase = provideValidateSessionUseCase(authRepository),
-            googleSignInHelper = provideGoogleSignInHelper(context),
-            errorMapper = provideAuthErrorMapper()
-        )
-
-        val userViewModelFactory = provideUserViewModelFactory(authRepository)
-
-        return Triple(authRepository, authViewModelFactory, userViewModelFactory)
-    }
     
     /**
      * Provee RegisterUsernameUseCase
@@ -228,14 +220,7 @@ object AuthModule {
         return RefreshUserProfileUseCase(userProfileRepository)
     }
     
-    /**
-     * Provee ValidateUsernameUseCase
-     */
-    fun provideValidateUsernameUseCase(
-        userProfileRepository: UserProfileRepository
-    ): ValidateUsernameUseCase {
-        return ValidateUsernameUseCase(userProfileRepository)
-    }
+
     
     /**
      * Provee el UserViewModelFactory con todas las dependencias
@@ -254,16 +239,17 @@ object AuthModule {
      * Provee el ViewModelFactory con todas las dependencias
      */
     fun provideAuthViewModelFactory(
-        context: Context,
-        userService: UserService
+        context: Context
     ): com.dynamictecnologies.notificationmanager.viewmodel.AuthViewModel.Factory {
-        val authRepository = provideAuthRepository(context, userService)
+        val authRepository = provideAuthRepository(context)
+        val userProfileRepository = provideUserProfileRepository(authRepository)
         
         return com.dynamictecnologies.notificationmanager.viewmodel.AuthViewModel.Factory(
             signInWithEmailUseCase = provideSignInWithEmailUseCase(authRepository),
             registerWithEmailUseCase = provideRegisterWithEmailUseCase(authRepository),
+            registerUsernameUseCase = provideRegisterUsernameUseCase(userProfileRepository),
             signInWithGoogleUseCase = provideSignInWithGoogleUseCase(authRepository),
-            signOutUseCase = provideSignOutUseCase(authRepository),
+            signOutUseCase = provideSignOutUseCase(authRepository, userProfileRepository),
             getCurrentUserUseCase = provideGetCurrentUserUseCase(authRepository),
             validateSessionUseCase = provideValidateSessionUseCase(authRepository),
             googleSignInHelper = provideGoogleSignInHelper(context),

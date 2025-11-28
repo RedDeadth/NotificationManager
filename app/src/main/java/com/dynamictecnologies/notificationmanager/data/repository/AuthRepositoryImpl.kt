@@ -8,7 +8,6 @@ import com.dynamictecnologies.notificationmanager.data.mapper.UserMapper
 import com.dynamictecnologies.notificationmanager.data.validator.AuthValidator
 import com.dynamictecnologies.notificationmanager.domain.entities.User
 import com.dynamictecnologies.notificationmanager.domain.repositories.AuthRepository
-import com.dynamictecnologies.notificationmanager.service.UserService
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.flow.Flow
@@ -28,8 +27,7 @@ class AuthRepositoryImpl(
     private val remoteDataSource: RemoteAuthDataSource,
     private val localDataSource: LocalAuthDataSource,
     private val validator: AuthValidator,
-    private val errorMapper: AuthErrorMapper,
-    private val userService: UserService
+    private val errorMapper: AuthErrorMapper
 ) : AuthRepository {
 
     override fun getCurrentUser(): Flow<User?> {
@@ -73,7 +71,6 @@ class AuthRepositoryImpl(
         return try {
             remoteDataSource.signOut()
             localDataSource.clearSession()
-            userService.cleanup()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(errorMapper.mapException(e))
@@ -96,7 +93,7 @@ class AuthRepositoryImpl(
             // Validar si se proporciona validación
             validationResult?.let { result ->
                 if (result is AuthValidator.ValidationResult.Invalid) {
-                    return Result.failure(mapValidationError(result.error))
+                    return Result.failure(mapValidationError(result.error, result.details))
                 }
             }
             
@@ -117,7 +114,7 @@ class AuthRepositoryImpl(
      * Mapea errores de validación a AuthException.
      * Aplica principio DRY evitando código duplicado.
      */
-    private fun mapValidationError(error: AuthValidator.ValidationError): AuthException {
+    private fun mapValidationError(error: AuthValidator.ValidationError, details: List<String> = emptyList()): AuthException {
         val code = when (error) {
             AuthValidator.ValidationError.EMPTY_EMAIL,
             AuthValidator.ValidationError.INVALID_EMAIL_FORMAT -> 
@@ -131,7 +128,7 @@ class AuthRepositoryImpl(
         
         return AuthException(
             code = code,
-            message = validator.getErrorMessage(error)
+            message = validator.getErrorMessage(error, details)
         )
     }
     override fun getFirebaseAuthState(): Flow<FirebaseUser?> {

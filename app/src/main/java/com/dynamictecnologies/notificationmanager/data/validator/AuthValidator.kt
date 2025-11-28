@@ -6,14 +6,16 @@ import android.util.Patterns
  * Validador de credenciales de autenticación siguiendo el principio de responsabilidad única (SRP).
  * Esta clase solo se encarga de validar datos de entrada.
  */
-class AuthValidator {
+class AuthValidator(
+    private val passwordValidator: PasswordValidator = PasswordValidator()
+) {
     
     /**
      * Resultado de la validación
      */
     sealed class ValidationResult {
         object Valid : ValidationResult()
-        data class Invalid(val error: ValidationError) : ValidationResult()
+        data class Invalid(val error: ValidationError, val details: List<String> = emptyList()) : ValidationResult()
     }
     
     /**
@@ -40,13 +42,18 @@ class AuthValidator {
     }
     
     /**
-     * Valida la contraseña
+     * Valida la contraseña usando el validador robusto
      */
     fun validatePassword(password: String): ValidationResult {
         return when {
             password.isBlank() -> ValidationResult.Invalid(ValidationError.EMPTY_PASSWORD)
-            password.length < 6 -> ValidationResult.Invalid(ValidationError.WEAK_PASSWORD)
-            else -> ValidationResult.Valid
+            else -> {
+                when (val result = passwordValidator.validate(password)) {
+                    is PasswordValidator.ValidationResult.Valid -> ValidationResult.Valid
+                    is PasswordValidator.ValidationResult.Invalid -> 
+                        ValidationResult.Invalid(ValidationError.WEAK_PASSWORD, result.errors)
+                }
+            }
         }
     }
     
@@ -63,51 +70,39 @@ class AuthValidator {
     
     /**
      * Valida credenciales de login (email y contraseña)
+     * NOTA: Para login, solo verificamos que la contraseña no esté vacía,
+     * no aplicamos reglas de complejidad (ya que es una contraseña existente)
      */
     fun validateLoginCredentials(email: String, password: String): ValidationResult {
         validateEmail(email).let { result ->
             if (result is ValidationResult.Invalid) return result
         }
         
-        validatePassword(password).let { result ->
-            if (result is ValidationResult.Invalid) return result
+        // Para login, solo verificamos que no esté vacía
+        if (password.isBlank()) {
+            return ValidationResult.Invalid(ValidationError.EMPTY_PASSWORD)
         }
         
         return ValidationResult.Valid
     }
     
-    /**
-     * Valida credenciales de registro (email, contraseña y confirmación)
-     */
-    fun validateRegisterCredentials(
-        email: String,
-        password: String,
-        confirmPassword: String
-    ): ValidationResult {
-        validateEmail(email).let { result ->
-            if (result is ValidationResult.Invalid) return result
-        }
-        
-        validatePassword(password).let { result ->
-            if (result is ValidationResult.Invalid) return result
-        }
-        
-        validatePasswordMatch(password, confirmPassword).let { result ->
-            if (result is ValidationResult.Invalid) return result
-        }
-        
-        return ValidationResult.Valid
-    }
+
     
     /**
      * Obtiene el mensaje de error localizado
      */
-    fun getErrorMessage(error: ValidationError): String {
+    fun getErrorMessage(error: ValidationError, details: List<String> = emptyList()): String {
         return when (error) {
             ValidationError.EMPTY_EMAIL -> "El email es requerido"
             ValidationError.INVALID_EMAIL_FORMAT -> "Formato de email inválido"
             ValidationError.EMPTY_PASSWORD -> "La contraseña es requerida"
-            ValidationError.WEAK_PASSWORD -> "La contraseña debe tener al menos 6 caracteres"
+            ValidationError.WEAK_PASSWORD -> {
+                if (details.isNotEmpty()) {
+                    "Contraseña débil:\n${details.joinToString("\n• ", prefix = "• ")}"
+                } else {
+                    "La contraseña no cumple con los requisitos de seguridad"
+                }
+            }
             ValidationError.PASSWORDS_DO_NOT_MATCH -> "Las contraseñas no coinciden"
         }
     }

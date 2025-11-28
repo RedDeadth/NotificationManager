@@ -112,7 +112,7 @@ fun RegisterScreen(
             Button(
                 onClick = { 
                     if (password == confirmPassword) {
-                        authViewModel.registerWithEmail(email, password)
+                        authViewModel.registerWithEmail(email, password, username)
                     } else {
                         // Mostrar error de contraseñas no coinciden
                         scope.launch {
@@ -125,6 +125,7 @@ fun RegisterScreen(
                 },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !authState.isLoading && 
+                         username.isNotBlank() &&
                          email.isNotBlank() && 
                          password.isNotBlank() && 
                          confirmPassword.isNotBlank() &&

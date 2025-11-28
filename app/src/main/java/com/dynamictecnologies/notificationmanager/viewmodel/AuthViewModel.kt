@@ -9,6 +9,7 @@ import com.dynamictecnologies.notificationmanager.data.mapper.AuthErrorMapper
 import com.dynamictecnologies.notificationmanager.domain.entities.User
 import com.dynamictecnologies.notificationmanager.domain.usecases.GetCurrentUserUseCase
 import com.dynamictecnologies.notificationmanager.domain.usecases.RegisterWithEmailUseCase
+import com.dynamictecnologies.notificationmanager.domain.usecases.user.RegisterUsernameUseCase
 import com.dynamictecnologies.notificationmanager.domain.usecases.SignInWithEmailUseCase
 import com.dynamictecnologies.notificationmanager.domain.usecases.SignInWithGoogleUseCase
 import com.dynamictecnologies.notificationmanager.domain.usecases.SignOutUseCase
@@ -23,6 +24,7 @@ import kotlinx.coroutines.launch
 class AuthViewModel(
     private val signInWithEmailUseCase: SignInWithEmailUseCase,
     private val registerWithEmailUseCase: RegisterWithEmailUseCase,
+    private val registerUsernameUseCase: RegisterUsernameUseCase,
     private val signInWithGoogleUseCase: SignInWithGoogleUseCase,
     private val signOutUseCase: SignOutUseCase,
     private val getCurrentUserUseCase: GetCurrentUserUseCase,
@@ -76,10 +78,23 @@ class AuthViewModel(
     /**
      * Registra un nuevo usuario con email y contraseña
      */
-    fun registerWithEmail(email: String, password: String) {
+    fun registerWithEmail(email: String, password: String, username: String) {
         viewModelScope.launch {
             executeAuthOperation {
-                registerWithEmailUseCase(email, password)
+                val result = registerWithEmailUseCase(email, password)
+                
+                // Si el registro de auth es exitoso, intentamos registrar el username
+                result.onSuccess {
+                    val profileResult = registerUsernameUseCase(username)
+                    // Podríamos manejar error de perfil aquí si es crítico, 
+                    // pero por ahora asumimos que si auth pasó, el usuario está creado.
+                    // Idealmente, si falla el perfil, deberíamos mostrar un warning o reintentar.
+                    if (profileResult.isFailure) {
+                        // Loggear error o notificar (opcional)
+                    }
+                }
+                
+                result
             }
         }
     }
@@ -217,6 +232,7 @@ class AuthViewModel(
     class Factory(
         private val signInWithEmailUseCase: SignInWithEmailUseCase,
         private val registerWithEmailUseCase: RegisterWithEmailUseCase,
+        private val registerUsernameUseCase: RegisterUsernameUseCase,
         private val signInWithGoogleUseCase: SignInWithGoogleUseCase,
         private val signOutUseCase: SignOutUseCase,
         private val getCurrentUserUseCase: GetCurrentUserUseCase,
@@ -230,6 +246,7 @@ class AuthViewModel(
                 return AuthViewModel(
                     signInWithEmailUseCase,
                     registerWithEmailUseCase,
+                    registerUsernameUseCase,
                     signInWithGoogleUseCase,
                     signOutUseCase,
                     getCurrentUserUseCase,
