@@ -10,7 +10,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dynamictecnologies.notificationmanager.viewmodel.AuthViewModel
-import kotlinx.coroutines.launch
 
 @Composable
 fun RegisterScreen(
@@ -24,7 +23,6 @@ fun RegisterScreen(
 
     val authState by authViewModel.authState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
 
     // Observar el estado de autenticación exitosa
     LaunchedEffect(authState.isAuthenticated) {
@@ -111,17 +109,7 @@ fun RegisterScreen(
 
             Button(
                 onClick = { 
-                    if (password == confirmPassword) {
-                        authViewModel.registerWithEmail(email, password, username)
-                    } else {
-                        // Mostrar error de contraseñas no coinciden
-                        scope.launch {
-                            snackbarHostState.showSnackbar(
-                                message = "Las contraseñas no coinciden",
-                                duration = SnackbarDuration.Short
-                            )
-                        }
-                    }
+                    authViewModel.registerWithEmail(email, password, confirmPassword, username)
                 },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !authState.isLoading && 

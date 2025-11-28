@@ -78,17 +78,22 @@ class AuthViewModel(
     /**
      * Registra un nuevo usuario con email y contraseña
      */
-    fun registerWithEmail(email: String, password: String, username: String) {
+    fun registerWithEmail(email: String, password: String, confirmPassword: String, username: String) {
         viewModelScope.launch {
+            if (password != confirmPassword) {
+                _authState.value = _authState.value.copy(
+                    error = "Las contraseñas no coinciden"
+                )
+                return@launch
+            }
+
             executeAuthOperation {
                 val result = registerWithEmailUseCase(email, password)
                 
                 // Si el registro de auth es exitoso, intentamos registrar el username
                 result.onSuccess {
                     val profileResult = registerUsernameUseCase(username)
-                    // Podríamos manejar error de perfil aquí si es crítico, 
-                    // pero por ahora asumimos que si auth pasó, el usuario está creado.
-                    // Idealmente, si falla el perfil, deberíamos mostrar un warning o reintentar.
+
                     if (profileResult.isFailure) {
                         // Loggear error o notificar (opcional)
                     }
