@@ -35,11 +35,6 @@ class RegisterUserWithUsernameUseCase(
      * NOTA: No hacemos rollback del usuario de Auth si falla el username porque:
      * - El usuario puede intentar registrar otro username
      * - Firebase Auth no permite eliminar usuarios fácilmente desde el cliente
-     * 
-     * @param email Email del usuario
-     * @param password Contraseña
-     * @param username Nombre de usuario único
-     * @return Result con el perfil de usuario completo o error
      */
     suspend operator fun invoke(
         email: String,

@@ -19,17 +19,11 @@ class UsernameValidator {
         private val USERNAME_REGEX = "^[a-zA-Z0-9]+$".toRegex()
     }
     
-    /**
-     * Resultado de la validación
-     */
     sealed class ValidationResult {
         object Valid : ValidationResult()
         data class Invalid(val error: ValidationError) : ValidationResult()
     }
     
-    /**
-     * Tipos de errores de validación
-     */
     enum class ValidationError {
         EMPTY,
         TOO_SHORT,
@@ -38,9 +32,6 @@ class UsernameValidator {
         INVALID_CHARACTERS
     }
     
-    /**
-     * Valida un nombre de usuario
-     */
     fun validate(username: String): ValidationResult {
         val trimmed = username.trim()
         
@@ -64,9 +55,6 @@ class UsernameValidator {
         }
     }
     
-    /**
-     * Obtiene el mensaje de error localizado
-     */
     fun getErrorMessage(error: ValidationError): String {
         return when (error) {
             ValidationError.EMPTY -> 

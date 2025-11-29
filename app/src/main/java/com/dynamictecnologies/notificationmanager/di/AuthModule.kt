@@ -55,57 +55,31 @@ object AuthModule {
         FirebaseAuth.getInstance()
     }
     
-    /**
-     * Provee el SessionStorage seguro con encriptación
-     */
     fun provideSessionStorage(context: Context): SessionStorage {
         return SecureSessionStorage(context)
     }
     
-    /**
-     * Provee el Logger
-     */
-    /**
-     * Provee el Logger
-     */
     fun provideLogger(): Logger {
         return AndroidLogger()
     }
     
-
-    
-    /**
-     * Provee el AuthValidator
-     */
     fun provideAuthValidator(): AuthValidator {
         return AuthValidator()
     }
     
-    /**
-     * Provee el AuthErrorMapper
-     */
     fun provideAuthErrorMapper(): AuthErrorMapper {
         return AuthErrorMapper()
     }
     
-    /**
-     * Provee el RemoteAuthDataSource
-     */
     fun provideRemoteAuthDataSource(): RemoteAuthDataSource {
         return RemoteAuthDataSource(firebaseAuth)
     }
     
-    /**
-     * Provee el LocalAuthDataSource
-     */
     fun provideLocalAuthDataSource(context: Context): LocalAuthDataSource {
         val sessionStorage = provideSessionStorage(context)
         return LocalAuthDataSource(sessionStorage)
     }
     
-    /**
-     * Provee el AuthRepository
-     */
     fun provideAuthRepository(context: Context): AuthRepository {
         return AuthRepositoryImpl(
             remoteDataSource = provideRemoteAuthDataSource(),
@@ -115,9 +89,6 @@ object AuthModule {
         )
     }
     
-    /**
-     * Provee el GoogleSignInHelper
-     */
     fun provideGoogleSignInHelper(context: Context): GoogleSignInHelper {
         return GoogleSignInHelper(context)
     }
@@ -152,31 +123,19 @@ object AuthModule {
         return FirebaseDatabase.getInstance()
     }
     
-    /**
-     * Provee UsernameValidator
-     */
     fun provideUsernameValidator(): UsernameValidator {
         return UsernameValidator()
     }
     
-    /**
-     * Provee RemoteUserDataSource
-     */
     fun provideRemoteUserDataSource(): RemoteUserDataSource {
         return RemoteUserDataSource(provideFirebaseDatabase())
     }
     
-    /**
-     * Provee LocalUserDataSource
-     */
     fun provideLocalUserDataSource(): LocalUserDataSource {
         return LocalUserDataSource()
     }
     
-    /**
-     * Provee UserProfileRepository
-     */
-    fun provideUserProfileRepository(authRepository: AuthRepository): UserProfileRepository {
+    fun provideUserProfileRepository(authRepository: AuthRepository):UserProfileRepository {
         return UserProfileRepositoryImpl(
             remoteDataSource = provideRemoteUserDataSource(),
             localDataSource = provideLocalUserDataSource(),
@@ -187,27 +146,18 @@ object AuthModule {
     }
 
     
-    /**
-     * Provee RegisterUsernameUseCase
-     */
     fun provideRegisterUsernameUseCase(
         userProfileRepository: UserProfileRepository
     ): RegisterUsernameUseCase {
         return RegisterUsernameUseCase(userProfileRepository)
     }
     
-    /**
-     * Provee GetUserProfileUseCase
-     */
     fun provideGetUserProfileUseCase(
         userProfileRepository: UserProfileRepository
     ): GetUserProfileUseCase {
         return GetUserProfileUseCase(userProfileRepository)
     }
     
-    /**
-     * Provee RefreshUserProfileUseCase
-     */
     fun provideRefreshUserProfileUseCase(
         userProfileRepository: UserProfileRepository
     ): RefreshUserProfileUseCase {
@@ -220,7 +170,7 @@ object AuthModule {
      * Provee el UserViewModelFactory con todas las dependencias
      */
     fun provideUserViewModelFactory(authRepository: AuthRepository): com.dynamictecnologies.notificationmanager.viewmodel.UserViewModelFactory {
-        val userProfileRepository = provideUserProfileRepository(authRepository)  // ← PASAR PARÁMETRO
+        val userProfileRepository = provideUserProfileRepository(authRepository)
         
         return com.dynamictecnologies.notificationmanager.viewmodel.UserViewModelFactory(
             getUserProfileUseCase = provideGetUserProfileUseCase(userProfileRepository),
@@ -229,9 +179,6 @@ object AuthModule {
         )
     }
     
-    /**
-     * Provee el ViewModelFactory con todas las dependencias
-     */
     fun provideAuthViewModelFactory(
         context: Context
     ): com.dynamictecnologies.notificationmanager.viewmodel.AuthViewModel.Factory {

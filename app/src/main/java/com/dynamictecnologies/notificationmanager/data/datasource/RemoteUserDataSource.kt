@@ -43,9 +43,6 @@ class RemoteUserDataSource(
         }
     }
     
-    /**
-     * Obtiene el perfil del usuario por UID como Flow reactivo
-     */
     fun getUserProfileByUid(uid: String): Flow<User?> = callbackFlow {
         try {
             // Primero buscar el username
@@ -113,9 +110,6 @@ class RemoteUserDataSource(
         }
     }
     
-    /**
-     * Verifica si un username está disponible
-     */
     suspend fun isUsernameAvailable(username: String): Boolean {
         return try {
             withTimeout(TIMEOUT_MS) {
@@ -128,9 +122,6 @@ class RemoteUserDataSource(
         }
     }
     
-    /**
-     * Verifica si un UID ya tiene un perfil
-     */
     suspend fun hasUserProfile(uid: String): Boolean {
         return try {
             withTimeout(TIMEOUT_MS) {
@@ -203,9 +194,6 @@ class RemoteUserDataSource(
         }
     }
     
-    /**
-     * Obtiene el perfil de forma síncrona (sin listener)
-     */
     suspend fun getUserProfileSync(uid: String): User? {
         return try {
             withTimeout(TIMEOUT_MS) {

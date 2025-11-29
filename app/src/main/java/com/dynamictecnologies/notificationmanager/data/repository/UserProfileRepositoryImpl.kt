@@ -44,18 +44,15 @@ class UserProfileRepositoryImpl(
                     return@map null
                 }
 
-                // 🔥 PRESERVAR LÓGICA DE CACHÉ EXISTENTE
                 val cachedProfile = localDataSource.getProfile()
                 if (cachedProfile != null && localDataSource.isCacheValid()) {
                     Log.d(TAG, "Retornando perfil desde caché")
                     return@map UserProfileMapper.toDomain(cachedProfile)
                 }
 
-                // 🔥 PRESERVAR SINCRONIZACIÓN REMOTA
                 try {
                     val userInfoFlow = remoteDataSource.getUserProfileByUid(firebaseUser.uid)
-                    // Necesitamos obtener el primer valor del Flow
-                    val userInfo = userInfoFlow.first() // ← CORRECCIÓN DE TIPO
+                    val userInfo = userInfoFlow.first()
                     userInfo?.let {
                         localDataSource.saveProfile(it)
                         return@map UserProfileMapper.toDomain(it)
@@ -64,7 +61,6 @@ class UserProfileRepositoryImpl(
                     Log.e(TAG, "Error obteniendo perfil remoto: ${e.message}")
                 }
 
-                // 🔥 PRESERVAR FALLBACK A CACHÉ
                 cachedProfile?.let {
                     Log.d(TAG, "Fallback a caché por error remoto")
                     return@map UserProfileMapper.toDomain(it)

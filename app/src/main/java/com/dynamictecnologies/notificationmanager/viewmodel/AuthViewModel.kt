@@ -40,9 +40,6 @@ class AuthViewModel(
         checkAuthState()
     }
 
-    /**
-     * Verifica el estado de autenticación actual
-     */
     fun checkAuthState() {
         viewModelScope.launch {
             try {
@@ -64,9 +61,6 @@ class AuthViewModel(
         }
     }
 
-    /**
-     * Inicia sesión con email y contraseña
-     */
     fun signInWithEmail(email: String, password: String) {
         viewModelScope.launch {
             executeAuthOperation {
@@ -118,16 +112,10 @@ class AuthViewModel(
         }
     }
 
-    /**
-     * Obtiene el intent de Google Sign In
-     */
     fun getGoogleSignInIntent(): Intent {
         return googleSignInHelper.getSignInIntent()
     }
 
-    /**
-     * Maneja el resultado del inicio de sesión con Google
-     */
     fun handleGoogleSignInResult(result: Intent?) {
         viewModelScope.launch {
             try {
@@ -162,9 +150,6 @@ class AuthViewModel(
         }
     }
 
-    /**
-     * Cierra la sesión del usuario actual
-     */
     fun signOut() {
         viewModelScope.launch {
             try {
@@ -186,17 +171,10 @@ class AuthViewModel(
         }
     }
 
-    /**
-     * Limpia el error actual del estado
-     */
     fun clearError() {
         _authState.value = _authState.value.copy(error = null)
     }
 
-    /**
-     * Función privada que encapsula la lógica común de operaciones de autenticación.
-     * Aplica principio DRY evitando código duplicado.
-     */
     private suspend fun executeAuthOperation(operation: suspend () -> Result<User>) {
         try {
             _authState.value = _authState.value.copy(isLoading = true, error = null)
@@ -219,10 +197,6 @@ class AuthViewModel(
         }
     }
 
-    /**
-     * Maneja excepciones y las convierte en mensajes de error localizados.
-     * Aplica principio DRY evitando código duplicado.
-     */
     private fun handleException(error: Throwable) {
         val errorMessage = if (error is AuthException) {
             errorMapper.getLocalizedErrorMessage(error)
@@ -234,9 +208,6 @@ class AuthViewModel(
         _authState.value = _authState.value.copy(error = errorMessage)
     }
 
-    /**
-     * Estado de autenticación
-     */
     data class AuthState(
         val isAuthenticated: Boolean = false,
         val isLoading: Boolean = false,
@@ -245,9 +216,6 @@ class AuthViewModel(
         val isSessionValid: Boolean = false
     )
 
-    /**
-     * Factory para crear instancias del ViewModel con inyección de dependencias
-     */
     class Factory(
         private val signInWithEmailUseCase: SignInWithEmailUseCase,
         private val registerUserWithUsernameUseCase: RegisterUserWithUsernameUseCase,

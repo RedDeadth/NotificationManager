@@ -11,17 +11,11 @@ class AuthValidator(
     private val passwordValidator: PasswordValidator = PasswordValidator()
 ) {
     
-    /**
-     * Resultado de la validación
-     */
     sealed class ValidationResult {
         object Valid : ValidationResult()
         data class Invalid(val error: ValidationError, val details: List<String> = emptyList()) : ValidationResult()
     }
     
-    /**
-     * Tipos de errores de validación
-     */
     enum class ValidationError {
         EMPTY_EMAIL,
         INVALID_EMAIL_FORMAT,
@@ -30,9 +24,6 @@ class AuthValidator(
         PASSWORDS_DO_NOT_MATCH
     }
     
-    /**
-     * Valida el formato del email
-     */
     fun validateEmail(email: String): ValidationResult {
         return when {
             email.isBlank() -> ValidationResult.Invalid(ValidationError.EMPTY_EMAIL)
@@ -42,9 +33,6 @@ class AuthValidator(
         }
     }
     
-    /**
-     * Valida la contraseña usando el validador robusto
-     */
     fun validatePassword(password: String): ValidationResult {
         return when {
             password.isBlank() -> ValidationResult.Invalid(ValidationError.EMPTY_PASSWORD)
@@ -58,9 +46,6 @@ class AuthValidator(
         }
     }
     
-    /**
-     * Valida que las contraseñas coincidan
-     */
     fun validatePasswordMatch(password: String, confirmPassword: String): ValidationResult {
         return if (password != confirmPassword) {
             ValidationResult.Invalid(ValidationError.PASSWORDS_DO_NOT_MATCH)
@@ -89,9 +74,6 @@ class AuthValidator(
     
 
     
-    /**
-     * Obtiene el mensaje de error localizado
-     */
     fun getErrorMessage(error: ValidationError, details: List<String> = emptyList()): String {
         return when (error) {
             ValidationError.EMPTY_EMAIL -> AuthStrings.ValidationErrors.EMPTY_EMAIL

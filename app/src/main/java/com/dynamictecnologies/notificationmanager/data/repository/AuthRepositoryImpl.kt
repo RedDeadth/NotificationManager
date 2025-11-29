@@ -81,10 +81,6 @@ class AuthRepositoryImpl(
         return localDataSource.isSessionValid()
     }
 
-    /**
-     * Función privada que encapsula la lógica común de operaciones de autenticación.
-     * Aplica principio DRY evitando código duplicado.
-     */
     private suspend fun <T> executeAuthOperation(
         validationResult: AuthValidator.ValidationResult? = null,
         operation: suspend () -> T
@@ -110,10 +106,6 @@ class AuthRepositoryImpl(
         }
     }
 
-    /**
-     * Mapea errores de validación a AuthException.
-     * Aplica principio DRY evitando código duplicado.
-     */
     private fun mapValidationError(error: AuthValidator.ValidationError, details: List<String> = emptyList()): AuthException {
         val code = when (error) {
             AuthValidator.ValidationError.EMPTY_EMAIL,
@@ -139,9 +131,6 @@ class AuthRepositoryImpl(
         return remoteDataSource.getCurrentUserSync()
     }
 
-    /**
-     * Guarda la sesión del usuario en el almacenamiento local
-     */
     private fun saveUserSession(user: User) {
         localDataSource.saveSession(user)
     }
