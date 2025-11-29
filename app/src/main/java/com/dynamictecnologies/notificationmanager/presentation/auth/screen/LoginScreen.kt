@@ -21,26 +21,17 @@ fun LoginScreen(
     onLoginSuccess: () -> Unit
 ) {
     var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-
     val authState by authViewModel.authState.collectAsState()
+    val loginFormState by authViewModel.loginFormState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Configurar el launcher para el inicio de sesión con Google
-    val googleSignInLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        authViewModel.handleGoogleSignInResult(result.data)
-    }
-    
-    // Observar el estado de autenticación exitosa
     LaunchedEffect(authState.isAuthenticated) {
         if (authState.isAuthenticated) {
+            authViewModel.clearLoginForm()
             onLoginSuccess()
         }
     }
-    
-    // Mostrar errores en Snackbar
+
     LaunchedEffect(authState.error) {
         authState.error?.let { error ->
             snackbarHostState.showSnackbar(
@@ -49,6 +40,13 @@ fun LoginScreen(
             )
             authViewModel.clearError()
         }
+    }
+
+    // Configurar el launcher para el inicio de sesión con Google
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        authViewModel.handleGoogleSignInResult(result.data)
     }
 
     Scaffold(
@@ -62,72 +60,81 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Mensaje de bienvenida
             Text(
-                text = "Bienvenid usuario",
-                fontSize = 20.sp,
+                text = "Iniciar Sesión",
+                fontSize = 24.sp,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(bottom = 24.dp)
             )
 
             OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
-            label = { Text("Email") },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !authState.isLoading,
-            singleLine = true
-        )
+                value = loginFormState.email,
+                onValueChange = { authViewModel.updateLoginEmail(it) },
+                label = { Text("Email") },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !authState.isLoading,
+                isError = loginFormState.emailError != null,
+                supportingText = loginFormState.emailError?.let { { Text(it) } },
+                singleLine = true
+            )
 
-        Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-        OutlinedTextField(
-            value = password,
-            onValueChange = { password = it },
-            label = { Text("Contraseña") },
-            visualTransformation = PasswordVisualTransformation(),
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !authState.isLoading,
-            singleLine = true
-        )
+            OutlinedTextField(
+                value = loginFormState.password,
+                onValueChange = { authViewModel.updateLoginPassword(it) },
+                label = { Text("Contraseña") },
+                visualTransformation = PasswordVisualTransformation(),
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !authState.isLoading,
+                isError = loginFormState.passwordError != null,
+                supportingText = loginFormState.passwordError?.let { { Text(it) } },
+                singleLine = true
+            )
 
-        Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-        Button(
-            onClick = { authViewModel.signInWithEmail(email, password) },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !authState.isLoading && email.isNotBlank() && password.isNotBlank()
-        ) {
-            if (authState.isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
+            Button(
+                onClick = {
+                    authViewModel.signInWithEmail(
+                        loginFormState.email,
+                        loginFormState.password
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !authState.isLoading && loginFormState.isFormValid
+            ) {
+                if (authState.isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                Text("Entrar")
             }
-        }
 
-        Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-        OutlinedButton(
-            onClick = {
-                val intent = authViewModel.getGoogleSignInIntent()
-                googleSignInLauncher.launch(intent)
-            },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !authState.isLoading
-        ) {
-            Text("Iniciar Sesión con Google")
-        }
+            TextButton(
+                onClick = onNavigateToRegister,
+                enabled = !authState.isLoading
+            ) {
+                Text("¿No tienes cuenta? Regístrate")
+            }
 
-        Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-        TextButton(
-            onClick = onNavigateToRegister,
-            enabled = !authState.isLoading
-        ) {
-            Text("¿No tienes cuenta? Regístrate")
-        }
+            Button(
+                onClick = {
+                    val intent = authViewModel.getGoogleSignInIntent()
+                    googleSignInLauncher.launch(intent)
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !authState.isLoading
+            ) {
+                Text("Iniciar con Google")
+            }
         }
     }
 }
