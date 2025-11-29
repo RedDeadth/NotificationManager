@@ -16,23 +16,17 @@ fun RegisterScreen(
     authViewModel: AuthViewModel,
     onNavigateToLogin: () -> Unit
 ) {
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
-    var username by remember { mutableStateOf("") }
-
     val authState by authViewModel.authState.collectAsState()
+    val registerFormState by authViewModel.registerFormState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Observar el estado de autenticación exitosa
     LaunchedEffect(authState.isAuthenticated) {
         if (authState.isAuthenticated) {
-            // Navegar al login después del registro exitoso
+            authViewModel.clearRegisterForm()
             onNavigateToLogin()
         }
     }
     
-    // Mostrar errores en Snackbar
     LaunchedEffect(authState.error) {
         authState.error?.let { error ->
             snackbarHostState.showSnackbar(
@@ -54,7 +48,6 @@ fun RegisterScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Título de registro
             Text(
                 text = "Crear nueva cuenta",
                 fontSize = 24.sp,
@@ -62,46 +55,55 @@ fun RegisterScreen(
                 modifier = Modifier.padding(bottom = 24.dp)
             )
             
-            // Campo para el nombre de usuario
             OutlinedTextField(
-                value = username,
-                onValueChange = { username = it },
+                value = registerFormState.username,
+                onValueChange = { authViewModel.updateRegisterUsername(it) },
                 label = { Text("Nombre de usuario") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !authState.isLoading,
+                isError = registerFormState.usernameError != null,
+                supportingText = registerFormState.usernameError?.let { { Text(it) } },
+                singleLine = true
             )
             
             Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedTextField(
-                value = email,
-                onValueChange = { email = it },
+                value = registerFormState.email,
+                onValueChange = { authViewModel.updateRegisterEmail(it) },
                 label = { Text("Email") },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !authState.isLoading,
+                isError = registerFormState.emailError != null,
+                supportingText = registerFormState.emailError?.let { { Text(it) } },
                 singleLine = true
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
             OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
+                value = registerFormState.password,
+                onValueChange = { authViewModel.updateRegisterPassword(it) },
                 label = { Text("Contraseña") },
                 visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !authState.isLoading,
+                isError = registerFormState.passwordError != null,
+                supportingText = registerFormState.passwordError?.let { { Text(it) } },
                 singleLine = true
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
             OutlinedTextField(
-                value = confirmPassword,
-                onValueChange = { confirmPassword = it },
+                value = registerFormState.confirmPassword,
+                onValueChange = { authViewModel.updateRegisterConfirmPassword(it) },
                 label = { Text("Confirmar contraseña") },
                 visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !authState.isLoading,
+                isError = registerFormState.confirmPasswordError != null,
+                supportingText = registerFormState.confirmPasswordError?.let { { Text(it) } },
                 singleLine = true
             )
 
@@ -109,15 +111,15 @@ fun RegisterScreen(
 
             Button(
                 onClick = { 
-                    authViewModel.registerWithEmail(email, password, confirmPassword, username)
+                    authViewModel.registerWithEmail(
+                        registerFormState.email,
+                        registerFormState.password,
+                        registerFormState.confirmPassword,
+                        registerFormState.username
+                    )
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !authState.isLoading && 
-                         username.isNotBlank() &&
-                         email.isNotBlank() && 
-                         password.isNotBlank() && 
-                         confirmPassword.isNotBlank() &&
-                         password == confirmPassword
+                enabled = !authState.isLoading && registerFormState.isFormValid
             ) {
                 if (authState.isLoading) {
                     CircularProgressIndicator(

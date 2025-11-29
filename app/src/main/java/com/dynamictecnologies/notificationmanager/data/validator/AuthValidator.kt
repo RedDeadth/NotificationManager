@@ -8,7 +8,8 @@ import com.dynamictecnologies.notificationmanager.data.constants.AuthStrings
  * Esta clase solo se encarga de validar datos de entrada.
  */
 class AuthValidator(
-    private val passwordValidator: PasswordValidator = PasswordValidator()
+    private val passwordValidator: PasswordValidator = PasswordValidator(),
+    private val usernameValidator: UsernameValidator = UsernameValidator()
 ) {
     
     sealed class ValidationResult {
@@ -21,7 +22,8 @@ class AuthValidator(
         INVALID_EMAIL_FORMAT,
         EMPTY_PASSWORD,
         WEAK_PASSWORD,
-        PASSWORDS_DO_NOT_MATCH
+        PASSWORDS_DO_NOT_MATCH,
+        INVALID_USERNAME
     }
     
     fun validateEmail(email: String): ValidationResult {
@@ -72,6 +74,39 @@ class AuthValidator(
         return ValidationResult.Valid
     }
     
+    fun validateRegistrationCredentials(
+        email: String,
+        password: String,
+        confirmPassword: String,
+        username: String
+    ): ValidationResult {
+        // Validar email
+        validateEmail(email).let { result ->
+            if (result is ValidationResult.Invalid) return result
+        }
+        
+        // Validar password
+        validatePassword(password).let { result ->
+            if (result is ValidationResult.Invalid) return result
+        }
+        
+        // Validar confirmación de password
+        validatePasswordMatch(password, confirmPassword).let { result ->
+            if (result is ValidationResult.Invalid) return result
+        }
+        
+        // Validar username
+        val usernameValidation = usernameValidator.validate(username)
+        if (usernameValidation is UsernameValidator.ValidationResult.Invalid) {
+            return ValidationResult.Invalid(
+                ValidationError.INVALID_USERNAME,
+                listOf(usernameValidator.getErrorMessage(usernameValidation.error))
+            )
+        }
+        
+        return ValidationResult.Valid
+    }
+    
 
     
     fun getErrorMessage(error: ValidationError, details: List<String> = emptyList()): String {
@@ -88,6 +123,13 @@ class AuthValidator(
                 }
             }
             ValidationError.PASSWORDS_DO_NOT_MATCH -> AuthStrings.ValidationErrors.PASSWORDS_DO_NOT_MATCH
+            ValidationError.INVALID_USERNAME -> {
+                if (details.isNotEmpty()) {
+                    details.firstOrNull() ?: AuthStrings.ValidationErrors.EMPTY_USERNAME
+                } else {
+                    AuthStrings.ValidationErrors.EMPTY_USERNAME
+                }
+            }
         }
     }
 }

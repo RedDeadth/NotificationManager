@@ -109,12 +109,14 @@ class AuthRepositoryImpl(
     private fun mapValidationError(error: AuthValidator.ValidationError, details: List<String> = emptyList()): AuthException {
         val code = when (error) {
             AuthValidator.ValidationError.EMPTY_EMAIL,
-            AuthValidator.ValidationError.INVALID_EMAIL_FORMAT -> 
+            AuthValidator.ValidationError.INVALID_EMAIL_FORMAT ->
                 com.dynamictecnologies.notificationmanager.data.exceptions.AuthErrorCode.INVALID_CREDENTIALS
             AuthValidator.ValidationError.EMPTY_PASSWORD,
-            AuthValidator.ValidationError.WEAK_PASSWORD -> 
+            AuthValidator.ValidationError.WEAK_PASSWORD ->
                 com.dynamictecnologies.notificationmanager.data.exceptions.AuthErrorCode.WEAK_PASSWORD
             AuthValidator.ValidationError.PASSWORDS_DO_NOT_MATCH ->
+                com.dynamictecnologies.notificationmanager.data.exceptions.AuthErrorCode.INVALID_CREDENTIALS
+            AuthValidator.ValidationError.INVALID_USERNAME ->
                 com.dynamictecnologies.notificationmanager.data.exceptions.AuthErrorCode.INVALID_CREDENTIALS
         }
         

@@ -193,7 +193,9 @@ object AuthModule {
             getCurrentUserUseCase = provideGetCurrentUserUseCase(authRepository),
             validateSessionUseCase = provideValidateSessionUseCase(authRepository),
             googleSignInHelper = provideGoogleSignInHelper(context),
-            errorMapper = provideAuthErrorMapper()
+            errorMapper = provideAuthErrorMapper(),
+            authValidator = provideAuthValidator(),
+            usernameValidator = provideUsernameValidator()
         )
     }
 }

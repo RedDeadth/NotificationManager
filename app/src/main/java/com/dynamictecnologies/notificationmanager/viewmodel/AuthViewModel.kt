@@ -30,11 +30,16 @@ class AuthViewModel(
     private val getCurrentUserUseCase: GetCurrentUserUseCase,
     private val validateSessionUseCase: ValidateSessionUseCase,
     private val googleSignInHelper: GoogleSignInHelper,
-    private val errorMapper: AuthErrorMapper
+    private val errorMapper: AuthErrorMapper,
+    private val authValidator: com.dynamictecnologies.notificationmanager.data.validator.AuthValidator,
+    private val usernameValidator: com.dynamictecnologies.notificationmanager.data.validator.UsernameValidator
 ) : ViewModel() {
 
     private val _authState = MutableStateFlow(AuthState())
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
+
+    private val _registerFormState = MutableStateFlow(RegisterFormState())
+    val registerFormState: StateFlow<RegisterFormState> = _registerFormState.asStateFlow()
 
     init {
         checkAuthState()
@@ -216,6 +221,89 @@ class AuthViewModel(
         val isSessionValid: Boolean = false
     )
 
+    data class RegisterFormState(
+        val email: String = "",
+        val password: String = "",
+        val confirmPassword: String = "",
+        val username: String = "",
+        val emailError: String? = null,
+        val passwordError: String? = null,
+        val confirmPasswordError: String? = null,
+        val usernameError: String? = null,
+        val isFormValid: Boolean = false
+    )
+
+    fun updateRegisterEmail(email: String) {
+        val error = when(val result = authValidator.validateEmail(email)) {
+            is com.dynamictecnologies.notificationmanager.data.validator.AuthValidator.ValidationResult.Invalid -> 
+                authValidator.getErrorMessage(result.error, result.details)
+            else -> null
+        }
+        _registerFormState.value = _registerFormState.value.copy(
+            email = email,
+            emailError = error
+        )
+        updateFormValidity()
+    }
+
+    fun updateRegisterPassword(password: String) {
+        val error = when(val result = authValidator.validatePassword(password)) {
+            is com.dynamictecnologies.notificationmanager.data.validator.AuthValidator.ValidationResult.Invalid -> 
+                authValidator.getErrorMessage(result.error, result.details)
+            else -> null
+        }
+        _registerFormState.value = _registerFormState.value.copy(
+            password = password,
+            passwordError = error
+        )
+        updateFormValidity()
+    }
+
+    fun updateRegisterConfirmPassword(confirmPassword: String) {
+        val state = _registerFormState.value
+        val error = when(val result = authValidator.validatePasswordMatch(state.password, confirmPassword)) {
+            is com.dynamictecnologies.notificationmanager.data.validator.AuthValidator.ValidationResult.Invalid -> 
+                authValidator.getErrorMessage(result.error, result.details)
+            else -> null
+        }
+        _registerFormState.value = state.copy(
+            confirmPassword = confirmPassword,
+            confirmPasswordError = error
+        )
+        updateFormValidity()
+    }
+
+    fun updateRegisterUsername(username: String) {
+        val error = when(val result = usernameValidator.validate(username)) {
+            is com.dynamictecnologies.notificationmanager.data.validator.UsernameValidator.ValidationResult.Invalid -> 
+                usernameValidator.getErrorMessage(result.error)
+            else -> null
+        }
+        _registerFormState.value = _registerFormState.value.copy(
+            username = username,
+            usernameError = error
+        )
+        updateFormValidity()
+    }
+
+    private fun updateFormValidity() {
+        val state = _registerFormState.value
+        val isValid = state.email.isNotBlank() &&
+                      state.password.isNotBlank() &&
+                      state.confirmPassword.isNotBlank() &&
+                      state.username.isNotBlank() &&
+                      state.emailError == null &&
+                      state.passwordError == null &&
+                      state.confirmPasswordError == null &&
+                      state.usernameError == null
+        
+        _registerFormState.value = state.copy(isFormValid = isValid)
+    }
+
+    fun clearRegisterForm() {
+        _registerFormState.value = RegisterFormState()
+    }
+
     class Factory(
         private val signInWithEmailUseCase: SignInWithEmailUseCase,
         private val registerUserWithUsernameUseCase: RegisterUserWithUsernameUseCase,
@@ -224,7 +312,9 @@ class AuthViewModel(
         private val getCurrentUserUseCase: GetCurrentUserUseCase,
         private val validateSessionUseCase: ValidateSessionUseCase,
         private val googleSignInHelper: GoogleSignInHelper,
-        private val errorMapper: AuthErrorMapper
+        private val errorMapper: AuthErrorMapper,
+        private val authValidator: com.dynamictecnologies.notificationmanager.data.validator.AuthValidator,
+        private val usernameValidator: com.dynamictecnologies.notificationmanager.data.validator.UsernameValidator
     ) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(AuthViewModel::class.java)) {
@@ -237,7 +327,9 @@ class AuthViewModel(
                     getCurrentUserUseCase,
                     validateSessionUseCase,
                     googleSignInHelper,
-                    errorMapper
+                    errorMapper,
+                    authValidator,
+                    usernameValidator
                 ) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class")
