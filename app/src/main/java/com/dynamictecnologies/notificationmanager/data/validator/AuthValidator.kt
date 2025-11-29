@@ -1,6 +1,7 @@
 package com.dynamictecnologies.notificationmanager.data.validator
 
 import android.util.Patterns
+import com.dynamictecnologies.notificationmanager.data.constants.AuthStrings
 
 /**
  * Validador de credenciales de autenticación siguiendo el principio de responsabilidad única (SRP).
@@ -93,17 +94,18 @@ class AuthValidator(
      */
     fun getErrorMessage(error: ValidationError, details: List<String> = emptyList()): String {
         return when (error) {
-            ValidationError.EMPTY_EMAIL -> "El email es requerido"
-            ValidationError.INVALID_EMAIL_FORMAT -> "Formato de email inválido"
-            ValidationError.EMPTY_PASSWORD -> "La contraseña es requerida"
+            ValidationError.EMPTY_EMAIL -> AuthStrings.ValidationErrors.EMPTY_EMAIL
+            ValidationError.INVALID_EMAIL_FORMAT -> AuthStrings.ValidationErrors.INVALID_EMAIL_FORMAT
+            ValidationError.EMPTY_PASSWORD -> AuthStrings.ValidationErrors.EMPTY_PASSWORD
             ValidationError.WEAK_PASSWORD -> {
                 if (details.isNotEmpty()) {
-                    "Contraseña débil:\n${details.joinToString("\n• ", prefix = "• ")}"
+                    AuthStrings.ValidationErrors.WEAK_PASSWORD_WITH_DETAILS + 
+                        details.joinToString("\n• ", prefix = "• ")
                 } else {
-                    "La contraseña no cumple con los requisitos de seguridad"
+                    AuthStrings.ValidationErrors.WEAK_PASSWORD
                 }
             }
-            ValidationError.PASSWORDS_DO_NOT_MATCH -> "Las contraseñas no coinciden"
+            ValidationError.PASSWORDS_DO_NOT_MATCH -> AuthStrings.ValidationErrors.PASSWORDS_DO_NOT_MATCH
         }
     }
 }

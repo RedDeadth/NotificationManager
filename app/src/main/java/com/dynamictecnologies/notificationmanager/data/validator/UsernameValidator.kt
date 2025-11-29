@@ -1,5 +1,7 @@
 package com.dynamictecnologies.notificationmanager.data.validator
 
+import com.dynamictecnologies.notificationmanager.data.constants.AuthStrings
+
 /**
  * Validador de nombres de usuario siguiendo el principio de responsabilidad única (SRP).
  * Extraído de UserViewModel y UserService para aplicar DRY.
@@ -68,19 +70,19 @@ class UsernameValidator {
     fun getErrorMessage(error: ValidationError): String {
         return when (error) {
             ValidationError.EMPTY -> 
-                "El nombre de usuario no puede estar vacío"
+                AuthStrings.ValidationErrors.EMPTY_USERNAME
             
             ValidationError.TOO_SHORT -> 
-                "El nombre de usuario debe tener al menos $MIN_LENGTH caracteres"
+                String.format(AuthStrings.ValidationErrors.USERNAME_TOO_SHORT, MIN_LENGTH)
             
             ValidationError.TOO_LONG -> 
-                "El nombre de usuario no puede tener más de $MAX_LENGTH caracteres"
+                String.format(AuthStrings.ValidationErrors.USERNAME_TOO_LONG, MAX_LENGTH)
             
             ValidationError.CONTAINS_SPACES -> 
-                "El nombre de usuario no puede contener espacios"
+                AuthStrings.ValidationErrors.USERNAME_CONTAINS_SPACES
             
             ValidationError.INVALID_CHARACTERS -> 
-                "El nombre de usuario solo puede contener letras y números"
+                AuthStrings.ValidationErrors.USERNAME_INVALID_CHARACTERS
         }
     }
 }

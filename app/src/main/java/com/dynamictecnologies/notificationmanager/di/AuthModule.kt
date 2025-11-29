@@ -15,6 +15,7 @@ import com.dynamictecnologies.notificationmanager.data.validator.AuthValidator
 import com.dynamictecnologies.notificationmanager.domain.repositories.AuthRepository
 import com.dynamictecnologies.notificationmanager.domain.usecases.GetCurrentUserUseCase
 import com.dynamictecnologies.notificationmanager.domain.usecases.RegisterWithEmailUseCase
+import com.dynamictecnologies.notificationmanager.domain.usecases.RegisterUserWithUsernameUseCase
 import com.dynamictecnologies.notificationmanager.domain.usecases.SignInWithEmailUseCase
 import com.dynamictecnologies.notificationmanager.domain.usecases.SignInWithGoogleUseCase
 import com.dynamictecnologies.notificationmanager.domain.usecases.SignOutUseCase
@@ -123,29 +124,22 @@ object AuthModule {
     
     // Use Cases
     
-    fun provideSignInWithEmailUseCase(authRepository: AuthRepository): SignInWithEmailUseCase {
-        return SignInWithEmailUseCase(authRepository)
-    }
+    fun provideSignInWithEmailUseCase(authRepository: AuthRepository) = SignInWithEmailUseCase(authRepository)
+
+    fun provideRegisterWithEmailUseCase(authRepository: AuthRepository) = RegisterWithEmailUseCase(authRepository)
     
-    fun provideRegisterWithEmailUseCase(authRepository: AuthRepository): RegisterWithEmailUseCase {
-        return RegisterWithEmailUseCase(authRepository)
-    }
-    
-    fun provideSignInWithGoogleUseCase(authRepository: AuthRepository): SignInWithGoogleUseCase {
-        return SignInWithGoogleUseCase(authRepository)
-    }
-    
-    fun provideSignOutUseCase(authRepository: AuthRepository, userProfileRepository: UserProfileRepository): SignOutUseCase {
-        return SignOutUseCase(authRepository, userProfileRepository)
-    }
-    
-    fun provideGetCurrentUserUseCase(authRepository: AuthRepository): GetCurrentUserUseCase {
-        return GetCurrentUserUseCase(authRepository)
-    }
-    
-    fun provideValidateSessionUseCase(authRepository: AuthRepository): ValidateSessionUseCase {
-        return ValidateSessionUseCase(authRepository)
-    }
+    fun provideRegisterUserWithUsernameUseCase(
+        authRepository: AuthRepository,
+        userProfileRepository: UserProfileRepository
+    ) = RegisterUserWithUsernameUseCase(authRepository, userProfileRepository)
+
+    fun provideSignInWithGoogleUseCase(authRepository: AuthRepository) = SignInWithGoogleUseCase(authRepository)
+
+    fun provideSignOutUseCase(authRepository: AuthRepository, userProfileRepository: UserProfileRepository) = SignOutUseCase(authRepository, userProfileRepository)
+
+    fun provideGetCurrentUserUseCase(authRepository: AuthRepository) = GetCurrentUserUseCase(authRepository)
+
+    fun provideValidateSessionUseCase(authRepository: AuthRepository) = ValidateSessionUseCase(authRepository)
     
     // ========================================
     // USER PROFILE PROVIDERS
@@ -246,8 +240,7 @@ object AuthModule {
         
         return com.dynamictecnologies.notificationmanager.viewmodel.AuthViewModel.Factory(
             signInWithEmailUseCase = provideSignInWithEmailUseCase(authRepository),
-            registerWithEmailUseCase = provideRegisterWithEmailUseCase(authRepository),
-            registerUsernameUseCase = provideRegisterUsernameUseCase(userProfileRepository),
+            registerUserWithUsernameUseCase = provideRegisterUserWithUsernameUseCase(authRepository, userProfileRepository),
             signInWithGoogleUseCase = provideSignInWithGoogleUseCase(authRepository),
             signOutUseCase = provideSignOutUseCase(authRepository, userProfileRepository),
             getCurrentUserUseCase = provideGetCurrentUserUseCase(authRepository),

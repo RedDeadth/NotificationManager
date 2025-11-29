@@ -149,16 +149,57 @@ class RemoteUserDataSource(
     /**
      * Registra un nuevo username para un UID
      */
+    /**
+     * Registra un nuevo username para un UID usando una transacción para garantizar unicidad.
+     */
     suspend fun registerUsername(uid: String, username: String, email: String) {
-        withTimeout(TIMEOUT_MS) {
-            val updates = mapOf(
-                "usernames/$username" to uid,
-                "users/$username/uid" to uid,
-                "users/$username/email" to email,
-                "users/$username/createdAt" to com.google.firebase.database.ServerValue.TIMESTAMP
-            )
-            
-            database.reference.updateChildren(updates).await()
+        val usernameRef = usernamesRef.child(username)
+        
+        kotlinx.coroutines.suspendCancellableCoroutine { continuation ->
+            usernameRef.runTransaction(object : com.google.firebase.database.Transaction.Handler {
+                override fun doTransaction(currentData: com.google.firebase.database.MutableData): com.google.firebase.database.Transaction.Result {
+                    if (currentData.value != null) {
+                        // El username ya existe
+                        return com.google.firebase.database.Transaction.abort()
+                    }
+                    
+                    // El username está libre, lo tomamos
+                    currentData.value = uid
+                    return com.google.firebase.database.Transaction.success(currentData)
+                }
+
+                override fun onComplete(
+                    error: DatabaseError?,
+                    committed: Boolean,
+                    currentData: DataSnapshot?
+                ) {
+                    if (error != null) {
+                        continuation.resumeWith(Result.failure(error.toException()))
+                    } else if (!committed) {
+                        continuation.resumeWith(Result.failure(Exception("El nombre de usuario ya está en uso")))
+                    } else {
+                        // Transacción exitosa, ahora guardamos el resto del perfil
+                        // Nota: Si esto falla, podríamos tener un username reservado sin perfil completo.
+                        // Idealmente esto también sería parte de la transacción si estuviera en el mismo nodo,
+                        // pero al estar separado, aceptamos este riesgo menor o implementamos compensación.
+                        val userUpdates = mapOf(
+                            "users/$username/uid" to uid,
+                            "users/$username/email" to email,
+                            "users/$username/createdAt" to com.google.firebase.database.ServerValue.TIMESTAMP
+                        )
+                        
+                        database.reference.updateChildren(userUpdates)
+                            .addOnSuccessListener { 
+                                continuation.resumeWith(Result.success(Unit)) 
+                            }
+                            .addOnFailureListener { e -> 
+                                // Intento de rollback (compensación)
+                                usernameRef.removeValue()
+                                continuation.resumeWith(Result.failure(e)) 
+                            }
+                    }
+                }
+            })
         }
     }
     

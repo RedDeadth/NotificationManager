@@ -1,6 +1,7 @@
 package com.dynamictecnologies.notificationmanager.data.repository
 
 import android.util.Log
+import com.dynamictecnologies.notificationmanager.data.constants.AuthStrings
 import com.dynamictecnologies.notificationmanager.data.datasource.LocalUserDataSource
 import com.dynamictecnologies.notificationmanager.data.datasource.RemoteUserDataSource
 import com.dynamictecnologies.notificationmanager.data.mapper.UserProfileMapper
@@ -84,16 +85,16 @@ class UserProfileRepositoryImpl(
             
             // Verificar usuario autenticado
             val currentUser = firebaseAuth.currentUser 
-                ?: return Result.failure(Exception("No hay usuario autenticado"))
+                ?: return Result.failure(Exception(AuthStrings.OperationErrors.NO_AUTHENTICATED_USER))
             
             // Verificar si ya tiene perfil
             if (remoteDataSource.hasUserProfile(currentUser.uid)) {
-                return Result.failure(Exception("Ya tienes un perfil registrado"))
+                return Result.failure(Exception(AuthStrings.OperationErrors.PROFILE_ALREADY_EXISTS))
             }
             
             // Verificar disponibilidad
             if (!remoteDataSource.isUsernameAvailable(username)) {
-                return Result.failure(Exception("El nombre de usuario ya está en uso"))
+                return Result.failure(Exception(AuthStrings.OperationErrors.USERNAME_ALREADY_IN_USE))
             }
             
             // Registrar en Firebase
@@ -105,7 +106,7 @@ class UserProfileRepositoryImpl(
             
             // Obtener el perfil recién creado
             val userInfo = remoteDataSource.getUserProfileSync(currentUser.uid)
-                ?: return Result.failure(Exception("Error al obtener perfil creado"))
+                ?: return Result.failure(Exception(AuthStrings.OperationErrors.PROFILE_CREATION_FAILED))
             
             // Guardar en caché
             localDataSource.saveProfile(userInfo)
@@ -144,14 +145,14 @@ class UserProfileRepositoryImpl(
     override suspend fun refreshProfile(): Result<UserProfile> {
         return try {
             val currentUser = firebaseAuth.currentUser 
-                ?: return Result.failure(Exception("No hay usuario autenticado"))
+                ?: return Result.failure(Exception(AuthStrings.OperationErrors.NO_AUTHENTICATED_USER))
             
             // Invalidar caché
             localDataSource.invalidateCache()
             
             // Obtener desde remoto
             val userInfo = remoteDataSource.getUserProfileSync(currentUser.uid)
-                ?: return Result.failure(Exception("Perfil no encontrado"))
+                ?: return Result.failure(Exception(AuthStrings.OperationErrors.PROFILE_NOT_FOUND))
             
             // Guardar en caché
             localDataSource.saveProfile(userInfo)

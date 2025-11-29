@@ -4,12 +4,13 @@ import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.dynamictecnologies.notificationmanager.data.constants.AuthStrings
 import com.dynamictecnologies.notificationmanager.data.exceptions.AuthException
 import com.dynamictecnologies.notificationmanager.data.mapper.AuthErrorMapper
 import com.dynamictecnologies.notificationmanager.domain.entities.User
+import com.dynamictecnologies.notificationmanager.domain.entities.UserProfile
 import com.dynamictecnologies.notificationmanager.domain.usecases.GetCurrentUserUseCase
-import com.dynamictecnologies.notificationmanager.domain.usecases.RegisterWithEmailUseCase
-import com.dynamictecnologies.notificationmanager.domain.usecases.user.RegisterUsernameUseCase
+import com.dynamictecnologies.notificationmanager.domain.usecases.RegisterUserWithUsernameUseCase
 import com.dynamictecnologies.notificationmanager.domain.usecases.SignInWithEmailUseCase
 import com.dynamictecnologies.notificationmanager.domain.usecases.SignInWithGoogleUseCase
 import com.dynamictecnologies.notificationmanager.domain.usecases.SignOutUseCase
@@ -23,8 +24,7 @@ import kotlinx.coroutines.launch
 
 class AuthViewModel(
     private val signInWithEmailUseCase: SignInWithEmailUseCase,
-    private val registerWithEmailUseCase: RegisterWithEmailUseCase,
-    private val registerUsernameUseCase: RegisterUsernameUseCase,
+    private val registerUserWithUsernameUseCase: RegisterUserWithUsernameUseCase,
     private val signInWithGoogleUseCase: SignInWithGoogleUseCase,
     private val signOutUseCase: SignOutUseCase,
     private val getCurrentUserUseCase: GetCurrentUserUseCase,
@@ -76,30 +76,44 @@ class AuthViewModel(
     }
 
     /**
-     * Registra un nuevo usuario con email y contraseña
+     * Registra un nuevo usuario con email, contraseña y username.
+     * Delega toda la orquestación al UseCase.
      */
     fun registerWithEmail(email: String, password: String, confirmPassword: String, username: String) {
         viewModelScope.launch {
-            if (password != confirmPassword) {
-                _authState.value = _authState.value.copy(
-                    error = "Las contraseñas no coinciden"
-                )
-                return@launch
-            }
-
-            executeAuthOperation {
-                val result = registerWithEmailUseCase(email, password)
+            try {
+                _authState.value = _authState.value.copy(isLoading = true, error = null)
                 
-                // Si el registro de auth es exitoso, intentamos registrar el username
-                result.onSuccess {
-                    val profileResult = registerUsernameUseCase(username)
-
-                    if (profileResult.isFailure) {
-                        // Loggear error o notificar (opcional)
-                    }
+                // Validación simple de confirmación en UI (resto de validación en domain)
+                if (password != confirmPassword) {
+                    _authState.value = _authState.value.copy(
+                        error = AuthStrings.ValidationErrors.PASSWORDS_DO_NOT_MATCH,
+                        isLoading = false
+                    )
+                    return@launch
                 }
                 
-                result
+                // Delegar todo al UseCase de orquestación
+                val result = registerUserWithUsernameUseCase(email, password, username)
+                
+                result.onSuccess { profile ->
+                    val isSessionValid = validateSessionUseCase()
+                    _authState.value = AuthState(
+                        isAuthenticated = true,
+                        currentUser = User(
+                            id = profile.uid,
+                            username = profile.username,
+                            email = profile.email
+                        ),
+                        isSessionValid = isSessionValid
+                    )
+                }.onFailure { error ->
+                    handleException(error)
+                }
+            } catch (e: Exception) {
+                handleException(e)
+            } finally {
+                _authState.value = _authState.value.copy(isLoading = false)
             }
         }
     }
@@ -236,8 +250,7 @@ class AuthViewModel(
      */
     class Factory(
         private val signInWithEmailUseCase: SignInWithEmailUseCase,
-        private val registerWithEmailUseCase: RegisterWithEmailUseCase,
-        private val registerUsernameUseCase: RegisterUsernameUseCase,
+        private val registerUserWithUsernameUseCase: RegisterUserWithUsernameUseCase,
         private val signInWithGoogleUseCase: SignInWithGoogleUseCase,
         private val signOutUseCase: SignOutUseCase,
         private val getCurrentUserUseCase: GetCurrentUserUseCase,
@@ -250,8 +263,7 @@ class AuthViewModel(
                 @Suppress("UNCHECKED_CAST")
                 return AuthViewModel(
                     signInWithEmailUseCase,
-                    registerWithEmailUseCase,
-                    registerUsernameUseCase,
+                    registerUserWithUsernameUseCase,
                     signInWithGoogleUseCase,
                     signOutUseCase,
                     getCurrentUserUseCase,
