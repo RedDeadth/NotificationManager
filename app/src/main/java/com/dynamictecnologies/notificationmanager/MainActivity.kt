@@ -25,6 +25,7 @@ import com.dynamictecnologies.notificationmanager.presentation.core.theme.Notifi
 import com.dynamictecnologies.notificationmanager.util.PermissionHelper
 import com.dynamictecnologies.notificationmanager.viewmodel.*
 import com.dynamictecnologies.notificationmanager.di.AuthModule
+import com.dynamictecnologies.notificationmanager.di.AppModule
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
@@ -64,7 +65,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private val appListViewModel: AppListViewModel by viewModels {
-        AppListViewModelFactory(applicationContext, createRepository())
+        AppModule.provideAppListViewModelFactory(
+            context = applicationContext,
+            notificationRepository = createRepository()
+        )
     }
 
     private val deviceViewModel: DeviceViewModel by viewModels {

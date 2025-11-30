@@ -1,51 +1,45 @@
 package com.dynamictecnologies.notificationmanager.viewmodel
 
-import android.content.Context
-import android.content.pm.PackageManager
-import android.graphics.Bitmap
 import android.util.Log
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.dynamictecnologies.notificationmanager.data.model.AppInfo
 import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
 import com.dynamictecnologies.notificationmanager.data.repository.NotificationRepository
-import kotlinx.coroutines.Dispatchers
+import com.dynamictecnologies.notificationmanager.domain.usecases.app.GetInstalledAppsUseCase
+import com.dynamictecnologies.notificationmanager.domain.usecases.app.GetSelectedAppUseCase
+import com.dynamictecnologies.notificationmanager.domain.usecases.app.SaveSelectedAppUseCase
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.core.graphics.drawable.toBitmap
-import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.core.graphics.drawable.toBitmap
-import androidx.lifecycle.ViewModelProvider
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.util.*
 
+/**
+ * ViewModel para gestión de aplicaciones instaladas y selección de app.
+ * Refactorizado para seguir Clean Architecture y SOLID principles.
+ * 
+ * Principios aplicados:
+ * - SRP: Solo maneja UI state para apps y notificaciones
+ * - DIP: Depende de abstracciones (Use Cases) no de implementaciones
+ * - Clean Architecture: No tiene lógica de negocio, solo coordina Use Cases
+ * - DRY: Reutiliza Use Cases compartidos
+ * 
+ * @param getInstalledAppsUseCase Use case para obtener apps instaladas
+ * @param saveSelectedAppUseCase Use case para guardar app seleccionada
+ * @param getSelectedAppUseCase Use case para recuperar app seleccionada
+ * @param notificationRepository Repository para gestión de notificaciones
+ */
 class AppListViewModel(
-    private val packageManager: PackageManager,
-    private val repository: NotificationRepository,
-    private val context: Context
+    private val getInstalledAppsUseCase: GetInstalledAppsUseCase,
+    private val saveSelectedAppUseCase: SaveSelectedAppUseCase,
+    private val getSelectedAppUseCase: GetSelectedAppUseCase,
+    private val notificationRepository: NotificationRepository
 ) : ViewModel() {
+    
     private val TAG = "AppListViewModel"
-    private val prefs = context.getSharedPreferences("app_preferences", Context.MODE_PRIVATE)
     private var notificationJob: Job? = null
 
     private val _apps = MutableStateFlow<List<AppInfo>>(emptyList())
@@ -64,83 +58,79 @@ class AppListViewModel(
     val notifications = _notifications.asStateFlow()
 
     init {
-        Log.d(TAG, "ViewModel inicializado")
+        Log.d(TAG, "ViewModel inicializado con Clean Architecture")
         viewModelScope.launch {
             loadInstalledApps()
             restoreLastSelectedApp()
         }
     }
 
+    /**
+     * Carga las aplicaciones instaladas usando el Use Case.
+     */
     private fun loadInstalledApps() {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch {
             try {
                 _isLoading.value = true
                 Log.d(TAG, "Cargando apps instaladas...")
 
-                val installedApps = packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
-                    .asSequence()
-                    .filter { packageInfo ->
-                        packageManager.getLaunchIntentForPackage(packageInfo.packageName) != null &&
-                                (packageInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) == 0
+                getInstalledAppsUseCase()
+                    .onSuccess { installedApps ->
+                        Log.d(TAG, "Cargadas ${installedApps.size} apps")
+                        _apps.value = installedApps
                     }
-                    .map { packageInfo ->
-                        val icon = packageInfo.loadIcon(packageManager).toBitmap(
-                            width = 96,
-                            height = 96,
-                            config = Bitmap.Config.ARGB_8888
-                        ).asImageBitmap()
-
-                        AppInfo(
-                            name = packageInfo.loadLabel(packageManager).toString(),
-                            packageName = packageInfo.packageName,
-                            icon = icon
-                        )
+                    .onFailure { error ->
+                        Log.e(TAG, "Error cargando apps: ${error.message}")
                     }
-                    .sortedBy { it.name }
-                    .toList()
-
-                Log.d(TAG, "Cargadas ${installedApps.size} apps")
-                _apps.value = installedApps
-            } catch (e: Exception) {
-                Log.e(TAG, "Error cargando apps: ${e.message}")
             } finally {
                 _isLoading.value = false
             }
         }
     }
 
+    /**
+     * Alterna la visibilidad del diálogo de selección de apps.
+     */
     fun toggleAppList() {
         _showAppList.value = !_showAppList.value
         Log.d(TAG, "Toggle dialog: ${_showAppList.value}")
     }
 
+    /**
+     * Selecciona una aplicación y comienza a observar sus notificaciones.
+     * 
+     * @param app La aplicación a seleccionar o null para deseleccionar
+     */
     fun selectApp(app: AppInfo?) {
         viewModelScope.launch {
             try {
+                // Cancelar job anterior de notificaciones
                 notificationJob?.cancel()
 
                 Log.d(TAG, "Seleccionando app: ${app?.name}")
                 _selectedApp.value = app
 
                 app?.let { selectedApp ->
-                    prefs.edit().putString("last_selected_app", selectedApp.packageName).apply()
+                    // Guardar selección usando Use Case
+                    saveSelectedAppUseCase(selectedApp.packageName)
+                    
                     Log.d(TAG, "Iniciando observación de notificaciones para: ${selectedApp.name}")
                     
-                    // Ejecutar limpieza de notificaciones antiguas al seleccionar la app
-                    launch(Dispatchers.IO) {
+                    // Limpiar notificaciones antiguas
+                    launch {
                         try {
                             Log.d(TAG, "Verificando límite de notificaciones para ${selectedApp.name}")
-                            repository.cleanupOldNotifications(selectedApp.packageName)
+                            notificationRepository.cleanupOldNotifications(selectedApp.packageName)
                         } catch (e: Exception) {
                             Log.e(TAG, "Error limpiando notificaciones antiguas: ${e.message}")
                         }
                     }
 
+                    // Observar notificaciones de la app seleccionada
                     notificationJob = launch {
-                        repository.getNotifications(selectedApp.packageName)
+                        notificationRepository.getNotifications(selectedApp.packageName)
                             .catch { e ->
                                 Log.e(TAG, "Error observando notificaciones: ${e.message}")
-                                e.printStackTrace()
                             }
                             .collectLatest { notificationsList ->
                                 Log.d(TAG, "Actualizando lista de notificaciones: ${notificationsList.size}")
@@ -153,49 +143,39 @@ class AppListViewModel(
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error en selectApp: ${e.message}")
-                e.printStackTrace()
             }
         }
     }
 
+    /**
+     * Restaura la última aplicación seleccionada usando el Use Case.
+     */
     private suspend fun restoreLastSelectedApp() {
-        val lastSelectedPackage = prefs.getString("last_selected_app", null)
-        Log.d(TAG, "Restaurando última app seleccionada: $lastSelectedPackage")
-
-        if (lastSelectedPackage != null) {
-            try {
-                withContext(Dispatchers.IO) {
-                    val applicationInfo = packageManager.getApplicationInfo(lastSelectedPackage, 0)
-                    val icon = applicationInfo.loadIcon(packageManager).toBitmap(
-                        width = 96,
-                        height = 96,
-                        config = Bitmap.Config.ARGB_8888
-                    ).asImageBitmap()
-
-                    val appInfo = AppInfo(
-                        name = applicationInfo.loadLabel(packageManager).toString(),
-                        packageName = lastSelectedPackage,
-                        icon = icon
-                    )
-
-                    withContext(Dispatchers.Main) {
-                        selectApp(appInfo)
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error restaurando app: ${e.message}")
-                e.printStackTrace()
+        try {
+            Log.d(TAG, "Restaurando última app seleccionada...")
+            
+            val app = getSelectedAppUseCase()
+            
+            if (app != null) {
+                Log.d(TAG, "App restaurada: ${app.name}")
+                selectApp(app)
+            } else {
+                Log.d(TAG, "No hay app seleccionada previamente")
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error restaurando app: ${e.message}")
         }
     }
 
     override fun onCleared() {
         super.onCleared()
         notificationJob?.cancel()
+        Log.d(TAG, "ViewModel cleared")
     }
     
     /**
-     * Limpia todos los datos del ViewModel cuando el usuario cierra sesión
+     * Limpia todos los datos del ViewModel cuando el usuario cierra sesión.
+     * Cancela jobs, limpia state y borra preferencias.
      */
     fun clearData() {
         viewModelScope.launch {
@@ -207,8 +187,9 @@ class AppListViewModel(
                 _selectedApp.value = null
                 _notifications.value = emptyList()
                 
-                // Limpiar la preferencia de la última app seleccionada
-                prefs.edit().remove("last_selected_app").apply()
+                // Limpiar la preferencia usando Use Case
+                // Pasamos string vacío para limpiar
+                saveSelectedAppUseCase("")
                 
                 Log.d(TAG, "Datos de apps y notificaciones limpiados correctamente al cerrar sesión")
             } catch (e: Exception) {
@@ -218,19 +199,30 @@ class AppListViewModel(
     }
 }
 
+/**
+ * Factory para crear instancias de AppListViewModel con inyección de dependencias.
+ * Refactorizado para usar Use Cases en lugar de dependencias concretas.
+ * 
+ * Principios aplicados:
+ * - Factory Pattern: Centraliza creación del ViewModel
+ * - DIP: Inyecta abstracciones (Use Cases)
+ */
 class AppListViewModelFactory(
-    private val context: Context,
-    private val repository: NotificationRepository
+    private val getInstalledAppsUseCase: GetInstalledAppsUseCase,
+    private val saveSelectedAppUseCase: SaveSelectedAppUseCase,
+    private val getSelectedAppUseCase: GetSelectedAppUseCase,
+    private val notificationRepository: NotificationRepository
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(AppListViewModel::class.java)) {
             return AppListViewModel(
-                packageManager = context.packageManager,
-                repository = repository,
-                context = context
+                getInstalledAppsUseCase = getInstalledAppsUseCase,
+                saveSelectedAppUseCase = saveSelectedAppUseCase,
+                getSelectedAppUseCase = getSelectedAppUseCase,
+                notificationRepository = notificationRepository
             ) as T
         }
-        throw IllegalArgumentException("Unknown ViewModel class")
+        throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
     }
 }
