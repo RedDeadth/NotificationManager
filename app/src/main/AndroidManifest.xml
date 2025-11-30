@@ -86,6 +86,18 @@
                 <category android:name="android.intent.category.HOME" />
             </intent-filter>
         </receiver>
+        
+        <!-- Receiver para acciones de recuperación de servicio -->
+        <receiver
+            android:name=".receiver.ServiceRecoveryReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.dynamictecnologies.notificationmanager.ACTION_DISMISS_CRASH" />
+                <action android:name="com.dynamictecnologies.notificationmanager.ACTION_RESTART_SERVICE" />
+                <action android:name="com.dynamictecnologies.notificationmanager.ACTION_OPEN_SETTINGS" />
+            </intent-filter>
+        </receiver>
 
     </application>
 </manifest>

@@ -1,6 +1,5 @@
 package com.dynamictecnologies.notificationmanager.data.validator
 
-import android.util.Patterns
 import com.dynamictecnologies.notificationmanager.data.constants.AuthStrings
 
 /**
@@ -11,6 +10,12 @@ class AuthValidator(
     private val passwordValidator: PasswordValidator = PasswordValidator(),
     private val usernameValidator: UsernameValidator = UsernameValidator()
 ) {
+    
+    companion object {
+        // Regex para validación de email (compatible con unit tests)
+        private val EMAIL_REGEX = 
+            """^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}$""".toRegex()
+    }
     
     sealed class ValidationResult {
         object Valid : ValidationResult()
@@ -29,7 +34,7 @@ class AuthValidator(
     fun validateEmail(email: String): ValidationResult {
         return when {
             email.isBlank() -> ValidationResult.Invalid(ValidationError.EMPTY_EMAIL)
-            !Patterns.EMAIL_ADDRESS.matcher(email).matches() -> 
+            !EMAIL_REGEX.matches(email) -> 
                 ValidationResult.Invalid(ValidationError.INVALID_EMAIL_FORMAT)
             else -> ValidationResult.Valid
         }
