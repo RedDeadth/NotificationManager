@@ -12,7 +12,7 @@ package com.dynamictecnologies.notificationmanager.service.strategy
  * - Requiere desactivación de ahorro de batería
  * - Intervalos de verificación más cortos
  */
-class XiaomiServiceStrategy : BackgroundServiceStrategy {
+class XiaomiServiceStrategy : BaseServiceStrategy() {
     
     override fun getOptimalCheckInterval(): Long {
         // Verificar cada 8 minutos (más frecuente debido a agresividad de MIUI)
@@ -65,9 +65,6 @@ class XiaomiServiceStrategy : BackgroundServiceStrategy {
         return "Xiaomi (MIUI) Strategy"
     }
     
-    private fun getAppName(): String {
-        return "Gestor de Notificaciones"
-    }
 }
 
 /**
@@ -76,7 +73,7 @@ class XiaomiServiceStrategy : BackgroundServiceStrategy {
  * Samsung tiene optimización de batería moderadamente agresiva.
  * OneUI incluye "Sleeping apps" y "Deep sleeping apps" que deben configurarse.
  */
-class SamsungServiceStrategy : BackgroundServiceStrategy {
+class SamsungServiceStrategy : BaseServiceStrategy() {
     
     override fun getOptimalCheckInterval(): Long {
         // Verificar cada 15 minutos
@@ -124,9 +121,6 @@ class SamsungServiceStrategy : BackgroundServiceStrategy {
         return "Samsung (OneUI) Strategy"
     }
     
-    private fun getAppName(): String {
-        return "Gestor de Notificaciones"
-    }
 }
 
 /**
@@ -135,7 +129,7 @@ class SamsungServiceStrategy : BackgroundServiceStrategy {
  * Huawei tiene gestión muy agresiva, especialmente en modelos sin Google Services.
  * Requiere configuración de "Protected Apps".
  */
-class HuaweiServiceStrategy : BackgroundServiceStrategy {
+class HuaweiServiceStrategy : BaseServiceStrategy() {
     
     override fun getOptimalCheckInterval(): Long {
         // Verificar cada 8 minutos (muy agresivo como Xiaomi)
@@ -184,9 +178,6 @@ class HuaweiServiceStrategy : BackgroundServiceStrategy {
         return "Huawei (EMUI) Strategy"
     }
     
-    private fun getAppName(): String {
-        return "Gestor de Notificaciones"
-    }
 }
 
 /**
@@ -194,7 +185,7 @@ class HuaweiServiceStrategy : BackgroundServiceStrategy {
  * 
  * OnePlus tiene optimización moderada, mejor que Xiaomi/Huawei.
  */
-class OnePlusServiceStrategy : BackgroundServiceStrategy {
+class OnePlusServiceStrategy : BaseServiceStrategy() {
     
     override fun getOptimalCheckInterval(): Long {
         return 15 * 60 * 1000L
@@ -239,9 +230,6 @@ class OnePlusServiceStrategy : BackgroundServiceStrategy {
         return "OnePlus (OxygenOS) Strategy"
     }
     
-    private fun getAppName(): String {
-        return "Gestor de Notificaciones"
-    }
 }
 
 /**
@@ -250,7 +238,7 @@ class OnePlusServiceStrategy : BackgroundServiceStrategy {
  * Incluye Google Pixel, Motorola, Nokia, Android One, etc.
  * Gestión de batería siguiendo directrices de Android stock.
  */
-class GenericServiceStrategy : BackgroundServiceStrategy {
+class GenericServiceStrategy : BaseServiceStrategy() {
     
     override fun getOptimalCheckInterval(): Long {
         // Verificar cada 20 minutos (menos frecuente, Android stock es más permisivo)
@@ -296,7 +284,4 @@ class GenericServiceStrategy : BackgroundServiceStrategy {
         return "Generic Android Strategy"
     }
     
-    private fun getAppName(): String {
-        return "Gestor de Notificaciones"
-    }
 }

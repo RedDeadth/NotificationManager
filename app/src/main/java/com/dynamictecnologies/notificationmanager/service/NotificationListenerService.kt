@@ -262,11 +262,11 @@ class NotificationListenerService : NotificationListenerService() {
         
         if (title.isNullOrEmpty() && text.isNullOrEmpty()) return false
         
-        // Verificar app seleccionada
-        val selectedApp = getSelectedApp() ?: return false
-        val appName = getAppName(sbn.packageName)
+        // ✅ FIX: Verificar app seleccionada solo por package name
+        val selectedPackageName = getSelectedApp() ?: return false
         
-        if (appName != selectedApp && sbn.packageName != selectedApp) return false
+        // Solo procesar si el packageName coincide exactamente con la app seleccionada
+        if (sbn.packageName != selectedPackageName) return false
         
         // Ignorar resumen
         if (text != null && isSummaryNotification(notification, text)) return false
