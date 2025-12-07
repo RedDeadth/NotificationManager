@@ -1,21 +1,75 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# ProGuard/R8 Rules para Producción
+# Mantiene nombres de clases críticas pero elimina logs
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# ========== LOG REMOVAL ==========
+# Elimina TODOS los logs de producción (excepto errores críticos)
+-assumenosideeffects class android.util.Log {
+    public static *** d(...);
+    public static *** v(...);
+    public static *** i(...);
+    public static *** w(...);
+}
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Mantener solo logs de error críticos
+# Los Log.e se mantienen para debugging en producción si es necesario
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# ========== CRASH REPORTING ==========
+# Mantener stack traces legibles para Firebase Crashlytics
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
+
+# ========== FIREBASE ==========
+-keep class com.google.firebase.** { *; }
+-keep class com.google.android.gms.** { *; }
+
+# ========== MQTT ==========
+-keep class org.eclipse.paho.** { *; }
+-dontwarn org.eclipse.paho.**
+
+# ========== ROOM ==========
+-keep class * extends androidx.room.RoomDatabase
+-keep @androidx.room.Entity class *
+-dontwarn androidx.room.paging.**
+
+# ========== KOTLIN ==========
+-keep class kotlin.** { *; }
+-keep class kotlin.Metadata { *; }
+-dontwarn kotlin.**
+-keepclassmembers class **$WhenMappings {
+    <fields>;
+}
+
+# ========== KOTLINX COROUTINES ==========
+-keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
+-keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
+-keepclassmembernames class kotlinx.** {
+    volatile <fields>;
+}
+
+# ========== COMPOSE ==========
+-keep class androidx.compose.** { *; }
+-dontwarn androidx.compose.**
+
+# ========== DATA CLASSES ==========
+# Mantener data classes para serialización
+-keep class com.dynamictecnologies.notificationmanager.data.model.** { *; }
+-keep class com.dynamictecnologies.notificationmanager.domain.entities.** { *; }
+
+# ========== VALIDATORS & PARSERS ==========
+# Mantener para reflection si es necesario
+-keep class com.dynamictecnologies.notificationmanager.data.validator.** { *; }
+-keep class com.dynamictecnologies.notificationmanager.data.parser.** { *; }
+
+# ========== GENERAL ==========
+-keepattributes *Annotation*
+-keepattributes Signature
+-keepattributes Exception
+
+# Optimizaciones agresivas
+-optimizationpasses 5
+-dontusemixedcaseclassnames
+-dontskipnonpubliclibraryclasses
+-verbose
+
+# Remover código no usado
+-dontwarn **
