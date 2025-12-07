@@ -7,7 +7,6 @@ import android.util.Log
 import com.dynamictecnologies.notificationmanager.data.db.NotificationDao
 import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
 import com.dynamictecnologies.notificationmanager.data.model.SyncStatus
-import com.dynamictecnologies.notificationmanager.service.FirebaseService
 import com.dynamictecnologies.notificationmanager.service.NotificationListenerService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,7 +24,6 @@ import kotlinx.coroutines.launch
 
 class NotificationRepository(
     private val notificationDao: NotificationDao,
-    private val firebaseService: FirebaseService,
     private val context: Context
 ) {
     private val TAG = "NotificationRepo"
@@ -121,17 +119,19 @@ class NotificationRepository(
 
                 if (isNetworkAvailable()) {
                     try {
-                        Log.d(TAG, "Obteniendo notificaciones remotas de Firebase...")
-                        // Obtenemos todas las notificaciones y filtramos por appName localmente
+                        Log.d(TAG, "Firebase sync temporarily disabled - awaiting migration to FirebaseNotificationRepositoryImpl")
+                        // TODO: Replace with FirebaseNotificationRepositoryImpl
+                        /*
                         val remoteNotifications = firebaseService.getNotifications()
                             .filter { it.appName == appName || it.appName == packageName }
-
                         Log.d(TAG, "Recibidas ${remoteNotifications.size} notificaciones remotas filtradas para $appName")
                         processRemoteNotifications(remoteNotifications)
+                        */
                     } catch (e: Exception) {
                         Log.e(TAG, "Error en sincronización inicial: ${e.message}", e)
                     }
-                } else {
+                }
+ else {
                     Log.d(TAG, "Red no disponible. Usando solo datos locales.")
                 }
             }

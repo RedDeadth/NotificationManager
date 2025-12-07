@@ -122,10 +122,8 @@ class NotificationListenerService : NotificationListenerService() {
         try {
             // Core
             val database = NotificationDatabase.getDatabase(applicationContext)
-            val firebaseService = FirebaseService(applicationContext)
             repository = NotificationRepository(
                 notificationDao = database.notificationDao(),
-                firebaseService = firebaseService,
                 context = applicationContext
             )
             
@@ -284,6 +282,11 @@ class NotificationListenerService : NotificationListenerService() {
      */
     private fun processNotification(sbn: StatusBarNotification) {
         serviceScope.launch(Dispatchers.IO) {
+            if (!::repository.isInitialized) {
+                Log.w(TAG, "Repository no inicializado. Reintentando inicialización...")
+                initializeComponents()
+            }
+            
             try {
                 val extras = sbn.notification.extras
                 val title = extras.getString(Notification.EXTRA_TITLE) ?: ""
@@ -298,9 +301,12 @@ class NotificationListenerService : NotificationListenerService() {
                 )
                 
                 repository.insertNotification(notificationInfo)
-                Log.d(TAG,"✓ Notificación guardada: $title")
+                Log.d(TAG, "✅ Notificación procesada y guardada: ${notificationInfo.title}")
+                
+                // TODO: Firebase sync moved to repository layer
+                // Migration to FirebaseNotificationRepositoryImpl pending
             } catch (e: Exception) {
-                Log.e(TAG, "Error guardando notificación: ${e.message}", e)
+                Log.e(TAG, "❌ Error procesando notificación: ${e.message}", e)
             }
         }
     }

@@ -17,7 +17,6 @@ import androidx.navigation.compose.rememberNavController
 import com.dynamictecnologies.notificationmanager.data.db.NotificationDatabase
 import com.dynamictecnologies.notificationmanager.data.repository.NotificationRepository
 import com.dynamictecnologies.notificationmanager.presentation.core.navigation.AppNavigation
-import com.dynamictecnologies.notificationmanager.service.FirebaseService
 import com.dynamictecnologies.notificationmanager.service.NotificationForegroundService
 import com.dynamictecnologies.notificationmanager.service.NotificationListenerService
 
@@ -267,10 +266,8 @@ class MainActivity : ComponentActivity() {
 
     private fun createRepository(): NotificationRepository {
         val database = NotificationDatabase.getDatabase(applicationContext)
-        val firebaseService = FirebaseService(applicationContext)
         return NotificationRepository(
             notificationDao = database.notificationDao(),
-            firebaseService = firebaseService,
             context = applicationContext
         )
     }
