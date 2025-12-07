@@ -49,7 +49,7 @@ fun AppListScreen(
     val devices by deviceViewModel.devices.collectAsState()
     val isSearching by deviceViewModel.isSearching.collectAsState()
     val showDeviceDialog by deviceViewModel.showDeviceDialog.collectAsState()
-    val connectedDevice by deviceViewModel.connectedDevice.collectAsState()
+    val connectedDevice by deviceViewModel.connectedDevice.collectAsState(initial = null)
     val scanCompleted by deviceViewModel.scanCompleted.collectAsState()
     val userProfile by userViewModel.userProfile.collectAsState()
     val userId = userProfile?.uid
@@ -76,12 +76,6 @@ fun AppListScreen(
         }
     }
 
-    // Verificar conexión cuando cambia el estado del usuario
-    LaunchedEffect(userProfile) {
-        userProfile?.uid?.let { uid ->
-            deviceViewModel.setCurrentUserId(uid)
-        }
-    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }

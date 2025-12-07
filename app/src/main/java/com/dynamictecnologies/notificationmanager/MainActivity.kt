@@ -26,6 +26,7 @@ import com.dynamictecnologies.notificationmanager.util.PermissionHelper
 import com.dynamictecnologies.notificationmanager.viewmodel.*
 import com.dynamictecnologies.notificationmanager.di.AuthModule
 import com.dynamictecnologies.notificationmanager.di.AppModule
+import com.dynamictecnologies.notificationmanager.di.DeviceModule
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
@@ -72,7 +73,16 @@ class MainActivity : ComponentActivity() {
     }
 
     private val deviceViewModel: DeviceViewModel by viewModels {
-        DeviceViewModelFactory(applicationContext)
+        DeviceViewModelFactory(
+            connectToMqttUseCase = DeviceModule.provideConnectToMqttUseCase(applicationContext),
+            disconnectFromMqttUseCase = DeviceModule.provideDisconnectFromMqttUseCase(applicationContext),
+            searchDevicesUseCase = DeviceModule.provideSearchDevicesUseCase(applicationContext),
+            sendNotificationUseCase = DeviceModule.provideSendNotificationViaMqttUseCase(applicationContext),
+            connectToDeviceUseCase = DeviceModule.provideConnectToDeviceUseCase(),
+            unlinkDeviceUseCase = DeviceModule.provideUnlinkDeviceUseCase(),
+            observeDeviceUseCase = DeviceModule.provideObserveDeviceConnectionUseCase(),
+            getUsernameUseCase = DeviceModule.provideGetUsernameByUidUseCase()
+        )
     }
 
     private val shareViewModel: ShareViewModel by viewModels {
