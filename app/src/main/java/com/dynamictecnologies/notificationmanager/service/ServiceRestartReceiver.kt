@@ -25,6 +25,20 @@ class ServiceRestartReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         Log.d(TAG, "🔄 Reiniciando servicios desde AlarmManager...")
         
+        // CRÍTICO: Verificar si el usuario eligió "Entendido" (DISABLED state)
+        val currentState = ServiceStateManager.getCurrentState(context)
+        
+        if (currentState == ServiceStateManager.ServiceState.DISABLED) {
+            Log.d(TAG, "❌ Estado DISABLED - Usuario no quiere el servicio. No reiniciar.")
+            return
+        }
+        
+        // Si estado no es RUNNING, tampoco reiniciar
+        if (currentState != ServiceStateManager.ServiceState.RUNNING) {
+            Log.d(TAG, "Estado: $currentState - No reiniciar automáticamente")
+            return
+        }
+        
         try {
             // Reiniciar NotificationForegroundService
             val foregroundIntent = Intent(context, NotificationForegroundService::class.java)

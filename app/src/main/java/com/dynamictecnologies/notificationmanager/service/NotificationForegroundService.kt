@@ -69,6 +69,9 @@ class NotificationForegroundService : Service() {
         super.onCreate()
         Log.d(TAG, "Servicio en primer plano creado")
         
+        // Establecer estado como RUNNING
+        ServiceStateManager.setState(this, ServiceStateManager.ServiceState.RUNNING)
+        
         // Adquirir wake lock parcial para mantener servicio activo
         try {
             val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
@@ -82,14 +85,16 @@ class NotificationForegroundService : Service() {
             Log.e(TAG, "Error adquiriendo wake lock: ${e.message}")
         }
         
-        // Crear canal de notificación para Android 8.0+
-        createNotificationChannel()
+        // Mostrar notificación dinámica de RUNNING
+        val notification = ServiceNotificationManager(this).showRunningNotification()
         
-        // Iniciar servicio en primer plano
-        startForeground(FOREGROUND_SERVICE_ID, createNotification())
+        // Iniciar servicio en primer plano con la notificación dinámica
+        startForeground(ServiceNotificationManager.NOTIFICATION_ID_RUNNING, notification)
         
         // Iniciar temporizador para verificaciones programadas
         startPeriodicChecks()
+        
+        Log.d(TAG, "📱 Notificación RUNNING mostrada con botón DETENER")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -495,7 +500,31 @@ class NotificationForegroundService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        Log.w(TAG, "⚠️ Servicio en primer plano destruido - Iniciando recuperación...")
+        Log.w(TAG, "⚠️ Servicio en primer plano destruido")
+        
+        // Verificar estado actual
+        val currentState = ServiceStateManager.getCurrentState(this)
+        
+        // Si el estado es RUNNING, significa que murió inesperadamente (no por usuario)
+        if (currentState == ServiceStateManager.ServiceState.RUNNING) {
+            Log.w(TAG, "Servicio murió inesperadamente (camera, memory, etc)")
+            
+            // Solo mostrar notificación de STOPPED si no se ha mostrado ya
+            if (ServiceStateManager.canShowStoppedNotification(this)) {
+                ServiceNotificationManager(this).showStoppedNotification()
+                ServiceStateManager.markStoppedNotificationShown(this)
+                ServiceStateManager.setState(this, ServiceStateManager.ServiceState.STOPPED)
+                Log.d(TAG, "📱 Notificación STOPPED mostrada con opciones Reiniciar/Entendido")
+            } else {
+                Log.d(TAG, "Notificación STOPPED ya fue mostrada en esta sesión")
+            }
+            
+            // Intentar reinicio automático (solo si no es DISABLED)
+            tryAutomaticRestart()
+        } else {
+            Log.d(TAG, "Servicio detenido intencionalmente (estado: $currentState)")
+            // Si estado es STOPPED o DISABLED, no hacer nada más
+        }
         
         // Liberar wake lock
         try {
@@ -512,6 +541,14 @@ class NotificationForegroundService : Service() {
         // Detener temporizador de verificación
         checkServiceTimer?.cancel()
         checkServiceTimer = null
+    }
+    
+    private fun tryAutomaticRestart() {
+        // Solo reiniciar automáticamente si el estado es RUNNING
+        if (ServiceStateManager.getCurrentState(this) != ServiceStateManager.ServiceState.RUNNING) {
+            Log.d(TAG, "No reiniciar automáticamente - Usuario no quiere el servicio")
+            return
+        }
         
         // MÉTODO 1: Reinicio directo inmediato
         try {
@@ -527,7 +564,7 @@ class NotificationForegroundService : Service() {
             Log.e(TAG, "Error en reinicio directo: ${e.message}")
         }
         
-        // MÉTODO 2: AlarmManager como backup (más confiable)
+        // MÉTODO 2: AlarmManager como backup
         try {
             val alarmManager = getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
             val restartIntent = Intent(applicationContext, ServiceRestartReceiver::class.java)
@@ -538,7 +575,6 @@ class NotificationForegroundService : Service() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             
-            // Reiniciar en 5 segundos
             alarmManager.setExactAndAllowWhileIdle(
                 android.app.AlarmManager.RTC_WAKEUP,
                 System.currentTimeMillis() + 5000,

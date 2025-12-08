@@ -105,5 +105,17 @@
             android:enabled="true"
             android:exported="false" />
 
+        <!-- Receiver para acciones de notificación (Detener/Reiniciar/Entendido) -->
+        <receiver
+            android:name=".service.ServiceActionReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.dynamictecnologies.ACTION_STOP" />
+                <action android:name="com.dynamictecnologies.ACTION_RESTART" />
+                <action android:name="com.dynamictecnologies.ACTION_ACKNOWLEDGE" />
+            </intent-filter>
+        </receiver>
+
     </application>
 </manifest>

@@ -19,6 +19,7 @@ import com.dynamictecnologies.notificationmanager.data.repository.NotificationRe
 import com.dynamictecnologies.notificationmanager.presentation.core.navigation.AppNavigation
 import com.dynamictecnologies.notificationmanager.service.NotificationForegroundService
 import com.dynamictecnologies.notificationmanager.service.NotificationListenerService
+import com.dynamictecnologies.notificationmanager.service.ServiceStateManager
 
 import com.dynamictecnologies.notificationmanager.presentation.core.theme.NotificationManagerTheme
 import com.dynamictecnologies.notificationmanager.util.PermissionHelper
@@ -110,7 +111,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
+        
+        // IMPORTANTE: Resetear estado del servicio cuando usuario abre la app
+        ServiceStateManager.resetOnAppOpen(this)
+        
         // Registrar el receiver para permisos
         registerPermissionReceiver()
 
