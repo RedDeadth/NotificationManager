@@ -11,6 +11,7 @@ import android.os.Looper
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
@@ -42,6 +43,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
+import androidx.appcompat.app.AlertDialog
 import com.dynamictecnologies.notificationmanager.domain.repositories.AuthRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -88,6 +93,21 @@ class MainActivity : ComponentActivity() {
     private val shareViewModel: ShareViewModel by viewModels {
         ShareViewModelFactory()
     }
+    
+    // Permission launcher para POST_NOTIFICATIONS (Android 13+)
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            Log.d("MainActivity", "\u2705 Permiso POST_NOTIFICATIONS otorgado")
+            // Iniciar servicio después de obtener permiso
+            startNotificationService()
+        } else {
+            Log.w("MainActivity", "\u26a0\ufe0f Permiso POST_NOTIFICATIONS denegado")
+            // Mostrar diálogo explicativo
+            showNotificationPermissionRationale()
+        }
+    }
 
     // BroadcastReceiver para manejar solicitudes de permisos
     private val permissionBroadcastReceiver = object : BroadcastReceiver() {
@@ -119,7 +139,9 @@ class MainActivity : ComponentActivity() {
         registerPermissionReceiver()
 
         initializeFirebase()
-        startNotificationService()
+        
+        // Pedir permiso POST_NOTIFICATIONS antes de iniciar servicio (Android 13+)
+        requestNotificationPermissionAndStartService()
 
         setContent {
             NotificationManagerTheme {
@@ -149,6 +171,59 @@ class MainActivity : ComponentActivity() {
         checkPermissionsOnResume()
     }
 
+    
+    /**
+     * Pide permiso de notificaciones POST_NOTIFICATIONS (Android 13+) e inicia servicio
+     */
+    private fun requestNotificationPermissionAndStartService() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            when {
+                ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED -> {
+                    // Permiso ya otorgado
+                    Log.d("MainActivity", "✅ POST_NOTIFICATIONS ya otorgado")
+                    startNotificationService()
+                }
+                shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS) -> {
+                    // Mostrar explicación antes de pedir permiso
+                    showNotificationPermissionRationale()
+                }
+                else -> {
+                    // Pedir permiso directamente
+                    Log.d("MainActivity", "📱 Pidiendo permiso POST_NOTIFICATIONS")
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+        } else {
+            // Android < 13, no necesita permiso POST_NOTIFICATIONS
+            startNotificationService()
+        }
+    }
+    
+    /**
+     * Muestra explicación de por qué necesitamos el permiso de notificaciones
+     */
+    private fun showNotificationPermissionRationale() {
+        runOnUiThread {
+            AlertDialog.Builder(this)
+                .setTitle("Permiso de Notificaciones")
+                .setMessage("Esta app necesita permiso para mostrar notificaciones persistentes que te informan cuando el servicio está activo.\n\n¿Deseas otorgar el permiso?")
+                .setPositiveButton("Permitir") { dialog: android.content.DialogInterface, _: Int ->
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                    dialog.dismiss()
+                }
+                .setNegativeButton("Ahora no") { dialog: android.content.DialogInterface, _: Int ->
+                    dialog.dismiss()
+                    Log.w("MainActivity", "Usuario rechazó permiso de notificaciones")
+                }
+                .show()
+        }
+    }
+    
     override fun onDestroy() {
         super.onDestroy()
         // Desregistrar el receiver
