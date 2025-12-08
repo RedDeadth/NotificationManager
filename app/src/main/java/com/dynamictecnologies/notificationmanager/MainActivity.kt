@@ -249,7 +249,7 @@ class MainActivity : ComponentActivity() {
             registerReceiver(
                 permissionBroadcastReceiver,
                 filter,
-                RECEIVER_NOT_EXPORTED  // ← REQUERIDO EN ANDROID 13+
+                Context.RECEIVER_NOT_EXPORTED  // ← REQUERIDO EN ANDROID 13+
             )
         } else {
             registerReceiver(permissionBroadcastReceiver, filter)
