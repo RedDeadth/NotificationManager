@@ -46,7 +46,7 @@ import androidx.compose.ui.Modifier
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
-import androidx.appcompat.app.AlertDialog
+import android.app.AlertDialog
 import com.dynamictecnologies.notificationmanager.domain.repositories.AuthRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
