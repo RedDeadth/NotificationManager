@@ -4,11 +4,11 @@ import android.content.Context
 import android.os.Build
 import android.os.PowerManager
 import androidx.test.core.app.ApplicationProvider
-import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
@@ -26,7 +26,7 @@ import org.robolectric.annotation.Config
  * - AlarmManager restart funciona
  * - Notificaciones de foreground service
  */
-@RunWith(AndroidJUnit4::class)
+@RunWith(RobolectricTestRunner::class)
 class OEMResilienceTest {
     
     private lateinit var context: Context
@@ -47,7 +47,7 @@ class OEMResilienceTest {
      * MIUI es conocido por matar servicios agresivamente.
      */
     @Test
-    @Config(sdk = [Build.VERSION_CODES.S], manufacturer = "Xiaomi")
+    @Config(sdk = [Build.VERSION_CODES.S])
     fun test_01_xiaomiDeviceSupport() {
         // Verificar que estado funciona en Xiaomi
         ServiceStateManager.setState(context, ServiceStateManager.ServiceState.RUNNING)
@@ -71,7 +71,7 @@ class OEMResilienceTest {
      * Samsung tiene optimización de batería agresiva.
      */
     @Test
-    @Config(sdk = [Build.VERSION_CODES.S], manufacturer = "Samsung")
+    @Config(sdk = [Build.VERSION_CODES.S])
     fun test_02_samsungDeviceSupport() {
         ServiceStateManager.setState(context, ServiceStateManager.ServiceState.RUNNING)
         
@@ -91,7 +91,7 @@ class OEMResilienceTest {
      * Simula dispositivo Huawei con EMUI (sin Google Play Services).
      */
     @Test
-    @Config(sdk = [Build.VERSION_CODES.P], manufacturer = "Huawei")
+    @Config(sdk = [Build.VERSION_CODES.P])
     fun test_03_huaweiDeviceSupport() {
         ServiceStateManager.setState(context, ServiceStateManager.ServiceState.RUNNING)
         
@@ -112,7 +112,7 @@ class OEMResilienceTest {
      * OnePlus tiene RAM management agresivo.
      */
     @Test
-    @Config(sdk = [Build.VERSION_CODES.S], manufacturer = "OnePlus")
+    @Config(sdk = [Build.VERSION_CODES.S])
     fun test_04_onePlusDeviceSupport() {
         ServiceStateManager.setState(context, ServiceStateManager.ServiceState.RUNNING)
         
@@ -132,7 +132,7 @@ class OEMResilienceTest {
      * Simula Stock Android (Google Pixel).
      */
     @Test
-    @Config(sdk = [Build.VERSION_CODES.S], manufacturer = "Google")
+    @Config(sdk = [Build.VERSION_CODES.S])
     fun test_05_stockAndroidSupport() {
         ServiceStateManager.setState(context, ServiceStateManager.ServiceState.RUNNING)
         

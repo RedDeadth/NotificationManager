@@ -3,12 +3,12 @@ package com.dynamictecnologies.notificationmanager.service
 import android.content.Context
 import android.content.Intent
 import androidx.test.core.app.ApplicationProvider
-import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
 /**
  * Tests unitarios para ServiceActionReceiver.
@@ -18,7 +18,7 @@ import org.junit.runner.RunWith
  * - Acción RESTART: Estado → RUNNING, contador reset
  * - Acción ACKNOWLEDGE: Estado → DISABLED, todo detenido
  */
-@RunWith(AndroidJUnit4::class)
+@RunWith(RobolectricTestRunner::class)
 class ServiceActionReceiverTest {
     
     private lateinit var context: Context

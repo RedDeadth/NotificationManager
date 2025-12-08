@@ -4,11 +4,11 @@ import android.app.Notification
 import android.app.NotificationManager
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
-import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
 /**
  * Tests unitarios para ServiceNotificationManager.
@@ -19,7 +19,7 @@ import org.junit.runner.RunWith
  * - Notificación STOPPED con botones Reiniciar/Entendido
  * - Ocultamiento de notificaciones
  */
-@RunWith(AndroidJUnit4::class)
+@RunWith(RobolectricTestRunner::class)
 class ServiceNotificationManagerTest {
     
     private lateinit var context: Context
