@@ -75,6 +75,10 @@ class NotificationListenerService : NotificationListenerService() {
     private lateinit var repository: NotificationRepository
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     
+    // MQTT Components (nuevo flujo simplificado)
+    private lateinit var sendNotificationUseCase: com.dynamictecnologies.notificationmanager.domain.usecases.device.SendNotificationToDeviceUseCase
+    private lateinit var devicePairingRepository: com.dynamictecnologies.notificationmanager.domain.repositories.DevicePairingRepository
+    
     // OEM-specific components
     private lateinit var deviceDetector: DeviceManufacturerDetector
     private lateinit var serviceStrategy: BackgroundServiceStrategy
@@ -126,6 +130,13 @@ class NotificationListenerService : NotificationListenerService() {
                 notificationDao = database.notificationDao(),
                 context = applicationContext
             )
+            
+            // MQTT Components (nuevo flujo simplificado)
+            val devicePairingStack = com.dynamictecnologies.notificationmanager.di.BluetoothMqttModule
+                .provideDevicePairingStack(applicationContext)
+            
+            sendNotificationUseCase = devicePairingStack.sendNotificationUseCase
+            devicePairingRepository = devicePairingStack.pairingRepository
             
             // OEM detection
             deviceDetector = DeviceManufacturerDetector()
@@ -300,11 +311,23 @@ class NotificationListenerService : NotificationListenerService() {
                     timestamp = Date(sbn.postTime)
                 )
                 
+                // Guardar en base de datos local
                 repository.insertNotification(notificationInfo)
-                Log.d(TAG, "✅ Notificación procesada y guardada: ${notificationInfo.title}")
+                Log.d(TAG, "✅ Notificación guardada localmente: ${notificationInfo.title}")
                 
-                // TODO: Firebase sync moved to repository layer
-                // Migration to FirebaseNotificationRepositoryImpl pending
+                // Enviar a ESP32 vinculado (nuevo flujo simplificado)
+                if (::sendNotificationUseCase.isInitialized && ::devicePairingRepository.isInitialized) {
+                    if (devicePairingRepository.hasPairedDevice()) {
+                        sendNotificationUseCase(notificationInfo).onSuccess {
+                            Log.d(TAG, "📡 Notificación enviada a ESP32 via MQTT")
+                        }.onFailure { error ->
+                            Log.w(TAG, "No se pudo enviar a ESP32: ${error.message}")
+                        }
+                    } else {
+                        Log.d(TAG, "Sin dispositivo ESP32 vinculado, notificación no enviada")
+                    }
+                }
+                
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Error procesando notificación: ${e.message}", e)
             }

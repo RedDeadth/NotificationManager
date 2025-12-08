@@ -18,7 +18,21 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
+        
+        // Leer credenciales MQTT de local.properties
+        val localProperties = java.util.Properties()
+        val localPropertiesFile = rootProject.file("local.properties")
+        if (localPropertiesFile.exists()) {
+            localPropertiesFile.inputStream().use { localProperties.load(it) }
+        }
+        
+        // BuildConfig fields para credenciales MQTT
+        buildConfigField("String", "MQTT_BROKER", 
+            "\"${localProperties.getProperty("mqtt.broker", "")}\"")
+        buildConfigField("String", "MQTT_USERNAME", 
+            "\"${localProperties.getProperty("mqtt.username", "")}\"")
+        buildConfigField("String", "MQTT_PASSWORD", 
+            "\"${localProperties.getProperty("mqtt.password", "")}\"")
     }
 
     buildTypes {
@@ -40,6 +54,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true  // Habilitar BuildConfig
     }
 
     // Configuración necesaria para MQTT Paho

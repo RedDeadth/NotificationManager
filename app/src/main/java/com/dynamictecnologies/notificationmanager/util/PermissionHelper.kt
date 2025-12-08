@@ -1,10 +1,15 @@
+```kotlin
 package com.dynamictecnologies.notificationmanager.util
 
+import android.Manifest
 import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.provider.Settings
 import android.util.Log
+import androidx.core.content.ContextCompat
 import com.dynamictecnologies.notificationmanager.service.NotificationListenerService
 
 object PermissionHelper {
@@ -15,6 +20,63 @@ object PermissionHelper {
      */
     fun hasNotificationListenerPermission(context: Context): Boolean {
         return NotificationListenerService.isNotificationListenerEnabled(context)
+    }
+    
+    /**
+     * Verifica si los permisos de Bluetooth están otorgados
+     */
+    fun hasBluetoothPermissions(context: Context): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // Android 12+ requiere BLUETOOTH_SCAN y BLUETOOTH_CONNECT
+            hasPermission(context, Manifest.permission.BLUETOOTH_SCAN) &&
+            hasPermission(context, Manifest.permission.BLUETOOTH_CONNECT)
+        } else {
+            // Android < 12 requiere BLUETOOTH y BLUETOOTH_ADMIN
+            hasPermission(context, Manifest.permission.BLUETOOTH) &&
+            hasPermission(context, Manifest.permission.BLUETOOTH_ADMIN)
+        }
+    }
+    
+    /**
+     * Verifica si el permiso de notificaciones está otorgado (Android 13+)
+     */
+    fun hasPostNotificationsPermission(context: Context): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            hasPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            true  // No requerido en versiones anteriores
+        }
+    }
+    
+    /**
+     * Obtiene lista de permisos Bluetooth requeridos según versión de Android
+     */
+    fun getRequiredBluetoothPermissions(): Array<String> {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            arrayOf(
+                Manifest.permission.BLUETOOTH_SCAN,
+                Manifest.permission.BLUETOOTH_CONNECT
+            )
+        } else {
+            arrayOf(
+                Manifest.permission.BLUETOOTH,
+                Manifest.permission.BLUETOOTH_ADMIN
+            )
+        }
+    }
+    
+    /**
+     * Verifica si todos los permisos requeridos están otorgados
+     */
+    fun hasAllRequiredPermissions(context: Context): Boolean {
+        return hasBluetoothPermissions(context) && hasPostNotificationsPermission(context)
+    }
+    
+    /**
+     * Helper privado para verificar un permiso específico
+     */
+    private fun hasPermission(context: Context, permission: String): Boolean {
+        return ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
     }
 
     /**
@@ -147,3 +209,4 @@ object PermissionHelper {
         return Intent("com.dynamictecnologies.notificationmanager.NEED_PERMISSIONS")
     }
 }
+```

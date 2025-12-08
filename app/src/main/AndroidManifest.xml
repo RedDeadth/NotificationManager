@@ -18,6 +18,18 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- Agregar este permiso para Android 14+ -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    
+    <!-- Permisos Bluetooth para Android 12+ (API 31+) -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    
+    <!-- Permisos Bluetooth para Android < 12 (API 30 y menores) -->
+    <uses-permission android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+
 
     <application
         android:name=".util.NotificationManagerApp"
