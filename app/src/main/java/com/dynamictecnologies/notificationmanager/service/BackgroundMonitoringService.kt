@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.dynamictecnologies.notificationmanager.MainActivity
 import com.dynamictecnologies.notificationmanager.R
@@ -88,7 +89,7 @@ class BackgroundMonitoringService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val name = "Monitoreo en Segundo Plano"
             val descriptionText = "Mantiene la app funcionando para capturar notificaciones"
-            val importance = NotificationManager.IMPORTANCE_LOW // No molesta al usuario
+            val importance = NotificationManager.IMPORTANCE_DEFAULT // DEFAULT para resistir cámara
             
             val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
                 description = descriptionText
@@ -152,7 +153,40 @@ class BackgroundMonitoringService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         
-        // Aquí podrías mostrar ServiceRecoveryDialog si fue detenido inesperadamente
-        // Pero solo si NO fue el usuario quien lo detuvo
+        Log.w(TAG, "⚠️ BackgroundMonitoringService destruido - Iniciando recuperación...")
+        
+        // MÉTODO 1: Reinicio directo
+        try {
+            val intent = Intent(applicationContext, BackgroundMonitoringService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                applicationContext.startForegroundService(intent)
+            } else {
+                applicationContext.startService(intent)
+            }
+            Log.d(TAG, "Reinicio directo iniciado")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error en reinicio directo: ${e.message}")
+        }
+        
+        // MÉTODO 2: AlarmManager backup
+        try {
+            val alarmManager = getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+            val restartIntent = Intent(applicationContext, ServiceRestartReceiver::class.java)
+            val pendingIntent = PendingIntent.getBroadcast(
+                applicationContext,
+                1002,
+                restartIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            
+            alarmManager.setExactAndAllowWhileIdle(
+                android.app.AlarmManager.RTC_WAKEUP,
+                System.currentTimeMillis() + 5000,
+                pendingIntent
+            )
+            Log.d(TAG, "AlarmManager backup programado")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error programando AlarmManager: ${e.message}")
+        }
     }
 }

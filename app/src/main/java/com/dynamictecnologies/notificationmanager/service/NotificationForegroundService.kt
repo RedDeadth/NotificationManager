@@ -11,6 +11,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -31,6 +32,7 @@ class NotificationForegroundService : Service() {
     private val NOTIFICATION_ID = 1
     
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var wakeLock: PowerManager.WakeLock? = null
     private val WATCHDOG_INTERVAL = 15 * 60 * 1000L // Verificar cada 15 minutos
     
     // Exponential backoff para reintentos (en minutos)
@@ -66,6 +68,19 @@ class NotificationForegroundService : Service() {
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "Servicio en primer plano creado")
+        
+        // Adquirir wake lock parcial para mantener servicio activo
+        try {
+            val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+            wakeLock = powerManager.newWakeLock(
+                PowerManager.PARTIAL_WAKE_LOCK,
+                "NotificationManager::ServiceWakeLock"
+            )
+            wakeLock?.acquire(10 * 60 * 60 * 1000L) // 10 horas con timeout
+            Log.d(TAG, "✅ Wake lock adquirido")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error adquiriendo wake lock: ${e.message}")
+        }
         
         // Crear canal de notificación para Android 8.0+
         createNotificationChannel()
@@ -448,7 +463,7 @@ class NotificationForegroundService : Service() {
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_LOW
+                NotificationManager.IMPORTANCE_DEFAULT // Cambiado de LOW a DEFAULT para resistir cámara
             ).apply {
                 description = "Canal para el servicio de monitoreo de notificaciones"
                 setShowBadge(false)
@@ -480,19 +495,58 @@ class NotificationForegroundService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        Log.d(TAG, "Servicio en primer plano destruido")
+        Log.w(TAG, "⚠️ Servicio en primer plano destruido - Iniciando recuperación...")
+        
+        // Liberar wake lock
+        try {
+            wakeLock?.let {
+                if (it.isHeld) {
+                    it.release()
+                    Log.d(TAG, "Wake lock liberado")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error liberando wake lock: ${e.message}")
+        }
         
         // Detener temporizador de verificación
         checkServiceTimer?.cancel()
         checkServiceTimer = null
         
-        // Intentar reiniciar el servicio si fue terminado por el sistema
-        val intent = Intent(applicationContext, NotificationForegroundService::class.java)
-        intent.action = ACTION_START_FOREGROUND_SERVICE
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            applicationContext.startForegroundService(intent)
-        } else {
-            applicationContext.startService(intent)
+        // MÉTODO 1: Reinicio directo inmediato
+        try {
+            val intent = Intent(applicationContext, NotificationForegroundService::class.java)
+            intent.action = ACTION_START_FOREGROUND_SERVICE
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                applicationContext.startForegroundService(intent)
+            } else {
+                applicationContext.startService(intent)
+            }
+            Log.d(TAG, "Reinicio directo iniciado")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error en reinicio directo: ${e.message}")
+        }
+        
+        // MÉTODO 2: AlarmManager como backup (más confiable)
+        try {
+            val alarmManager = getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+            val restartIntent = Intent(applicationContext, ServiceRestartReceiver::class.java)
+            val pendingIntent = PendingIntent.getBroadcast(
+                applicationContext,
+                1001,
+                restartIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            
+            // Reiniciar en 5 segundos
+            alarmManager.setExactAndAllowWhileIdle(
+                android.app.AlarmManager.RTC_WAKEUP,
+                System.currentTimeMillis() + 5000,
+                pendingIntent
+            )
+            Log.d(TAG, "AlarmManager backup programado para 5 segundos")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error programando AlarmManager: ${e.message}")
         }
     }
 

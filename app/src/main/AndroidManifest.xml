@@ -99,5 +99,11 @@
             </intent-filter>
         </receiver>
 
+        <!-- Receiver para reinicio de servicio (AlarmManager backup) -->
+        <receiver
+            android:name=".service.ServiceRestartReceiver"
+            android:enabled="true"
+            android:exported="false" />
+
     </application>
 </manifest>
