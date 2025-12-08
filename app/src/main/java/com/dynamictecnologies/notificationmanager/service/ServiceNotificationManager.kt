@@ -3,6 +3,7 @@ package com.dynamictecnologies.notificationmanager.service
 import android.app.*
 import android.content.Context
 import android.content.Intent
+    import android.graphics.Color
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.dynamictecnologies.notificationmanager.MainActivity
@@ -94,6 +95,8 @@ class ServiceNotificationManager(private val context: Context) {
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setOngoing(true) // No se puede swipear
             .setContentIntent(openPendingIntent)
+            .setColor(Color.parseColor("#06402B")) // Color verde oscuro personalizado para toda la notificación
+            .setColorized(true) // Hace que el color cubra toda la notificación
             .addAction(
                 R.drawable.ic_notification,
                 "🛑 DETENER",
@@ -140,6 +143,8 @@ class ServiceNotificationManager(private val context: Context) {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setOngoing(false) // Se puede swipear
             .setAutoCancel(false)
+            .setColor(Color.RED) // Color rojo para toda la notificación
+            .setColorized(true) // Hace que el color cubra toda la notificación
             .addAction(
                 R.drawable.ic_notification,
                 "🔄 Reiniciar",
