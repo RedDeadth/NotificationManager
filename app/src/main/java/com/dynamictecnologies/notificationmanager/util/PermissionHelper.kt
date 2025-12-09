@@ -1,4 +1,3 @@
-```kotlin
 package com.dynamictecnologies.notificationmanager.util
 
 import android.Manifest
@@ -209,4 +208,3 @@ object PermissionHelper {
         return Intent("com.dynamictecnologies.notificationmanager.NEED_PERMISSIONS")
     }
 }
-```

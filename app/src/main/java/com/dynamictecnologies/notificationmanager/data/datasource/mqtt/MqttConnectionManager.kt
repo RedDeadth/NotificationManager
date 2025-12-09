@@ -1,6 +1,7 @@
 package com.dynamictecnologies.notificationmanager.data.datasource.mqtt
 
 import android.content.Context
+import com.dynamictecnologies.notificationmanager.BuildConfig
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,12 +20,13 @@ import javax.net.ssl.SSLSocketFactory
  * - SRP: Solo maneja conexión y desconexión
  * - OCP: Abierto para extensión (callbacks), cerrado para modificación
  * - Clean Architecture: Componente de data layer sin lógica de negocio
+ * - Security: Credenciales desde BuildConfig (configuradas en local.properties)
  */
 class MqttConnectionManager(
     private val context: Context,
-    private val brokerUrl: String = "ssl://b5c0bf2b.ala.us-east-1.emqxsl.com:8883",
-    private val username: String = "notificationmanager",
-    private val password: String = "and123..."
+    private val brokerUrl: String = BuildConfig.MQTT_BROKER,
+    private val username: String = BuildConfig.MQTT_USERNAME,
+    private val password: String = BuildConfig.MQTT_PASSWORD
 ) {
     companion object {
         private const val TAG = "MqttConnectionManager"
@@ -164,6 +166,7 @@ class MqttConnectionManager(
         try {
             mqttClient?.subscribe(topic, qos)
         } catch (e: Exception) {
+            android.util.Log.e(TAG, "Error subscribing to topic $topic: ${e.message}", e)
         }
     }
     

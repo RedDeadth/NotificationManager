@@ -1,29 +1,28 @@
 package com.dynamictecnologies.notificationmanager.domain.usecases.device
 
 import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
-import com.dynamictecnologies.notificationmanager.data.mqtt.MqttNotificationPublisher
-import com.dynamictecnologies.notificationmanager.data.dto.MqttNotificationDto
+import com.dynamictecnologies.notificationmanager.data.datasource.mqtt.MqttNotificationSender
 import com.dynamictecnologies.notificationmanager.domain.entities.NoDevicePairedException
 import com.dynamictecnologies.notificationmanager.domain.repositories.DevicePairingRepository
 import com.dynamictecnologies.notificationmanager.util.security.NotificationRateLimiter
 import com.dynamictecnologies.notificationmanager.util.security.RateLimitExceededException
 
 /**
- * Caso de uso para enviar notificación a dispositivo vinculado.
+ * Use Case para enviar notificación a dispositivo vinculado.
  * 
- * Incluye:
- * - Validación de dispositivo vinculado
- * - Rate limiting (10 notif/min)
- * - DTO para payload seguro
- * - Sanitización de inputs
+ * Flujo:
+ * 1. Verificar que haya dispositivo vinculado
+ * 2. Crear DTO con límites de tamaño
+ * 3. Publicar vía MQTT al topic del dispositivo
  * 
  * Principios aplicados:
  * - SRP: Solo envío de notificaciones
- * - Security: Rate limiting + input validation
+ * - Fail-fast: Validaciones tempranas
+ * - DTO Pattern: Datos sanitizados
  */
 class SendNotificationToDeviceUseCase(
     private val pairingRepository: DevicePairingRepository,
-    private val mqttPublisher: MqttNotificationPublisher
+    private val mqttSender: MqttNotificationSender
 ) {
     private val rateLimiter = NotificationRateLimiter(
         maxRequests = MAX_NOTIFICATIONS_PER_MINUTE,
@@ -45,15 +44,8 @@ class SendNotificationToDeviceUseCase(
         val topic = pairingRepository.getMqttTopic()
             ?: return Result.failure(NoDevicePairedException())
         
-        // 3. Convertir a DTO (con sanitización automática)
-        val dto = try {
-            MqttNotificationDto.fromNotificationInfo(notification)
-        } catch (e: IllegalArgumentException) {
-            return Result.failure(e)
-        }
-        
-        // 4. Publicar usando DTO payload
-        return mqttPublisher.publishDto(topic, dto)
+        // 3. Enviar directamente usando topic MQTT
+        return mqttSender.sendNotificationToTopic(topic, notification)
     }
     
     companion object {

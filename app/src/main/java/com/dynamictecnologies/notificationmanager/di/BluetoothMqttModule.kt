@@ -1,10 +1,14 @@
 package com.dynamictecnologies.notificationmanager.di
 
 import android.content.Context
-import com.dynamictecnologies.notificationmanager.BuildConfig
 import com.dynamictecnologies.notificationmanager.data.bluetooth.BluetoothDeviceScanner
-import com.dynamictecnologies.notificationmanager.data.mqtt.MqttConnectionManager
-import com.dynamictecnologies.notificationmanager.data.mqtt.MqttNotificationPublisher
+import com.dynamictecnologies.notificationmanager.data.datasource.mqtt.MqttConnectionManager
+import com.dynamictecnologies.notificationmanager.data.datasource.mqtt.MqttDeviceLinkManager
+import com.dynamictecnologies.notificationmanager.data.datasource.mqtt.MqttDeviceScanner
+import com.dynamictecnologies.notificationmanager.data.datasource.mqtt.MqttMessageHandler
+import com.dynamictecnologies.notificationmanager.data.datasource.mqtt.MqttNotificationSender
+import com.dynamictecnologies.notificationmanager.data.datasource.mqtt.MqttReconnectionStrategy
+import com.dynamictecnologies.notificationmanager.data.datasource.mqtt.MqttSubscriptionManager
 import com.dynamictecnologies.notificationmanager.data.repository.DevicePairingRepositoryImpl
 import com.dynamictecnologies.notificationmanager.domain.repositories.DevicePairingRepository
 import com.dynamictecnologies.notificationmanager.domain.usecases.device.PairDeviceWithTokenUseCase
@@ -13,17 +17,17 @@ import com.dynamictecnologies.notificationmanager.domain.usecases.device.SendNot
 import com.dynamictecnologies.notificationmanager.domain.usecases.device.UnpairDeviceUseCase
 
 /**
- * Módulo de inyección de dependencias para componentes Bluetooth y MQTT.
+ * Módulo de inyección de dependencias manual para componentes Bluetooth y MQTT.
  * 
  * Provee todas las dependencias necesarias para:
  * - Descubrimiento Bluetooth
  * - Vinculación de dispositivos
- * - Publicación MQTT
+ * - Comunicación MQTT
  * 
  * Principios aplicados:
  * - DIP: Centraliza creación de dependencias
  * - SRP: Solo provee dependencias de Bluetooth/MQTT
- * - Security: Lee credenciales de BuildConfig
+ * - Security: Credenciales desde BuildConfig
  */
 object BluetoothMqttModule {
     
@@ -39,21 +43,38 @@ object BluetoothMqttModule {
     // MQTT COMPONENTS
     // ========================================
     
-    /**
-     * Provee MqttConnectionManager con credenciales desde BuildConfig
-     */
-    fun provideMqttConnectionManager(): MqttConnectionManager {
-        return MqttConnectionManager(
-            brokerUrl = BuildConfig.MQTT_BROKER,
-            username = BuildConfig.MQTT_USERNAME,
-            password = BuildConfig.MQTT_PASSWORD
-        )
+    fun provideMqttConnectionManager(context: Context): MqttConnectionManager {
+        return MqttConnectionManager(context)
     }
     
-    fun provideMqttNotificationPublisher(
-        connectionManager: MqttConnectionManager
-    ): MqttNotificationPublisher {
-        return MqttNotificationPublisher(connectionManager)
+    fun provideMqttNotificationSender(connectionManager: MqttConnectionManager): MqttNotificationSender {
+        return MqttNotificationSender(connectionManager)
+    }
+    
+    fun provideMqttDeviceScanner(connectionManager: MqttConnectionManager): MqttDeviceScanner {
+        return MqttDeviceScanner(connectionManager)
+    }
+    
+    fun provideMqttMessageHandler(context: Context): MqttMessageHandler {
+        return MqttMessageHandler(context)
+    }
+    
+    fun provideMqttSubscriptionManager(connectionManager: MqttConnectionManager): MqttSubscriptionManager {
+        return MqttSubscriptionManager(connectionManager)
+    }
+    
+    fun provideMqttReconnectionStrategy(
+        connectionManager: MqttConnectionManager,
+        subscriptionManager: MqttSubscriptionManager
+    ): MqttReconnectionStrategy {
+        return MqttReconnectionStrategy(connectionManager, subscriptionManager)
+    }
+    
+    fun provideMqttDeviceLinkManager(
+        connectionManager: MqttConnectionManager,
+        subscriptionManager: MqttSubscriptionManager
+    ): MqttDeviceLinkManager {
+        return MqttDeviceLinkManager(connectionManager, subscriptionManager)
     }
     
     // ========================================
@@ -68,9 +89,7 @@ object BluetoothMqttModule {
     // USE CASES
     // ========================================
     
-    fun provideScanBluetoothDevicesUseCase(
-        bluetoothScanner: BluetoothDeviceScanner
-    ): ScanBluetoothDevicesUseCase {
+    fun provideScanBluetoothDevicesUseCase(bluetoothScanner: BluetoothDeviceScanner): ScanBluetoothDevicesUseCase {
         return ScanBluetoothDevicesUseCase(bluetoothScanner)
     }
     
@@ -83,9 +102,9 @@ object BluetoothMqttModule {
     
     fun provideSendNotificationToDeviceUseCase(
         pairingRepository: DevicePairingRepository,
-        mqttPublisher: MqttNotificationPublisher
+        mqttSender: MqttNotificationSender
     ): SendNotificationToDeviceUseCase {
-        return SendNotificationToDeviceUseCase(pairingRepository, mqttPublisher)
+        return SendNotificationToDeviceUseCase(pairingRepository, mqttSender)
     }
     
     fun provideUnpairDeviceUseCase(
@@ -94,37 +113,4 @@ object BluetoothMqttModule {
     ): UnpairDeviceUseCase {
         return UnpairDeviceUseCase(pairingRepository, mqttConnectionManager)
     }
-    
-    // ========================================
-    // CONVENIENCE: Full Stack Provider
-    // ========================================
-    
-    /**
-     * Provee todo el stack de dependencias listo para usar
-     */
-    fun provideDevicePairingStack(context: Context): DevicePairingStack {
-        val bluetoothScanner = provideBluetoothDeviceScanner(context)
-        val mqttConnectionManager = provideMqttConnectionManager()
-        val mqttPublisher = provideMqttNotificationPublisher(mqttConnectionManager)
-        val pairingRepository = provideDevicePairingRepository(context)
-        
-        return DevicePairingStack(
-            scanBluetoothDevicesUseCase = provideScanBluetoothDevicesUseCase(bluetoothScanner),
-            pairDeviceUseCase = providePairDeviceWithTokenUseCase(pairingRepository, mqttConnectionManager),
-            sendNotificationUseCase = provideSendNotificationToDeviceUseCase(pairingRepository, mqttPublisher),
-            unpairDeviceUseCase = provideUnpairDeviceUseCase(pairingRepository, mqttConnectionManager),
-            pairingRepository = pairingRepository
-        )
-    }
-    
-    /**
-     * Contenedor de todos los use cases relacionados con device pairing
-     */
-    data class DevicePairingStack(
-        val scanBluetoothDevicesUseCase: ScanBluetoothDevicesUseCase,
-        val pairDeviceUseCase: PairDeviceWithTokenUseCase,
-        val sendNotificationUseCase: SendNotificationToDeviceUseCase,
-        val unpairDeviceUseCase: UnpairDeviceUseCase,
-        val pairingRepository: DevicePairingRepository
-    )
 }

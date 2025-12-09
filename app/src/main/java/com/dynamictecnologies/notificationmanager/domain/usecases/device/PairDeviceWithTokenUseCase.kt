@@ -1,26 +1,24 @@
 package com.dynamictecnologies.notificationmanager.domain.usecases.device
 
-import com.dynamictecnologies.notificationmanager.data.mqtt.MqttConnectionManager
+import com.dynamictecnologies.notificationmanager.data.datasource.mqtt.MqttConnectionManager
 import com.dynamictecnologies.notificationmanager.domain.entities.DevicePairing
 import com.dynamictecnologies.notificationmanager.domain.entities.InvalidTokenException
 import com.dynamictecnologies.notificationmanager.domain.entities.TokenValidator
 import com.dynamictecnologies.notificationmanager.domain.repositories.DevicePairingRepository
 
 /**
- * Caso de uso para vincular dispositivo mediante token de 8 caracteres.
+ * Use Case para vincular un dispositivo ESP32 con token.
  * 
- * Proceso simplificado:
- * 1. Validar token
- * 2. Generar topic MQTT
- * 3. Guardar localmente
- * 4. Conectar al broker MQTT
- * 
- * Sin Firebase, sin userId, sin complejidad.
+ * Flujo:
+ * 1. Validar token (8 caracteres alfanuméricos)
+ * 2. Crear DevicePairing con topic derivado
+ * 3. Guardar en repository
+ * 4. Conectar MQTT al topic del dispositivo
  * 
  * Principios aplicados:
- * - SRP: Solo vinculación de dispositivo
- * - Clean Architecture: Lógica de negocio en dominio
- * - DIP: Depende de abstracciones
+ * - SRP: Solo vinculación de dispositivos
+ * - Input validation: Token validado antes de procesar
+ * - Clean Architecture: Domain layer, no dependencias Android
  */
 class PairDeviceWithTokenUseCase(
     private val pairingRepository: DevicePairingRepository,

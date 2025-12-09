@@ -6,7 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.dynamictecnologies.notificationmanager.data.bluetooth.BluetoothDeviceScanner
 import com.dynamictecnologies.notificationmanager.di.BluetoothMqttModule
 import com.dynamictecnologies.notificationmanager.domain.entities.DevicePairing
-import com.dynamictecnologies.notificationmanager.domain.useCases.device.*
+import com.dynamictecnologies.notificationmanager.domain.repositories.DevicePairingRepository
+import com.dynamictecnologies.notificationmanager.domain.usecases.device.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -14,7 +15,7 @@ import kotlinx.coroutines.launch
  * ViewModel para gestión de vinculación de dispositivos Bluetooth/MQTT.
  * 
  * Responsabilidades:
- * - Escaneo de dispositivos Bluetooth
+ * - ES caneo de dispositivos Bluetooth
  * - Vinculación con token
  * - Desvinculación
  * - Estado de UI
@@ -23,16 +24,19 @@ import kotlinx.coroutines.launch
  * - SRP: Solo gestión de pairing
  * - Reactive: StateFlow para UI reactiva
  * - Clean Architecture: Usa Use Cases del dominio
+ * - DI Manual: Usa BluetoothMqttModule para obtener dependencias
  */
 class DevicePairingViewModel(application: Application) : AndroidViewModel(application) {
     
-    private val devicePairingStack = BluetoothMqttModule.provideDevicePairingStack(application)
+    // Use Cases inicializados manualmente
+    private val bluetoothScanner = BluetoothMqttModule.provideBluetoothDeviceScanner(application)
+    private val mqttConnectionManager = BluetoothMqttModule.provideMqttConnectionManager(application)
+    private val mqttSender = BluetoothMqttModule.provideMqttNotificationSender(mqttConnectionManager)
+    private val pairingRepository = BluetoothMqttModule.provideDevicePairingRepository(application)
     
-    // Use Cases
-    private val scanBluetoothDevicesUseCase = devicePairingStack.scanBluetoothDevicesUseCase
-    private val pairDeviceUseCase = devicePairingStack.pairDeviceUseCase
-    private val unpairDeviceUseCase = devicePairingStack.unpairDeviceUseCase
-    private val pairingRepository = devicePairingStack.pairingRepository
+    private val scanBluetoothDevicesUseCase = BluetoothMqttModule.provideScanBluetoothDevicesUseCase(bluetoothScanner)
+    private val pairDeviceUseCase = BluetoothMqttModule.providePairDeviceWithTokenUseCase(pairingRepository, mqttConnectionManager)
+    private val unpairDeviceUseCase = BluetoothMqttModule.provideUnpairDeviceUseCase(pairingRepository, mqttConnectionManager)
     
     // Estados UI
     val bluetoothDevices: StateFlow<List<BluetoothDeviceScanner.ScannedDevice>> = 

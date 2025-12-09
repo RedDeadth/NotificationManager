@@ -1,18 +1,17 @@
 package com.dynamictecnologies.notificationmanager.test.domain.usecases
 
 import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
-import com.dynamictecnologies.notificationmanager.data.mqtt.MqttNotificationPublisher
+import com.dynamictecnologies.notificationmanager.data.datasource.mqtt.MqttNotificationSender
 import com.dynamictecnologies.notificationmanager.domain.entities.NoDevicePairedException
 import com.dynamictecnologies.notificationmanager.domain.repositories.DevicePairingRepository
 import com.dynamictecnologies.notificationmanager.domain.usecases.device.SendNotificationToDeviceUseCase
 import io.mockk.*
 import kotlinx.coroutines.test.runTest
 import org.junit.After
+import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 import java.util.*
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 /**
  * Tests unitarios para SendNotificationToDeviceUseCase.
@@ -25,14 +24,14 @@ import kotlin.test.assertTrue
 class SendNotificationToDeviceUseCaseTest {
     
     private lateinit var pairingRepository: DevicePairingRepository
-    private lateinit var mqttPublisher: MqttNotificationPublisher
+    private lateinit var mqttSender: MqttNotificationSender
     private lateinit var useCase: SendNotificationToDeviceUseCase
     
     @Before
     fun setup() {
         pairingRepository = mockk()
-        mqttPublisher = mockk()
-        useCase = SendNotificationToDeviceUseCase(pairingRepository, mqttPublisher)
+        mqttSender = mockk()
+        useCase = SendNotificationToDeviceUseCase(pairingRepository, mqttSender)
     }
     
     @After
@@ -52,7 +51,7 @@ class SendNotificationToDeviceUseCaseTest {
         )
         
         coEvery { pairingRepository.getMqttTopic() } returns topic
-        coEvery { mqttPublisher.publish(topic, notification) } returns Result.success(Unit)
+        coEvery { mqttSender.sendNotificationToTopic(topic, notification) } returns Result.success(Unit)
         
         // When
         val result = useCase(notification)
@@ -61,7 +60,7 @@ class SendNotificationToDeviceUseCaseTest {
         assertTrue(result.isSuccess)
         
         coVerify { pairingRepository.getMqttTopic() }
-        coVerify { mqttPublisher.publish(topic, notification) }
+        coVerify { mqttSender.sendNotificationToTopic(topic, notification) }
     }
     
     @Test
@@ -83,7 +82,7 @@ class SendNotificationToDeviceUseCaseTest {
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is NoDevicePairedException)
         
-        coVerify(exactly = 0) { mqttPublisher.publish(any(), any()) }
+        coVerify(exactly = 0) { mqttSender.sendNotificationToTopic(any(), any()) }
     }
     
     @Test
@@ -99,7 +98,7 @@ class SendNotificationToDeviceUseCaseTest {
         val mqttError = Exception("MQTT not connected")
         
         coEvery { pairingRepository.getMqttTopic() } returns topic
-        coEvery { mqttPublisher.publish(topic, notification) } returns Result.failure(mqttError)
+        coEvery { mqttSender.sendNotificationToTopic(topic, notification) } returns Result.failure(mqttError)
         
         // When
         val result = useCase(notification)
@@ -121,13 +120,13 @@ class SendNotificationToDeviceUseCaseTest {
         )
         
         coEvery { pairingRepository.getMqttTopic() } returns topic
-        coEvery { mqttPublisher.publish(topic, notification) } returns Result.success(Unit)
+        coEvery { mqttSender.sendNotificationToTopic(topic, notification) } returns Result.success(Unit)
         
         // When
         val result = useCase(notification)
         
         // Then
         assertTrue(result.isSuccess)
-        coVerify { mqttPublisher.publish(topic, notification) }
+        coVerify { mqttSender.sendNotificationToTopic(topic, notification) }
     }
 }

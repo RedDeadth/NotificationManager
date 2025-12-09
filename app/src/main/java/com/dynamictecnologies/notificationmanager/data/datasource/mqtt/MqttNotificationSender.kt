@@ -50,9 +50,34 @@ class MqttNotificationSender(
             val topic = "esp32/device/$deviceId/notification"
             val payload = buildNotificationPayload(notification)
             
+            // Retornar el resultado de publish
             connectionManager.publish(topic, payload, qos = 1)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    /**
+     * Envía una notificación directamente a un topic MQTT.
+     * Usado para el nuevo flujo de pairing con tokens.
+     * 
+     * @param topic Topic MQTT (ej: "n/ABC12345")
+     * @param notification Notificación a enviar
+     * @return Result<Unit> Success si se envía correctamente
+     */
+    suspend fun sendNotificationToTopic(
+        topic: String,
+        notification: NotificationInfo
+    ): Result<Unit> {
+        return try {
+            if (!connectionManager.isConnected()) {
+                return Result.failure(Exception("MQTT no conectado"))
+            }
             
-            Result.success(Unit)
+            val payload = buildNotificationPayload(notification)
+            
+            // Retornar el resultado de publish
+            connectionManager.publish(topic, payload, qos = 1)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -74,9 +99,8 @@ class MqttNotificationSender(
                 put("timestamp", System.currentTimeMillis())
             }.toString()
             
+            // Retornar el resultado de publish
             connectionManager.publish(topic, json)
-            
-            Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }

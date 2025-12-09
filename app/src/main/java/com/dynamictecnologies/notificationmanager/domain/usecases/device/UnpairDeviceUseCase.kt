@@ -1,18 +1,18 @@
 package com.dynamictecnologies.notificationmanager.domain.usecases.device
 
-import com.dynamictecnologies.notificationmanager.data.mqtt.MqttConnectionManager
+import com.dynamictecnologies.notificationmanager.data.datasource.mqtt.MqttConnectionManager
 import com.dynamictecnologies.notificationmanager.domain.repositories.DevicePairingRepository
 
 /**
- * Caso de uso para desvincular el dispositivo actual.
+ * Use Case para desvincular dispositivo ESP32.
  * 
- * Proceso:
- * 1. Limpiar SharedPreferences
+ * Flujo:
+ * 1. Eliminar de repository
  * 2. Desconectar MQTT
  * 
  * Principios aplicados:
  * - SRP: Solo desvinculación
- * - Clean Architecture: Lógica en dominio
+ * - Cleanup: Libera recursos MQTT
  */
 class UnpairDeviceUseCase(
     private val pairingRepository: DevicePairingRepository,

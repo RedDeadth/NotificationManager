@@ -83,10 +83,10 @@ class MainActivity : ComponentActivity() {
             disconnectFromMqttUseCase = DeviceModule.provideDisconnectFromMqttUseCase(applicationContext),
             searchDevicesUseCase = DeviceModule.provideSearchDevicesUseCase(applicationContext),
             sendNotificationUseCase = DeviceModule.provideSendNotificationViaMqttUseCase(applicationContext),
-            connectToDeviceUseCase = DeviceModule.provideConnectToDeviceUseCase(),
-            unlinkDeviceUseCase = DeviceModule.provideUnlinkDeviceUseCase(),
-            observeDeviceUseCase = DeviceModule.provideObserveDeviceConnectionUseCase(),
-            getUsernameUseCase = DeviceModule.provideGetUsernameByUidUseCase()
+            connectToDeviceUseCase = DeviceModule.provideConnectToDeviceUseCase(applicationContext),
+            unlinkDeviceUseCase = DeviceModule.provideUnlinkDeviceUseCase(applicationContext),
+            observeDeviceUseCase = DeviceModule.provideObserveDeviceConnectionUseCase(applicationContext),
+            getUsernameUseCase = DeviceModule.provideGetUsernameByUidUseCase(applicationContext)
         )
     }
 

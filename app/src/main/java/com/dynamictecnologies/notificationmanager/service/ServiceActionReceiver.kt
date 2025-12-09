@@ -122,7 +122,9 @@ class ServiceActionReceiver : BroadcastReceiver() {
             Log.e(TAG, "Error con AlarmManager: ${e.message}")
         }
         
-        // TODO: Cancelar WorkManager cuando se implemente Phase 2
+        // Opcionalmente: WorkManager para persistencia de reintentos
+        // No implementado actualmente - servicios en foreground tienen reinicio automático del sistema
+        // Solo necesario si se implementa Phase 2 con tareas background complejas
         // try {
         //     WorkManager.getInstance(context).cancelAllWork()
         //     Log.d(TAG, "WorkManager cancelado")

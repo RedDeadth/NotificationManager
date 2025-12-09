@@ -15,16 +15,11 @@ import com.dynamictecnologies.notificationmanager.data.bluetooth.BluetoothDevice
  * Item de lista para dispositivo Bluetooth escaneado.
  * 
  * Muestra:
- * - Nombre del dispositivo
- * - RSSI (señal)
- * - Botón para vincular
- * 
- * Principios aplicados:
- * - SRP: Solo visualización de dispositivo
- * - Composable puro: Sin estado interno
+ * Card de dispositivo Bluetooth encontrado
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BluetoothDeviceItem(
+fun BluetoothDeviceCard(
     device: BluetoothDeviceScanner.ScannedDevice,
     onClick: () -> Unit,
     modifier: Modifier = Modifier

@@ -85,9 +85,32 @@ object DeviceModule {
         return DeviceDataSource()
     }
     
-    fun provideDeviceRepository(): DeviceRepository {
+    /**
+     * Provee DeviceRepository con componentes MQTT.
+     * 
+     * Inyecta:
+     * - DeviceDataSource: Para operaciones Firebase de dispositivos (solo metadata)
+     * - MqttConnectionManager: Para conexiones MQTT
+     * - MqttDeviceLinkManager: Para linking de dispositivos via MQTT
+     * 
+     * NOTA: Firebase solo se usa para autenticación.
+     * Todas las notificaciones van directamente via MQTT a ESP32.
+     */
+    fun provideDeviceRepository(context: Context): DeviceRepository {
+        val deviceDataSource = provideDeviceDataSource()
+        
+        // Componentes MQTT del BluetoothMqttModule
+        val mqttConnectionManager = BluetoothMqttModule.provideMqttConnectionManager(context)
+        val mqttSubscriptionManager = BluetoothMqttModule.provideMqttSubscriptionManager(mqttConnectionManager)
+        val mqttDeviceLinkManager = BluetoothMqttModule.provideMqttDeviceLinkManager(
+            mqttConnectionManager,
+            mqttSubscriptionManager
+        )
+        
         return DeviceRepositoryImpl(
-            deviceDataSource = provideDeviceDataSource()
+            deviceDataSource,
+            mqttConnectionManager,
+            mqttDeviceLinkManager
         )
     }
     
@@ -109,19 +132,19 @@ object DeviceModule {
     }
     
     // Device Use Cases
-    fun provideConnectToDeviceUseCase(): ConnectToDeviceUseCase {
-        return ConnectToDeviceUseCase(provideDeviceRepository())
+    fun provideConnectToDeviceUseCase(context: Context): ConnectToDeviceUseCase {
+        return ConnectToDeviceUseCase(provideDeviceRepository(context))
     }
     
-    fun provideUnlinkDeviceUseCase(): UnlinkDeviceUseCase {
-        return UnlinkDeviceUseCase(provideDeviceRepository())
+    fun provideUnlinkDeviceUseCase(context: Context): UnlinkDeviceUseCase {
+        return UnlinkDeviceUseCase(provideDeviceRepository(context))
     }
     
-    fun provideObserveDeviceConnectionUseCase(): ObserveDeviceConnectionUseCase {
-        return ObserveDeviceConnectionUseCase(provideDeviceRepository())
+    fun provideObserveDeviceConnectionUseCase(context: Context): ObserveDeviceConnectionUseCase {
+        return ObserveDeviceConnectionUseCase(provideDeviceRepository(context))
     }
     
-    fun provideGetUsernameByUidUseCase(): GetUsernameByUidUseCase {
-        return GetUsernameByUidUseCase(provideDeviceRepository())
+    fun provideGetUsernameByUidUseCase(context: Context): GetUsernameByUidUseCase {
+        return GetUsernameByUidUseCase(provideDeviceRepository(context))
     }
 }

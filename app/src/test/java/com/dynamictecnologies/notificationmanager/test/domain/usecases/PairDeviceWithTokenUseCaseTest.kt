@@ -4,14 +4,13 @@ import com.dynamictecnologies.notificationmanager.domain.entities.DevicePairing
 import com.dynamictecnologies.notificationmanager.domain.entities.InvalidTokenException
 import com.dynamictecnologies.notificationmanager.domain.repositories.DevicePairingRepository
 import com.dynamictecnologies.notificationmanager.domain.usecases.device.PairDeviceWithTokenUseCase
-import com.dynamictecnologies.notificationmanager.data.mqtt.MqttConnectionManager
+import com.dynamictecnologies.notificationmanager.data.datasource.mqtt.MqttConnectionManager
 import io.mockk.*
 import kotlinx.coroutines.test.runTest
 import org.junit.After
+import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 /**
  * Tests unitarios para PairDeviceWithTokenUseCase.

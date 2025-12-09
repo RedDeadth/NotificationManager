@@ -117,14 +117,17 @@ class AppListViewModel(
                     Log.d(TAG, "Iniciando observación de notificaciones para: ${selectedApp.name}")
                     
                     // Limpiar notificaciones antiguas
-                    launch {
+                    // Nota: La limpieza periódica se maneja automáticamente por NotificationCleanupService
+                    // No es necesario llamar manualmente aquí
+                    /*launch {
                         try {
                             Log.d(TAG, "Verificando límite de notificaciones para ${selectedApp.name}")
-                            notificationRepository.cleanupOldNotifications(selectedApp.packageName)
+                            // notificationRepository.cleanupOldNotifications ya no existe
+                            // El cleanup es manejado automáticamente por NotificationCleanupService
                         } catch (e: Exception) {
                             Log.e(TAG, "Error limpiando notificaciones antiguas: ${e.message}")
                         }
-                    }
+                    }*/
 
                     // Observar notificaciones de la app seleccionada
                     notificationJob = launch {

@@ -13,6 +13,7 @@ import android.util.Log
 import com.dynamictecnologies.notificationmanager.data.db.NotificationDatabase
 import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
 import com.dynamictecnologies.notificationmanager.data.repository.NotificationRepository
+import com.dynamictecnologies.notificationmanager.di.BluetoothMqttModule
 import com.dynamictecnologies.notificationmanager.service.monitor.ServiceHealthMonitor
 import com.dynamictecnologies.notificationmanager.service.strategy.*
 import com.dynamictecnologies.notificationmanager.util.device.DeviceManufacturerDetector
@@ -28,6 +29,7 @@ import java.util.concurrent.ConcurrentHashMap
  * - SRP: Solo escucha y procesa notificaciones, delega monitoreo y recuperación
  * - DIP: Depende de abstracciones (Repository, Strategy)
  * - Clean Code: Métodos pequeños, nombres claros, sin comentarios redundantes
+ * - DI Manual: Usa BluetoothMqttModule para obtener dependencias
  */
 class NotificationListenerService : NotificationListenerService() {
     
@@ -52,7 +54,7 @@ class NotificationListenerService : NotificationListenerService() {
                     componentName != null && TextUtils.equals(packageName, componentName.packageName)
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error verificando permisos: ${e.message}")
+                Log.e(TAG, "Error verificando permisos ${e.message}")
                 false
             }
         }
@@ -71,15 +73,14 @@ class NotificationListenerService : NotificationListenerService() {
         }
     }
     
-    // Core components
+    // Core components (Manual DI)
     private lateinit var repository: NotificationRepository
-    private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    
-    // MQTT Components (nuevo flujo simplificado)
     private lateinit var sendNotificationUseCase: com.dynamictecnologies.notificationmanager.domain.usecases.device.SendNotificationToDeviceUseCase
     private lateinit var devicePairingRepository: com.dynamictecnologies.notificationmanager.domain.repositories.DevicePairingRepository
     
-    // OEM-specific components
+    private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    
+    // OEM-specific components (created locally)
     private lateinit var deviceDetector: DeviceManufacturerDetector
     private lateinit var serviceStrategy: BackgroundServiceStrategy
     private lateinit var crashNotifier: ServiceCrashNotifier
@@ -124,19 +125,21 @@ class NotificationListenerService : NotificationListenerService() {
      */
     private fun initializeComponents() {
         try {
-            // Core
+            // Core - Repository
             val database = NotificationDatabase.getDatabase(applicationContext)
             repository = NotificationRepository(
                 notificationDao = database.notificationDao(),
                 context = applicationContext
             )
             
-            // MQTT Components (nuevo flujo simplificado)
-            val devicePairingStack = com.dynamictecnologies.notificationmanager.di.BluetoothMqttModule
-                .provideDevicePairingStack(applicationContext)
-            
-            sendNotificationUseCase = devicePairingStack.sendNotificationUseCase
-            devicePairingRepository = devicePairingStack.pairingRepository
+            // MQTT Components (manual DI)
+            val mqttConnectionManager = BluetoothMqttModule.provideMqttConnectionManager(applicationContext)
+            val mqttSender = BluetoothMqttModule.provideMqttNotificationSender(mqttConnectionManager)
+            devicePairingRepository = BluetoothMqttModule.provideDevicePairingRepository(applicationContext)
+            sendNotificationUseCase = BluetoothMqttModule.provideSendNotificationToDeviceUseCase(
+                devicePairingRepository,
+                mqttSender
+            )
             
             // OEM detection
             deviceDetector = DeviceManufacturerDetector()
@@ -293,18 +296,13 @@ class NotificationListenerService : NotificationListenerService() {
      */
     private fun processNotification(sbn: StatusBarNotification) {
         serviceScope.launch(Dispatchers.IO) {
-            if (!::repository.isInitialized) {
-                Log.w(TAG, "Repository no inicializado. Reintentando inicialización...")
-                initializeComponents()
-            }
-            
             try {
                 val extras = sbn.notification.extras
                 val title = extras.getString(Notification.EXTRA_TITLE) ?: ""
                 val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: ""
                 val appName = getAppName(sbn.packageName)
                 
-                val notificationInfo = NotificationInfo(
+                val notificationInfo = com.dynamictecnologies.notificationmanager.data.model.NotificationInfo(
                     appName = appName,
                     title = title,
                     content = text,
@@ -316,16 +314,14 @@ class NotificationListenerService : NotificationListenerService() {
                 Log.d(TAG, "✅ Notificación guardada localmente: ${notificationInfo.title}")
                 
                 // Enviar a ESP32 vinculado (nuevo flujo simplificado)
-                if (::sendNotificationUseCase.isInitialized && ::devicePairingRepository.isInitialized) {
-                    if (devicePairingRepository.hasPairedDevice()) {
-                        sendNotificationUseCase(notificationInfo).onSuccess {
-                            Log.d(TAG, "📡 Notificación enviada a ESP32 via MQTT")
-                        }.onFailure { error ->
-                            Log.w(TAG, "No se pudo enviar a ESP32: ${error.message}")
-                        }
-                    } else {
-                        Log.d(TAG, "Sin dispositivo ESP32 vinculado, notificación no enviada")
+                if (devicePairingRepository.hasPairedDevice()) {
+                    sendNotificationUseCase(notificationInfo).onSuccess {
+                        Log.d(TAG, "📡 Notificación enviada a ESP32 via MQTT")
+                    }.onFailure { error ->
+                        Log.w(TAG, "No se pudo enviar a ESP32: ${error.message}")
                     }
+                } else {
+                    Log.d(TAG, "Sin dispositivo ESP32 vinculado, notificación no enviada")
                 }
                 
             } catch (e: Exception) {

@@ -25,7 +25,12 @@ class MqttNotificationSenderTest {
 
     @Before
     fun setup() {
-        mockConnectionManager = mockk(relaxed = true)
+        // NOT relaxed - need to configure each mock explicitly for Result types
+        mockConnectionManager = mockk()
+        
+        // Default: isConnected returns false (safe default)
+        every { mockConnectionManager.isConnected() } returns false
+        
         sender = MqttNotificationSender(mockConnectionManager)
     }
 
@@ -74,7 +79,7 @@ class MqttNotificationSenderTest {
     fun `sendNotification publishes to correct topic when connected`() = runTest {
         // Given
         every { mockConnectionManager.isConnected() } returns true
-        coEvery { mockConnectionManager.publish(any(), any(), any()) } returns Result.success(Unit)
+        coEvery { mockConnectionManager.publish(any(), any(), any()) } coAnswers { Result.success(Unit) }
         
         val deviceId = "device123"
         val notification = NotificationInfo(
@@ -142,7 +147,7 @@ class MqttNotificationSenderTest {
     fun `sendGeneralNotification publishes to general topic when connected`() = runTest {
         // Given
         every { mockConnectionManager.isConnected() } returns true
-        coEvery { mockConnectionManager.publish(any(), any(), any()) } returns Result.success(Unit)
+        coEvery { mockConnectionManager.publish(any(), any(), any()) } coAnswers { Result.success(Unit) }
 
         // When
         val result = sender.sendGeneralNotification("Test Title", "Test Content")

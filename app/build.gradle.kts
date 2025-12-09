@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -20,13 +22,14 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
         // Leer credenciales MQTT de local.properties
-        val localProperties = java.util.Properties()
+        val localProperties = Properties()
         val localPropertiesFile = rootProject.file("local.properties")
         if (localPropertiesFile.exists()) {
             localPropertiesFile.inputStream().use { localProperties.load(it) }
         }
         
         // BuildConfig fields para credenciales MQTT
+        // IMPORTANTE: Configurar mqtt.broker, mqtt.username, mqtt.password en local.properties
         buildConfigField("String", "MQTT_BROKER", 
             "\"${localProperties.getProperty("mqtt.broker", "")}\"")
         buildConfigField("String", "MQTT_USERNAME", 
@@ -102,9 +105,6 @@ dependencies {
     implementation("androidx.room:room-runtime:$roomVersion")
     implementation("androidx.room:room-ktx:$roomVersion")
     ksp("androidx.room:room-compiler:$roomVersion")
-
-    ksp("com.google.dagger:hilt-compiler:2.48")
-    ksp("androidx.hilt:hilt-compiler:1.1.0")
 
     // Firebase
     implementation(platform("com.google.firebase:firebase-bom:33.9.0"))
