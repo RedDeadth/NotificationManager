@@ -11,6 +11,12 @@ import android.os.Looper
 import android.util.Log
 import com.dynamictecnologies.notificationmanager.service.NotificationListenerService
 import com.dynamictecnologies.notificationmanager.service.NotificationForegroundService
+import com.dynamictecnologies.notificationmanager.worker.ServiceHealthCheckWorker
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.Constraints
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -45,6 +51,10 @@ class BootReceiver : BroadcastReceiver() {
             // Iniciar con retraso para asegurarnos de que el sistema esté completamente iniciado
             GlobalScope.launch {
                 try {
+                    // Programar WorkManager watchdog PRIMERO
+                    delay(3000) // Esperar 3 segundos para que el sistema se estabilice
+                    scheduleServiceHealthCheck(context)
+                    
                     // Esperar 10 segundos para que el sistema se estabilice
                     delay(10000)
                     
@@ -197,6 +207,36 @@ class BootReceiver : BroadcastReceiver() {
             putLong("last_boot_time", System.currentTimeMillis())
             putInt("boot_count", prefs.getInt("boot_count", 0) + 1)
             apply()
+        }
+    }
+    
+    /**
+     * Programa el watchdog de WorkManager para monitoreo externo del servicio.
+     * Este watchdog detecta cuando el servicio muere sin llamar onDestroy() (Honor/Huawei).
+     */
+    private fun scheduleServiceHealthCheck(context: Context) {
+        try {
+            val workRequest = PeriodicWorkRequestBuilder<ServiceHealthCheckWorker>(
+                30, TimeUnit.MINUTES // Cada 30 minutos
+            )
+                .setInitialDelay(5, TimeUnit.MINUTES) // Esperar 5 min tras boot
+                .setConstraints(
+                    Constraints.Builder()
+                        .setRequiresBatteryNotLow(false) // IMPORTANTE: ejecutar siempre
+                        .build()
+                )
+                .addTag("service_health_check")
+                .build()
+            
+            WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+                "service_health_check",
+                ExistingPeriodicWorkPolicy.KEEP, // No reemplazar si ya existe
+                workRequest
+            )
+            
+            Log.d(TAG, "✅ WorkManager watchdog programado (intervalo: 30 min)")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error programando WorkManager watchdog: ${e.message}", e)
         }
     }
 } 

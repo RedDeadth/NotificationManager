@@ -24,6 +24,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 import java.util.*
 
 class NotificationForegroundService : Service() {
@@ -34,6 +35,10 @@ class NotificationForegroundService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var wakeLock: PowerManager.WakeLock? = null
     private val WATCHDOG_INTERVAL = 15 * 60 * 1000L // Verificar cada 15 minutos
+    
+    // Heartbeat para watchdog externo
+    private var heartbeatJob: Job? = null
+    private val HEARTBEAT_INTERVAL = 5 * 60 * 1000L // Actualizar cada 5 minutos
     
     // Exponential backoff para reintentos (en minutos)
     private val RETRY_INTERVALS = listOf(2, 5, 15, 30, 60)
@@ -94,6 +99,13 @@ class NotificationForegroundService : Service() {
         // Iniciar temporizador para verificaciones programadas
         startPeriodicChecks()
         
+        // Marcar que el servicio DEBERÍA estar corriendo (para watchdog)
+        val prefs = getSharedPreferences("service_state", Context.MODE_PRIVATE)
+        prefs.edit().putBoolean("service_should_be_running", true).apply()
+        
+        // Iniciar heartbeat para watchdog externo
+        startHeartbeat()
+        
         Log.d(TAG, "📱 Notificación RUNNING mostrada con botón DETENER")
     }
 
@@ -126,6 +138,24 @@ class NotificationForegroundService : Service() {
         
         // Asegurar que el servicio siempre se reinicie si es terminado
         return START_STICKY
+    }
+    
+    /**
+     * Sistema de heartbeat para watchdog externo.
+     * Actualiza timestamp cada 5 minutos para que WorkManager pueda verificar salud.
+     */
+    private fun startHeartbeat() {
+        heartbeatJob = serviceScope.launch {
+            val prefs = getSharedPreferences("service_state", Context.MODE_PRIVATE)
+            
+            while (isActive) {
+                // Actualizar timestamp
+                prefs.edit().putLong("service_last_heartbeat", System.currentTimeMillis()).apply()
+                Log.d(TAG, "💓 Heartbeat actualizado")
+                
+                delay(HEARTBEAT_INTERVAL)
+            }
+        }
     }
     
     private fun performForceReset() {
@@ -524,6 +554,19 @@ class NotificationForegroundService : Service() {
         } else {
             Log.d(TAG, "Servicio detenido intencionalmente (estado: $currentState)")
             // Si estado es STOPPED o DISABLED, no hacer nada más
+        }
+        
+        // Detener heartbeat
+        heartbeatJob?.cancel()
+        
+        // Si es muerte inesperada, mantener flag para que watchdog la detecte
+        // Si es deshabilitado intencionalmente, limpiar flag
+        if (currentState == ServiceStateManager.ServiceState.DISABLED) {
+            val prefs = getSharedPreferences("service_state", Context.MODE_PRIVATE)
+            prefs.edit().putBoolean("service_should_be_running", false).apply()
+            Log.d(TAG, "Servicio detenido intencionalmente - flag limpiado")
+        } else {
+            Log.d(TAG, "Servicio detenido inesperadamente - flag mantenido para watchdog")
         }
         
         // Liberar wake lock

@@ -1,6 +1,11 @@
 package com.dynamictecnologies.notificationmanager.presentation.core.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -24,12 +29,25 @@ fun AppNavigation(
     appListViewModel: AppListViewModel,
     userViewModel: UserViewModel,
     shareViewModel: ShareViewModel,
-    deviceViewModel: DeviceViewModel
+    devicePairingViewModel: com.dynamictecnologies.notificationmanager.viewmodel.DevicePairingViewModel,
+    requestBluetoothPermissions: () -> Unit
 ) {
     val navController = rememberNavController()
     val authState by authViewModel.authState.collectAsState()
 
+    // Mostrar splash mientras se inicializa la verificación de sesión
+    if (authState.isInitializing) {
+        Box(
+            modifier = androidx.compose.ui.Modifier.fillMaxSize(),
+            contentAlignment = androidx.compose.ui.Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
     // Determinar la pantalla inicial basada en el estado de autenticación
+    // Solo se ejecuta cuando isInitializing = false
     val startDestination = when {
         !authState.isAuthenticated -> AppRoutes.Login.route
         else -> AppRoutes.Main.route
@@ -118,7 +136,8 @@ fun AppNavigation(
                     appListViewModel = appListViewModel,
                     userViewModel = userViewModel,
                     shareViewModel = shareViewModel,
-                    deviceViewModel = deviceViewModel,
+                    devicePairingViewModel = devicePairingViewModel,
+                    requestBluetoothPermissions = requestBluetoothPermissions,
                     modifier = paddingModifier
                 )
             }
@@ -134,7 +153,8 @@ fun MainNavGraph(
     appListViewModel: AppListViewModel,
     userViewModel: UserViewModel,
     shareViewModel: ShareViewModel,
-    deviceViewModel: DeviceViewModel,
+    devicePairingViewModel: com.dynamictecnologies.notificationmanager.viewmodel.DevicePairingViewModel,
+    requestBluetoothPermissions: () -> Unit,
     modifier: androidx.compose.ui.Modifier = androidx.compose.ui.Modifier
 ) {
     NavHost(
@@ -152,19 +172,9 @@ fun MainNavGraph(
         ) {
             AppListScreen(
                 viewModel = appListViewModel,
-                userViewModel = userViewModel,
-                deviceViewModel = deviceViewModel,
-                onLogout = {
-                    // Limpiar todos los datos antes de cerrar sesión
-                    userViewModel.clearData()
-                    shareViewModel.clearData()
-                    appListViewModel.clearData()
-                    
-                    authViewModel.signOut()
-                    parentNavController.navigate(AppRoutes.Login.route) {
-                        popUpTo(0) { inclusive = true }
-                    }
-                }
+                onNavigateToProfile = { navController.navigate(AppRoutes.MainScreen.Profile.route) },
+                devicePairingViewModel = devicePairingViewModel,
+                requestBluetoothPermissions = requestBluetoothPermissions
             )
         }
         

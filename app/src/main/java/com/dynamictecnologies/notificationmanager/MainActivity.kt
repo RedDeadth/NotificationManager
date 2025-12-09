@@ -27,7 +27,13 @@ import com.dynamictecnologies.notificationmanager.util.PermissionHelper
 import com.dynamictecnologies.notificationmanager.viewmodel.*
 import com.dynamictecnologies.notificationmanager.di.AuthModule
 import com.dynamictecnologies.notificationmanager.di.AppModule
-import com.dynamictecnologies.notificationmanager.di.DeviceModule
+import com.dynamictecnologies.notificationmanager.di.BluetoothMqttModule
+import com.dynamictecnologies.notificationmanager.worker.ServiceHealthCheckWorker
+import androidx.work.WorkManager
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.Constraints
+import java.util.concurrent.TimeUnit
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
@@ -47,11 +53,17 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import android.app.AlertDialog
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothManager
 import com.dynamictecnologies.notificationmanager.domain.repositories.AuthRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 
 class MainActivity : ComponentActivity() {
+    
+    companion object {
+        private const val TAG = "MainActivity"
+    }
 
     // Crear authRepository compartido
     private val authRepository: AuthRepository by lazy {
@@ -77,17 +89,9 @@ class MainActivity : ComponentActivity() {
         )
     }
 
-    private val deviceViewModel: DeviceViewModel by viewModels {
-        DeviceViewModelFactory(
-            connectToMqttUseCase = DeviceModule.provideConnectToMqttUseCase(applicationContext),
-            disconnectFromMqttUseCase = DeviceModule.provideDisconnectFromMqttUseCase(applicationContext),
-            searchDevicesUseCase = DeviceModule.provideSearchDevicesUseCase(applicationContext),
-            sendNotificationUseCase = DeviceModule.provideSendNotificationViaMqttUseCase(applicationContext),
-            connectToDeviceUseCase = DeviceModule.provideConnectToDeviceUseCase(applicationContext),
-            unlinkDeviceUseCase = DeviceModule.provideUnlinkDeviceUseCase(applicationContext),
-            observeDeviceUseCase = DeviceModule.provideObserveDeviceConnectionUseCase(applicationContext),
-            getUsernameUseCase = DeviceModule.provideGetUsernameByUidUseCase(applicationContext)
-        )
+    // Nuevo ViewModel para pairing Bluetooth
+    private val devicePairingViewModel: com.dynamictecnologies.notificationmanager.viewmodel.DevicePairingViewModel by viewModels {
+        com.dynamictecnologies.notificationmanager.di.BluetoothMqttModule.provideDevicePairingViewModelFactory(applicationContext)
     }
 
     private val shareViewModel: ShareViewModel by viewModels {
@@ -106,6 +110,126 @@ class MainActivity : ComponentActivity() {
             Log.w("MainActivity", "\u26a0\ufe0f Permiso POST_NOTIFICATIONS denegado")
             // Mostrar diálogo explicativo
             showNotificationPermissionRationale()
+        }
+    }
+    
+    // Permission launcher para permisos de Bluetooth
+    private val bluetoothPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val allGranted = permissions.values.all { it }
+        if (allGranted) {
+            Log.d("MainActivity", "✅ Permisos Bluetooth otorgados")
+            checkAndEnableBluetooth()
+        } else {
+            Log.w("MainActivity", "⚠️ Algunos permisos Bluetooth fueron denegados")
+            showBluetoothPermissionRationale()
+        }
+    }
+
+    // Launcher para habilitar Bluetooth
+    private val enableBluetoothLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            Log.d("MainActivity", "✅ Bluetooth habilitado por el usuario")
+            devicePairingViewModel.startBluetoothScan()
+        } else {
+            Log.w("MainActivity", "❌ Usuario rechazó habilitar Bluetooth")
+            showBluetoothEnableRationale()
+        }
+    }
+    
+    /**
+     * Solicita permisos de Bluetooth.
+     * Una vez otorgados, verifica si Bluetooth está encendido.
+     */
+    private fun requestBluetoothPermissions() {
+        if (PermissionHelper.hasBluetoothPermissions(this)) {
+            Log.d("MainActivity", "✅ Permisos Bluetooth ya otorgados")
+            checkAndEnableBluetooth()
+        } else {
+            Log.d("MainActivity", "📋 Solicitando permisos Bluetooth...")
+            val permissions = PermissionHelper.getRequiredBluetoothPermissions()
+            bluetoothPermissionLauncher.launch(permissions)
+        }
+    }
+    
+    /**
+     * Verifica si Bluetooth está encendido y lo habilita si es necesario.
+     */
+    private fun checkAndEnableBluetooth() {
+        val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        val bluetoothAdapter = bluetoothManager.adapter
+        
+        if (bluetoothAdapter == null) {
+            showBluetoothNotSupportedDialog()
+            return
+        }
+        
+        if (!bluetoothAdapter.isEnabled) {
+            Log.d("MainActivity", "⚠️ Bluetooth apagado, solicitando habilitarlo...")
+            val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+            enableBluetoothLauncher.launch(enableBtIntent)
+        } else {
+            Log.d("MainActivity", "✅ Bluetooth ya está encendido")
+            devicePairingViewModel.startBluetoothScan()
+        }
+    }
+    
+    /**
+     * Muestra diálogo cuando el dispositivo no soporta Bluetooth.
+     */
+    private fun showBluetoothNotSupportedDialog() {
+        runOnUiThread {
+            AlertDialog.Builder(this)
+                .setTitle("Bluetooth No Disponible")
+                .setMessage("Tu dispositivo no soporta Bluetooth.")
+                .setPositiveButton("Entendido") { dialog, _ ->
+                    dialog.dismiss()
+                }
+                .show()
+        }
+    }
+    
+    /**
+     * Muestra explicación de por qué se necesita habilitar Bluetooth.
+     */
+    private fun showBluetoothEnableRationale() {
+        runOnUiThread {
+            AlertDialog.Builder(this)
+                .setTitle("Bluetooth Requerido")
+                .setMessage("Para conectar con tu dispositivo ESP32, necesitas habilitar Bluetooth.\n\n¿Deseas habilitarlo ahora?")
+                .setPositiveButton("Habilitar") { dialog, _ ->
+                    val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+                    enableBluetoothLauncher.launch(enableBtIntent)
+                    dialog.dismiss()
+                }
+                .setNegativeButton("Ahora no") { dialog, _ ->
+                    dialog.dismiss()
+                }
+                .show()
+        }
+    }
+    
+    /**
+     * Muestra explicación de por qué se necesitan permisos Bluetooth.
+     */
+    private fun showBluetoothPermissionRationale() {
+        runOnUiThread {
+            AlertDialog.Builder(this)
+                .setTitle("Permisos Bluetooth")
+                .setMessage("Esta app necesita permisos de Bluetooth para conectar con tu dispositivo ESP32.\\n\\n¿Deseas otorgar los permisos?")
+                .setPositiveButton("Permitir") { dialog: android.content.DialogInterface, _: Int ->
+                    val permissions = PermissionHelper.getRequiredBluetoothPermissions()
+                    bluetoothPermissionLauncher.launch(permissions)
+                    dialog.dismiss()
+                }
+                .setNegativeButton("Ahora no") { dialog: android.content.DialogInterface, _: Int ->
+                    dialog.dismiss()
+                    Log.w("MainActivity", "Usuario rechazó permisos Bluetooth")
+                }
+                .show()
         }
     }
 
@@ -142,6 +266,9 @@ class MainActivity : ComponentActivity() {
         
         // Pedir permiso POST_NOTIFICATIONS antes de iniciar servicio (Android 13+)
         requestNotificationPermissionAndStartService()
+        
+        // Solicitar permisos de Bluetooth
+        requestBluetoothPermissions()
 
         setContent {
             NotificationManagerTheme {
@@ -155,11 +282,15 @@ class MainActivity : ComponentActivity() {
                         appListViewModel = appListViewModel,
                         userViewModel = userViewModel,
                         shareViewModel = shareViewModel,
-                        deviceViewModel = deviceViewModel
+                        devicePairingViewModel = devicePairingViewModel,
+                        requestBluetoothPermissions = { requestBluetoothPermissions() }
                     )
                 }
             }
         }
+        
+        // Programar watchdog de WorkManager
+        scheduleServiceHealthCheckIfNeeded()
 
         // Verificar permisos al iniciar (con retraso para que la UI se estabilice)
         checkPermissionsOnStartup()
@@ -261,18 +392,45 @@ class MainActivity : ComponentActivity() {
 }
 
     /**
-     * Verificación de permisos al iniciar la app
+     * Verifica y muestra diálogo de permisos al iniciar con retraso.
      */
     private fun checkPermissionsOnStartup() {
-        if (!PermissionHelper.hasNotificationListenerPermission(this)) {
-            Log.w("MainActivity", "⚠️ App iniciada sin permisos de NotificationListener")
-
-            // Mostrar diálogo después de un breve retraso para que la UI se estabilice
-            Handler(Looper.getMainLooper()).postDelayed({
+        // Esperar a que la UI se estabilice antes de verificar permisos
+        Handler(Looper.getMainLooper()).postDelayed({
+            val hasPermissions = NotificationListenerService.isNotificationListenerEnabled(this)
+            if (!hasPermissions) {
+                Log.w("MainActivity", "Permisos de notificación no otorgados al iniciar")
                 showPermissionDialog()
-            }, 2000) // 2 segundos de retraso
-        } else {
-            Log.d("MainActivity", "✅ Permisos de notificación activos al iniciar")
+            }
+        }, 2000) // 2 segundos
+    }
+    
+    /**
+     * Programa el watchdog de WorkManager si aún no está programado.
+     * Esto asegura que el monitoreo esté siempre activo.
+     */
+    private fun scheduleServiceHealthCheckIfNeeded() {
+        try {
+            val workRequest = PeriodicWorkRequestBuilder<ServiceHealthCheckWorker>(
+                30, TimeUnit.MINUTES // Cada 30 minutos
+            )
+                .setConstraints(
+                    Constraints.Builder()
+                        .setRequiresBatteryNotLow(false) // IMPORTANTE: ejecutar siempre
+                        .build()
+                )
+                .addTag("service_health_check")
+                .build()
+            
+            WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+                "service_health_check",
+                ExistingPeriodicWorkPolicy.KEEP, // No reemplazar si ya existe
+                workRequest
+            )
+            
+            Log.d(TAG, "✅ Watchdog WorkManager verificado/programado desde MainActivity")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error verificando watchdog: ${e.message}", e)
         }
     }
 

@@ -186,6 +186,7 @@ object AuthModule {
         val userProfileRepository = provideUserProfileRepository(authRepository)
         
         return com.dynamictecnologies.notificationmanager.viewmodel.AuthViewModel.Factory(
+            authRepository = authRepository,
             signInWithEmailUseCase = provideSignInWithEmailUseCase(authRepository),
             registerUserWithUsernameUseCase = provideRegisterUserWithUsernameUseCase(authRepository, userProfileRepository),
             signInWithGoogleUseCase = provideSignInWithGoogleUseCase(authRepository),

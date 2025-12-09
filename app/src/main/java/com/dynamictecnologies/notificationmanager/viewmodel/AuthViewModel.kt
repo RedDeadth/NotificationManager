@@ -9,6 +9,7 @@ import com.dynamictecnologies.notificationmanager.data.exceptions.AuthException
 import com.dynamictecnologies.notificationmanager.data.mapper.AuthErrorMapper
 import com.dynamictecnologies.notificationmanager.domain.entities.User
 import com.dynamictecnologies.notificationmanager.domain.entities.UserProfile
+import com.dynamictecnologies.notificationmanager.domain.repositories.AuthRepository
 import com.dynamictecnologies.notificationmanager.domain.usecases.GetCurrentUserUseCase
 import com.dynamictecnologies.notificationmanager.domain.usecases.RegisterUserWithUsernameUseCase
 import com.dynamictecnologies.notificationmanager.domain.usecases.SignInWithEmailUseCase
@@ -17,6 +18,7 @@ import com.dynamictecnologies.notificationmanager.domain.usecases.SignOutUseCase
 import com.dynamictecnologies.notificationmanager.domain.usecases.ValidateSessionUseCase
 import com.dynamictecnologies.notificationmanager.presentation.auth.GoogleSignInHelper
 import com.google.android.gms.common.api.ApiException
+import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +27,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class AuthViewModel(
+    private val authRepository: AuthRepository,
     private val signInWithEmailUseCase: SignInWithEmailUseCase,
     private val registerUserWithUsernameUseCase: RegisterUserWithUsernameUseCase,
     private val signInWithGoogleUseCase: SignInWithGoogleUseCase,
@@ -54,7 +57,42 @@ class AuthViewModel(
     private var loginPasswordValidationJob: Job? = null
 
     init {
-        checkAuthState()
+        // Verificar estado de Firebase Auth INMEDIATAMENTE (síncrono)
+        viewModelScope.launch {
+            try {
+                // 1. Verificar síncronamente si hay usuario de Firebase
+                val firebaseUser = authRepository.awaitFirebaseUser()
+                
+                if (firebaseUser != null) {
+                    // Hay sesión activa, actualizar estado inmediatamente
+                    _authState.value = _authState.value.copy(
+                        isInitializing = false,
+                        isAuthenticated = true,
+                        currentUser = User(
+                            id = firebaseUser.uid,
+                            email = firebaseUser.email ?: "",
+                            username = firebaseUser.displayName ?: "",
+                            displayName = firebaseUser.displayName,
+                            isEmailVerified = firebaseUser.isEmailVerified
+                        )
+                    )
+                } else {
+                    // No hay sesión
+                    _authState.value = _authState.value.copy(
+                        isInitializing = false,
+                        isAuthenticated = false
+                    )
+                }
+                
+                // 2. Luego escuchar cambios con Flow
+                checkAuthState()
+            } catch (e: Exception) {
+                _authState.value = _authState.value.copy(
+                    isInitializing = false,
+                    isAuthenticated = false
+                )
+            }
+        }
     }
 
     fun checkAuthState() {
@@ -67,11 +105,13 @@ class AuthViewModel(
                     _authState.value = AuthState(
                         isAuthenticated = user != null,
                         currentUser = user,
-                        isSessionValid = isSessionValid
+                        isSessionValid = isSessionValid,
+                        isInitializing = false  // Ya terminó de inicializar
                     )
                 }
             } catch (e: Exception) {
                 handleException(e)
+                _authState.value = _authState.value.copy(isInitializing = false)
             } finally {
                 _authState.value = _authState.value.copy(isLoading = false)
             }
@@ -102,7 +142,8 @@ class AuthViewModel(
                             username = profile.username,
                             email = profile.email
                         ),
-                        isSessionValid = isSessionValid
+                        isSessionValid = isSessionValid,
+                        isInitializing = false
                     )
                 }.onFailure { error ->
                     handleException(error)
@@ -162,7 +203,10 @@ class AuthViewModel(
                 result.onSuccess {
                     googleSignInHelper.signOut()
                     val isSessionValid = validateSessionUseCase()
-                    _authState.value = AuthState(isSessionValid = isSessionValid)
+                    _authState.value = AuthState(
+                        isSessionValid = isSessionValid,
+                        isInitializing = false
+                    )
                 }.onFailure { error ->
                     handleException(error)
                 }
@@ -188,7 +232,8 @@ class AuthViewModel(
                 _authState.value = AuthState(
                     isAuthenticated = true,
                     currentUser = user,
-                    isSessionValid = isSessionValid
+                    isSessionValid = isSessionValid,
+                    isInitializing = false
                 )
             }.onFailure { error ->
                 handleException(error)
@@ -214,6 +259,7 @@ class AuthViewModel(
     data class AuthState(
         val isAuthenticated: Boolean = false,
         val isLoading: Boolean = false,
+        val isInitializing: Boolean = true,  // True mientras verificamos sesión de Firebase
         val error: String? = null,
         val currentUser: User? = null,
         val isSessionValid: Boolean = false
@@ -373,6 +419,7 @@ class AuthViewModel(
     }
 
     class Factory(
+        private val authRepository: AuthRepository,
         private val signInWithEmailUseCase: SignInWithEmailUseCase,
         private val registerUserWithUsernameUseCase: RegisterUserWithUsernameUseCase,
         private val signInWithGoogleUseCase: SignInWithGoogleUseCase,
@@ -388,6 +435,7 @@ class AuthViewModel(
             if (modelClass.isAssignableFrom(AuthViewModel::class.java)) {
                 @Suppress("UNCHECKED_CAST")
                 return AuthViewModel(
+                    authRepository,
                     signInWithEmailUseCase,
                     registerUserWithUsernameUseCase,
                     signInWithGoogleUseCase,

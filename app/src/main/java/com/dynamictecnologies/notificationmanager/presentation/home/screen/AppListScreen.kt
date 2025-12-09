@@ -21,20 +21,22 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.dynamictecnologies.notificationmanager.viewmodel.AppListViewModel
-import com.dynamictecnologies.notificationmanager.viewmodel.DeviceViewModel
+import com.dynamictecnologies.notificationmanager.viewmodel.DevicePairingViewModel
 import com.dynamictecnologies.notificationmanager.viewmodel.UserViewModel
 import com.dynamictecnologies.notificationmanager.presentation.home.components.InitialSelectionCard
 import com.dynamictecnologies.notificationmanager.presentation.home.components.AppSelectionDialog
 import com.dynamictecnologies.notificationmanager.presentation.home.components.NotificationHistoryCard
 import com.dynamictecnologies.notificationmanager.presentation.home.components.DeviceSelectionDialog
+import com.dynamictecnologies.notificationmanager.presentation.home.components.PairedDeviceCard
+import com.dynamictecnologies.notificationmanager.presentation.home.components.TokenInputDialog
 import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
 
 @Composable
 fun AppListScreen(
     viewModel: AppListViewModel,
-    deviceViewModel: DeviceViewModel,
-    userViewModel: UserViewModel,
-    onLogout: () -> Unit
+    onNavigateToProfile: () -> Unit,
+    devicePairingViewModel: com.dynamictecnologies.notificationmanager.viewmodel.DevicePairingViewModel,
+    requestBluetoothPermissions: () -> Unit
 ) {
     val apps by viewModel.apps.collectAsState()
     val selectedApp by viewModel.selectedApp.collectAsState()
@@ -45,37 +47,37 @@ fun AppListScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Estados para el visualizador ESP32
-    val devices by deviceViewModel.devices.collectAsState()
-    val isSearching by deviceViewModel.isSearching.collectAsState()
-    val showDeviceDialog by deviceViewModel.showDeviceDialog.collectAsState()
-    val connectedDevice by deviceViewModel.connectedDevice.collectAsState(initial = null)
-    val scanCompleted by deviceViewModel.scanCompleted.collectAsState()
-    val userProfile by userViewModel.userProfile.collectAsState()
-    val userId = userProfile?.uid
-
-    // Inicializar conexión MQTT cuando se carga la pantalla
-    LaunchedEffect(Unit) {
-        deviceViewModel.connectToMqtt()
-    }
+    // Estados para Bluetooth Pairing
+    val bluetoothDevices by devicePairingViewModel.bluetoothDevices.collectAsState()
+    val isScanning by devicePairingViewModel.isScanning.collectAsState()
+    val currentPairing by devicePairingViewModel.currentPairing.collectAsState()
+    val showTokenDialog by devicePairingViewModel.showTokenDialog.collectAsState()
+    val selectedDevice by devicePairingViewModel.selectedDevice.collectAsState()
+    val pairingState by devicePairingViewModel.pairingState.collectAsState()
     
-    // Enviar notificaciones al dispositivo conectado
-    LaunchedEffect(notifications, connectedDevice) {
-        if (connectedDevice != null && notifications.isNotEmpty()) {
-            // Crear una copia para prevenir ConcurrentModificationException
-            val notificationsCopy = notifications.toList()
-            
-            // Agrupar notificaciones y enviar cada una con un intervalo
-            var delay = 0L
-            for (notification in notificationsCopy) {
-                // Enviar cada notificación con un ligero retraso para evitar conflictos de timestamp
-                kotlinx.coroutines.delay(delay)
-                deviceViewModel.sendNotification(notification)
-                delay = 250 // 250ms de retraso entre notificaciones
+    // Control de diálogos
+    var showBluetoothDialog by remember { mutableStateOf(false) }
+    
+    // Manejar resultados de pairing
+    LaunchedEffect(pairingState) {
+        when (pairingState) {
+            is DevicePairingViewModel.PairingState.Success -> {
+                snackbarHostState.showSnackbar(
+                    message = "✅ Dispositivo vinculado exitosamente",
+                    duration = SnackbarDuration.Short
+                )
+                devicePairingViewModel.resetPairingState()
             }
+            is DevicePairingViewModel.PairingState.Error -> {
+                val errorMsg = (pairingState as DevicePairingViewModel.PairingState.Error).message
+                snackbarHostState.showSnackbar(
+                    message = "❌ Error: $errorMsg",
+                    duration = SnackbarDuration.Long
+                )
+            }
+            else -> {}
         }
     }
-
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
@@ -143,7 +145,7 @@ fun AppListScreen(
                         }
                     }
 
-                    // Tarjeta derecha - Visualizador
+                    // Tarjeta derecha - Visualizador ESP32 (Bluetooth)
                     Card(
                         modifier = Modifier
                             .weight(1f)
@@ -166,19 +168,19 @@ fun AppListScreen(
                                 imageVector = Icons.Default.ScreenShare,
                                 contentDescription = null,
                                 modifier = Modifier.size(56.dp),
-                                tint = if (connectedDevice != null) 
+                                tint = if (currentPairing != null) 
                                     MaterialTheme.colorScheme.primary 
                                 else 
                                     MaterialTheme.colorScheme.outline
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = if (connectedDevice != null) 
-                                    "Conectado" 
+                                text = if (currentPairing != null) 
+                                    currentPairing!!.bluetoothName 
                                 else 
                                     "Sin conexión",
                                 style = MaterialTheme.typography.bodyLarge,
-                                color = if (connectedDevice != null)
+                                color = if (currentPairing != null)
                                     MaterialTheme.colorScheme.primary
                                 else
                                     Color.Gray
@@ -186,16 +188,18 @@ fun AppListScreen(
                             Spacer(modifier = Modifier.height(8.dp))
                             Button(
                                 onClick = { 
-                                    if (connectedDevice != null) {
-                                        // Desconectar
-                                        deviceViewModel.disconnectFromMqtt()
+                                    if (currentPairing != null) {
+                                        // Desemparejar
+                                        devicePairingViewModel.unpairDevice()
                                     } else {
-                                        // Mostrar diálogo para conectar
-                                        deviceViewModel.toggleDeviceDialog()
+                                        // Verificar permisos ANTES de escanear
+                                        requestBluetoothPermissions()
+                                        // El escaneo se iniciará desde el permission callback
+                                        showBluetoothDialog = true
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth(),
-                                colors = if (connectedDevice != null) {
+                                colors = if (currentPairing != null) {
                                     ButtonDefaults.buttonColors(
                                         containerColor = MaterialTheme.colorScheme.error
                                     )
@@ -204,11 +208,24 @@ fun AppListScreen(
                                 }
                             ) {
                                 Text(
-                                    if (connectedDevice != null) "Desconectar" else "Conectar"
+                                    if (currentPairing != null) "Desemparejar" else "Conectar"
                                 )
                             }
                         }
                     }
+                }
+                
+                // Mostrar tarjeta de dispositivo emparejado si existe
+                currentPairing?.let { pairing ->
+                    PairedDeviceCard(
+                        device = pairing,
+                        onUnpair = {
+                            devicePairingViewModel.unpairDevice()
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp)
+                    )
                 }
                 
                 // Botón para reiniciar el servicio de notificaciones
@@ -294,27 +311,39 @@ fun AppListScreen(
             )
         }
 
-        if (showDeviceDialog) {
+        // Diálogo de selección de dispositivo Bluetooth
+        if (showBluetoothDialog) {
             DeviceSelectionDialog(
-                isSearching = isSearching,
-                devices = devices,
-                scanCompleted = scanCompleted,
+                isScanning = isScanning,
+                devices = bluetoothDevices,
+                scanCompleted = !isScanning && bluetoothDevices.isNotEmpty(),
                 onSearchDevices = {
-                    userId?.let { uid -> deviceViewModel.searchDevices(uid) }
+                    requestBluetoothPermissions()
+                    // El escaneo se iniciará automáticamente si hay permisos
                 },
-
                 onDeviceSelected = { device ->
-                    userId?.let { uid ->
-                        deviceViewModel.connectToDevice(device.id, uid)
-                        deviceViewModel.toggleDeviceDialog()
-                    }
+                    devicePairingViewModel.showTokenDialog(device)
+                    showBluetoothDialog = false
                 },
                 onDismiss = {
-                    deviceViewModel.toggleDeviceDialog()
-                    deviceViewModel.clearDevices()
+                    showBluetoothDialog = false
+                    devicePairingViewModel.stopBluetoothScan()
                 }
             )
-            }
+        }
+        
+        // Diálogo de ingreso de token
+        if (showTokenDialog && selectedDevice != null) {
+            TokenInputDialog(
+                deviceName = selectedDevice!!.name,
+                onTokenEntered = { token ->
+                    devicePairingViewModel.pairDevice(token)
+                },
+                onDismiss = {
+                    devicePairingViewModel.dismissTokenDialog()
+                }
+            )
+        }
         }
     }
 }

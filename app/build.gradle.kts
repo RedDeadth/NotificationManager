@@ -100,6 +100,9 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
+    // WorkManager - Para watchdog externo del servicio
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
+
     // Room - Migrado a KSP
     val roomVersion = "2.6.1"
     implementation("androidx.room:room-runtime:$roomVersion")
