@@ -58,6 +58,13 @@ fun AppListScreen(
     // Control de diálogos
     var showBluetoothDialog by remember { mutableStateOf(false) }
     
+    // Mostrar diálogo automáticamente cuando inicia escaneo
+    LaunchedEffect(isScanning) {
+        if (isScanning && !showBluetoothDialog) {
+            showBluetoothDialog = true
+        }
+    }
+    
     // Manejar resultados de pairing
     LaunchedEffect(pairingState) {
         when (pairingState) {
@@ -192,10 +199,9 @@ fun AppListScreen(
                                         // Desemparejar
                                         devicePairingViewModel.unpairDevice()
                                     } else {
-                                        // Verificar permisos ANTES de escanear
+                                        // Verificar permisos y habilitar Bluetooth
+                                        // El callback iniciará el escaneo automáticamente
                                         requestBluetoothPermissions()
-                                        // El escaneo se iniciará desde el permission callback
-                                        showBluetoothDialog = true
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth(),
