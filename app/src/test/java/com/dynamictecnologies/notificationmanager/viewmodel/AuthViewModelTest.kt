@@ -57,6 +57,7 @@ class AuthViewModelTest {
     // ===== TEST DEPENDENCIES (Following Dependency Inversion Principle) =====
     
     private lateinit var viewModel: AuthViewModel
+    private lateinit var authRepository: com.dynamictecnologies.notificationmanager.domain.repositories.AuthRepository
     private lateinit var signInWithEmailUseCase: SignInWithEmailUseCase
     private lateinit var registerUserWithUsernameUseCase: RegisterUserWithUsernameUseCase
     private lateinit var signInWithGoogleUseCase: SignInWithGoogleUseCase
@@ -94,6 +95,7 @@ class AuthViewModelTest {
         Dispatchers.setMain(testDispatcher)
 
         // Initialize mocks (Following DIP - depend on abstractions)
+        authRepository = mockk(relaxed = true)
         signInWithEmailUseCase = mockk(relaxed = true)
         registerUserWithUsernameUseCase = mockk(relaxed = true)
         signInWithGoogleUseCase = mockk(relaxed = true)
@@ -123,6 +125,7 @@ class AuthViewModelTest {
     
     private fun createViewModel() {
         viewModel = AuthViewModel(
+            authRepository = authRepository,
             signInWithEmailUseCase = signInWithEmailUseCase,
             registerUserWithUsernameUseCase = registerUserWithUsernameUseCase,
             signInWithGoogleUseCase = signInWithGoogleUseCase,
