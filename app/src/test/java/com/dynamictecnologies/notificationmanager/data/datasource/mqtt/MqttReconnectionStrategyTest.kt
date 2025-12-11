@@ -133,29 +133,29 @@ class MqttReconnectionStrategyTest {
         // Given
         coEvery { connectionManager.connect() } returns Result.success(Unit)
         coEvery { subscriptionManager.resubscribeAll() } returns Result.success(Unit)
+        every { connectionManager.isConnected() } returns true
 
         // When
         reconnectionStrategy.scheduleReconnect()
         advanceTimeBy(2000) // Wait for reconnection to complete
 
-        // Then - attempts should be reset after successful connection
-        // The strategy should have called resetAttempts internally
-        verify { connectionManager.isConnected() }
+        // Then - verify connect was called
+        coVerify(timeout = 3000) { connectionManager.connect() }
     }
 
     @Test
     fun `failed reconnection increments attempt counter`() = runTest {
         // Given
         coEvery { connectionManager.connect() } returns Result.failure(Exception("Connection failed"))
+        every { connectionManager.isConnected() } returns false
 
         // When
         val initialAttempt = reconnectionStrategy.getCurrentAttempt()
         reconnectionStrategy.scheduleReconnect()
         advanceTimeBy(2000) // Wait for reconnection attempt
 
-        // Then
-        // Attempt counter should have increased (though we can't directly verify due to async nature)
-        verify { connectionManager.isConnected() }
+        // Then - verify connect was attempted
+        coVerify(timeout = 3000) { connectionManager.connect() }
         
         // Cleanup
         reconnectionStrategy.cancelReconnect()

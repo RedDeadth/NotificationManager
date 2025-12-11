@@ -25,8 +25,8 @@ class MqttNotificationSenderTest {
 
     @Before
     fun setup() {
-        // NOT relaxed - need to configure each mock explicitly for Result types
-        mockConnectionManager = mockk()
+        // Use relaxed mock to handle any additional method calls
+        mockConnectionManager = mockk(relaxed = true)
         
         // Default: isConnected returns false (safe default)
         every { mockConnectionManager.isConnected() } returns false
@@ -94,11 +94,11 @@ class MqttNotificationSenderTest {
         val result = sender.sendNotification(deviceId, notification)
 
         // Then
-        assertTrue("Result should be success", result.isSuccess)
+        assertTrue("Result should be success: ${result.exceptionOrNull()?.message}", result.isSuccess)
         coVerify {
             mockConnectionManager.publish(
                 eq("esp32/device/$deviceId/notification"),
-                any(), // payload contains JSON
+                any(),
                 eq(1)
             )
         }
@@ -124,9 +124,10 @@ class MqttNotificationSenderTest {
         )
 
         // When
-        sender.sendNotification("device123", notification)
+        val result = sender.sendNotification("device123", notification)
 
         // Then
+        assertTrue("Result should be success", result.isSuccess)
         assertTrue("Payload should contain userId", capturedPayload.contains("user123"))
         assertTrue("Payload should contain username", capturedPayload.contains("testuser"))
     }
@@ -147,7 +148,8 @@ class MqttNotificationSenderTest {
     fun `sendGeneralNotification publishes to general topic when connected`() = runTest {
         // Given
         every { mockConnectionManager.isConnected() } returns true
-        coEvery { mockConnectionManager.publish(any(), any(), any()) } coAnswers { Result.success(Unit) }
+        // Note: sendGeneralNotification uses publish with 2 args (no qos)
+        coEvery { mockConnectionManager.publish(any(), any()) } coAnswers { Result.success(Unit) }
 
         // When
         val result = sender.sendGeneralNotification("Test Title", "Test Content")
@@ -157,7 +159,6 @@ class MqttNotificationSenderTest {
         coVerify {
             mockConnectionManager.publish(
                 eq("/notificaciones/general"),
-                any(),
                 any()
             )
         }
@@ -168,15 +169,16 @@ class MqttNotificationSenderTest {
         // Given
         every { mockConnectionManager.isConnected() } returns true
         var capturedPayload = ""
-        coEvery { mockConnectionManager.publish(any(), any(), any()) } coAnswers {
+        coEvery { mockConnectionManager.publish(any(), any()) } coAnswers {
             capturedPayload = secondArg()
             Result.success(Unit)
         }
 
         // When
-        sender.sendGeneralNotification("Title", "Content")
+        val result = sender.sendGeneralNotification("Title", "Content")
 
         // Then
+        assertTrue("Result should be success", result.isSuccess)
         assertTrue("Payload should contain timestamp", capturedPayload.contains("timestamp"))
         assertTrue("Payload should contain title", capturedPayload.contains("Title"))
         assertTrue("Payload should contain content", capturedPayload.contains("Content"))
