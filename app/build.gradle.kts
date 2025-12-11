@@ -67,6 +67,11 @@ android {
             pickFirsts += setOf("META-INF/LICENSE", "META-INF/DEPENDENCIES", "META-INF/NOTICE")
         }
     }
+    
+    // Configuración para unit tests - permite que android.util.Log funcione
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
 }
 
 dependencies {
