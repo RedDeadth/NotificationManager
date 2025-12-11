@@ -220,7 +220,7 @@ class NotificationForegroundService : Service() {
             while (isActive) {
                 try {
                     // Verificar si el NotificationListenerService está habilitado
-                    val isListenerEnabled = isNotificationListenerEnabled(this@NotificationForegroundService)
+                    val isListenerEnabled = NotificationListenerService.isNotificationListenerEnabled(this@NotificationForegroundService)
                     
                     Log.d(TAG, "Watchdog: NotificationListenerService habilitado = $isListenerEnabled")
                     
@@ -482,14 +482,8 @@ class NotificationForegroundService : Service() {
         )
     }
     
-    private fun isNotificationListenerEnabled(context: Context): Boolean {
-        val cn = ComponentName(context, NotificationListenerService::class.java)
-        val flat = Settings.Secure.getString(
-            context.contentResolver,
-            "enabled_notification_listeners"
-        )
-        return flat?.contains(cn.flattenToString()) ?: false
-    }
+    // REMOVED: Duplicate isNotificationListenerEnabled function (now using NotificationListenerService.isNotificationListenerEnabled)
+
 
     override fun onBind(intent: Intent?): IBinder? = null
 

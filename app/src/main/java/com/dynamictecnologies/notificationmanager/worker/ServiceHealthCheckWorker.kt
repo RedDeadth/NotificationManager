@@ -2,6 +2,7 @@ package com.dynamictecnologies.notificationmanager.worker
 
 import android.app.ActivityManager
 import android.content.Context
+import android.content.Intent
 import android.util.Log
 import androidx.work.Worker
 import androidx.work.WorkerParameters
@@ -125,20 +126,45 @@ class ServiceHealthCheckWorker(
     
     /**
      * Maneja el caso de servicio muerto:
-     * - Muestra notificación roja
+     * - PRIMERO: Detiene el servicio foreground y cancela su notificación
+     * - LUEGO: Muestra notificación roja
      * - Registra evento
      */
     private fun handleDeadService() {
         Log.w(TAG, "🚨 Servicio muerto detectado por watchdog externo")
         
-        // Mostrar notificación roja
+        // 1. PRIMERO: Detener el servicio foreground para que libere su notificación
+        try {
+            val stopIntent = Intent(applicationContext, NotificationForegroundService::class.java)
+            applicationContext.stopService(stopIntent)
+            Log.d(TAG, "✓ Servicio foreground detenido")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error deteniendo servicio: ${e.message}")
+        }
+        
+        // 2. Cancelar manualmente la notificación del foreground service
+        try {
+            val notificationManager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) 
+                as android.app.NotificationManager
+            notificationManager.cancel(ServiceNotificationManager.NOTIFICATION_ID_RUNNING)
+            Log.d(TAG, "✓ Notificación running cancelada")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error cancelando notificación: ${e.message}")
+        }
+        
+        // 3. Pequeño delay para asegurar que la notificación verde se cancele
+        Thread.sleep(200)
+        
+        // 4. AHORA: Mostrar notificación roja
         ServiceNotificationManager(applicationContext).showStoppedNotification()
         
-        // Registrar evento para diagnóstico
+        // 5. Registrar evento para diagnóstico
         val prefs = applicationContext.getSharedPreferences("service_state", Context.MODE_PRIVATE)
         prefs.edit().apply {
             putLong("last_death_detected", System.currentTimeMillis())
             putInt("death_count", prefs.getInt("death_count", 0) + 1)
+            // Marcar que el servicio ya no debería estar corriendo
+            putBoolean("service_should_be_running", false)
             apply()
         }
         
