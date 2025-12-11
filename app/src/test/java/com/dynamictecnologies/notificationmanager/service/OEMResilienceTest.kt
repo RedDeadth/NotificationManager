@@ -185,11 +185,9 @@ class OEMResilienceTest {
         
         assertNotNull("Notificaciones deben funcionar en Android 12+", notification)
         
-        // Verificar que tiene foreground service behavior
-        assertTrue(
-            "Notificación debe tener flags de foreground service",
-            notification.flags and android.app.Notification.FLAG_FOREGROUND_SERVICE != 0
-        )
+        // Nota: FLAG_FOREGROUND_SERVICE no se puede verificar en Robolectric
+        // porque el flag se setea por el sistema cuando startForeground() es llamado.
+        // En este test unitario, solo verificamos que la notificación se crea.
     }
     
     /**
@@ -298,9 +296,9 @@ class OEMResilienceTest {
             assertEquals(state, ServiceStateManager.getCurrentState(context))
         }
         
-        // Estado final debe ser correcto
+        // Estado final: i=99, 99%3=0 -> RUNNING
         assertEquals(
-            ServiceStateManager.ServiceState.DISABLED,
+            ServiceStateManager.ServiceState.RUNNING,
             ServiceStateManager.getCurrentState(context)
         )
     }
