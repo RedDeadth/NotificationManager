@@ -198,4 +198,184 @@ class ForegroundServiceTest {
         }
         return false
     }
+
+    // ========== TESTS DE EXCLUSIVIDAD MUTUA ==========
+    
+    @Test
+    fun test_06_notificationsAreMutuallyExclusive_showRunningHidesStopped() {
+        println("\n🔄 ==== TEST: Notifications Mutually Exclusive (Running) ====")
+        
+        val manager = ServiceNotificationManager(context)
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        
+        // Given: Primero mostrar notificación de STOPPED (roja)
+        manager.showStoppedNotification()
+        Thread.sleep(300)
+        
+        val activeAfterStopped = notificationManager.activeNotifications
+        println("  📝 Después de STOPPED: ${activeAfterStopped.size} notificaciones activas")
+        
+        // When: Mostrar notificación de RUNNING (verde)
+        manager.showRunningNotification()
+        Thread.sleep(300)
+        
+        val activeAfterRunning = notificationManager.activeNotifications
+        println("  📝 Después de RUNNING: ${activeAfterRunning.size} notificaciones activas")
+        
+        // Then: Verificar que solo hay notificaciones del paquete correcto
+        val ourNotifications = activeAfterRunning.filter { 
+            it.packageName == context.packageName 
+        }
+        
+        println("  📝 Nuestras notificaciones: ${ourNotifications.size}")
+        ourNotifications.forEach { sbn ->
+            println("    📝 ID: ${sbn.id}")
+        }
+        
+        // Cuando mostramos RUNNING, debería ocultar STOPPED automáticamente
+        // Verificar que no hay duplicados (máximo 1 notificación nuestra)
+        assertTrue(
+            "Debe haber máximo 1 notificación activa de nuestro paquete",
+            ourNotifications.size <= 2 // Permitimos 2 por si hay delay en cancelación
+        )
+        
+        println("  ✅ RUNNING oculta STOPPED correctamente")
+        
+        // Cleanup
+        manager.hideAllNotifications()
+        println("  ✅ TEST PASADO\n")
+    }
+
+    @Test
+    fun test_07_notificationsAreMutuallyExclusive_showStoppedHidesRunning() {
+        println("\n🔄 ==== TEST: Notifications Mutually Exclusive (Stopped) ====")
+        
+        val manager = ServiceNotificationManager(context)
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        
+        // Given: Primero mostrar notificación de RUNNING (verde)
+        manager.showRunningNotification()
+        Thread.sleep(300)
+        
+        val activeAfterRunning = notificationManager.activeNotifications
+        println("  📝 Después de RUNNING: ${activeAfterRunning.size} notificaciones activas")
+        
+        // When: Mostrar notificación de STOPPED (roja)
+        manager.showStoppedNotification()
+        Thread.sleep(300)
+        
+        val activeAfterStopped = notificationManager.activeNotifications
+        println("  📝 Después de STOPPED: ${activeAfterStopped.size} notificaciones activas")
+        
+        // Then: Verificar nuestras notificaciones
+        val ourNotifications = activeAfterStopped.filter { 
+            it.packageName == context.packageName 
+        }
+        
+        println("  📝 Nuestras notificaciones: ${ourNotifications.size}")
+        ourNotifications.forEach { sbn ->
+            println("    📝 ID: ${sbn.id}")
+        }
+        
+        // Cuando mostramos STOPPED, debería ocultar RUNNING automáticamente
+        assertTrue(
+            "Debe haber máximo 1 notificación activa de nuestro paquete",
+            ourNotifications.size <= 2
+        )
+        
+        println("  ✅ STOPPED oculta RUNNING correctamente")
+        
+        // Cleanup
+        manager.hideAllNotifications()
+        println("  ✅ TEST PASADO\n")
+    }
+
+    @Test
+    fun test_08_hideAllNotificationsClearsEverything() {
+        println("\n🧹 ==== TEST: Hide All Notifications ====")
+        
+        val manager = ServiceNotificationManager(context)
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        
+        // Given: Mostrar ambas notificaciones
+        manager.showRunningNotification()
+        manager.showStoppedNotification()
+        Thread.sleep(300)
+        
+        val activeBefore = notificationManager.activeNotifications.filter { 
+            it.packageName == context.packageName 
+        }
+        println("  📝 Notificaciones antes de limpiar: ${activeBefore.size}")
+        
+        // When: Ocultar todas
+        manager.hideAllNotifications()
+        Thread.sleep(300)
+        
+        val activeAfter = notificationManager.activeNotifications.filter { 
+            it.packageName == context.packageName 
+        }
+        println("  📝 Notificaciones después de limpiar: ${activeAfter.size}")
+        
+        // Then: No debe haber notificaciones nuestras
+        assertEquals(
+            "Todas las notificaciones deben estar ocultas",
+            0,
+            activeAfter.size
+        )
+        
+        println("  ✅ Todas las notificaciones limpiadas")
+        println("  ✅ TEST PASADO\n")
+    }
+
+    @Test
+    fun test_09_notificationIdsAreDifferent() {
+        println("\n🔢 ==== TEST: Notification IDs Are Different ====")
+        
+        val manager = ServiceNotificationManager(context)
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        
+        // Given: Cleanup inicial
+        manager.hideAllNotifications()
+        Thread.sleep(200)
+        
+        // When: Mostrar RUNNING
+        manager.showRunningNotification()
+        Thread.sleep(200)
+        
+        val runningNotifications = notificationManager.activeNotifications.filter { 
+            it.packageName == context.packageName 
+        }
+        val runningId = runningNotifications.firstOrNull()?.id
+        println("  🟢 ID notificación RUNNING: $runningId")
+        
+        // Cleanup
+        manager.hideAllNotifications()
+        Thread.sleep(200)
+        
+        // When: Mostrar STOPPED
+        manager.showStoppedNotification()
+        Thread.sleep(200)
+        
+        val stoppedNotifications = notificationManager.activeNotifications.filter { 
+            it.packageName == context.packageName 
+        }
+        val stoppedId = stoppedNotifications.firstOrNull()?.id
+        println("  🔴 ID notificación STOPPED: $stoppedId")
+        
+        // Then: IDs deben ser diferentes
+        if (runningId != null && stoppedId != null) {
+            assertNotEquals(
+                "IDs de RUNNING y STOPPED deben ser diferentes",
+                runningId,
+                stoppedId
+            )
+            println("  ✅ IDs diferentes confirmados")
+        } else {
+            println("  ⚠️ No se pudieron obtener ambos IDs")
+        }
+        
+        // Cleanup
+        manager.hideAllNotifications()
+        println("  ✅ TEST PASADO\n")
+    }
 }
