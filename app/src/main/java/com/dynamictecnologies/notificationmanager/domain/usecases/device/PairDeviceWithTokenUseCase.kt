@@ -38,8 +38,11 @@ class PairDeviceWithTokenUseCase(
         bluetoothAddress: String,
         token: String
     ): Result<Unit> {
-        // Validar formato de token
-        if (!TokenValidator.validate(token)) {
+        // Normalizar token a uppercase primero
+        val normalizedToken = token.uppercase()
+        
+        // Validar formato de token (ahora normalizado)
+        if (!TokenValidator.validate(normalizedToken)) {
             return Result.failure(InvalidTokenException(token))
         }
         
@@ -47,8 +50,8 @@ class PairDeviceWithTokenUseCase(
         val pairing = DevicePairing(
             bluetoothName = bluetoothName,
             bluetoothAddress = bluetoothAddress,
-            token = token.uppercase(),  // Normalizar a uppercase
-            mqttTopic = TokenValidator.formatAsTopic(token.uppercase()),
+            token = normalizedToken,
+            mqttTopic = TokenValidator.formatAsTopic(normalizedToken),
             pairedAt = System.currentTimeMillis()
         )
         

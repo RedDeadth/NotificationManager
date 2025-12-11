@@ -29,8 +29,8 @@ class SendNotificationToDeviceUseCaseTest {
     
     @Before
     fun setup() {
-        pairingRepository = mockk()
-        mqttSender = mockk()
+        pairingRepository = mockk(relaxed = true)
+        mqttSender = mockk(relaxed = true)
         useCase = SendNotificationToDeviceUseCase(pairingRepository, mqttSender)
     }
     
@@ -51,13 +51,13 @@ class SendNotificationToDeviceUseCaseTest {
         )
         
         coEvery { pairingRepository.getMqttTopic() } returns topic
-        coEvery { mqttSender.sendNotificationToTopic(topic, notification) } returns Result.success(Unit)
+        coEvery { mqttSender.sendNotificationToTopic(any(), any()) } coAnswers { Result.success(Unit) }
         
         // When
         val result = useCase(notification)
         
         // Then
-        assertTrue(result.isSuccess)
+        assertTrue("Result should be success", result.isSuccess)
         
         coVerify { pairingRepository.getMqttTopic() }
         coVerify { mqttSender.sendNotificationToTopic(topic, notification) }
@@ -98,13 +98,13 @@ class SendNotificationToDeviceUseCaseTest {
         val mqttError = Exception("MQTT not connected")
         
         coEvery { pairingRepository.getMqttTopic() } returns topic
-        coEvery { mqttSender.sendNotificationToTopic(topic, notification) } returns Result.failure(mqttError)
+        coEvery { mqttSender.sendNotificationToTopic(any(), any()) } coAnswers { Result.failure(mqttError) }
         
         // When
         val result = useCase(notification)
         
         // Then
-        assertTrue(result.isFailure)
+        assertTrue("Result should be failure", result.isFailure)
         assertEquals(mqttError, result.exceptionOrNull())
     }
     
@@ -120,13 +120,13 @@ class SendNotificationToDeviceUseCaseTest {
         )
         
         coEvery { pairingRepository.getMqttTopic() } returns topic
-        coEvery { mqttSender.sendNotificationToTopic(topic, notification) } returns Result.success(Unit)
+        coEvery { mqttSender.sendNotificationToTopic(any(), any()) } coAnswers { Result.success(Unit) }
         
         // When
         val result = useCase(notification)
         
         // Then
-        assertTrue(result.isSuccess)
+        assertTrue("Result should be success", result.isSuccess)
         coVerify { mqttSender.sendNotificationToTopic(topic, notification) }
     }
 }

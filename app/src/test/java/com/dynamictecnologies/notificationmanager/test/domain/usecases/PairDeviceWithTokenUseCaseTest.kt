@@ -43,23 +43,24 @@ class PairDeviceWithTokenUseCaseTest {
     fun `invoke with valid token should save pairing and connect MQTT`() = runTest {
         // Given
         val deviceName = "ESP32_A3F9"
-        val deviceAddress = "XX:XX:XX:XX:XX:XX"
+        val deviceAddress = "AA:BB:CC:DD:EE:FF"
         val token = "A3F9K2L7"
         
+        // Mock suspend functions explicitly - relaxed doesn't work well with Result<T>
         coEvery { pairingRepository.savePairing(any()) } returns Result.success(Unit)
-        coEvery { mqttConnectionManager.connect() } returns Result.success(Unit)
+        coEvery { mqttConnectionManager.connect() } coAnswers { Result.success(Unit) }
         
         // When
         val result = useCase(deviceName, deviceAddress, token)
         
         // Then
-        assertTrue(result.isSuccess)
+        assertTrue("Result should be success", result.isSuccess)
         
         coVerify {
             pairingRepository.savePairing(
                 match {
                     it.bluetoothName == deviceName &&
-                    it.bluetoothAddress == deviceAddress &&
+                    it.bluetoothAddress == "AA:BB:CC:DD:EE:FF" &&
                     it.token == "A3F9K2L7" &&
                     it.mqttTopic == "n/A3F9K2L7"
                 }
@@ -75,7 +76,7 @@ class PairDeviceWithTokenUseCaseTest {
         val invalidToken = "SHORT"  // Menos de 8 caracteres
         
         // When
-        val result = useCase("ESP32_A3F9", "XX:XX:XX:XX:XX:XX", invalidToken)
+        val result = useCase("ESP32_A3F9", "AA:BB:CC:DD:EE:FF", invalidToken)
         
         // Then
         assertTrue(result.isFailure)
@@ -91,13 +92,13 @@ class PairDeviceWithTokenUseCaseTest {
         val lowercaseToken = "a3f9k2l7"
         
         coEvery { pairingRepository.savePairing(any()) } returns Result.success(Unit)
-        coEvery { mqttConnectionManager.connect() } returns Result.success(Unit)
+        coEvery { mqttConnectionManager.connect() } coAnswers { Result.success(Unit) }
         
         // When
-        val result = useCase("ESP32", "XX:XX:XX:XX:XX:XX", lowercaseToken)
+        val result = useCase("ESP32", "AA:BB:CC:DD:EE:FF", lowercaseToken)
         
         // Then
-        assertTrue(result.isSuccess)
+        assertTrue("Result should be success", result.isSuccess)
         
         coVerify {
             pairingRepository.savePairing(
@@ -115,10 +116,10 @@ class PairDeviceWithTokenUseCaseTest {
         coEvery { pairingRepository.savePairing(any()) } returns Result.failure(error)
         
         // When
-        val result = useCase("ESP32", "XX:XX:XX:XX:XX:XX", token)
+        val result = useCase("ESP32", "AA:BB:CC:DD:EE:FF", token)
         
         // Then
-        assertTrue(result.isFailure)
+        assertTrue("Result should be failure", result.isFailure)
         assertEquals(error, result.exceptionOrNull())
         
         // MQTT no debería intentarse si save falla
@@ -132,13 +133,13 @@ class PairDeviceWithTokenUseCaseTest {
         val mqttError = Exception("MQTT connection error")
         
         coEvery { pairingRepository.savePairing(any()) } returns Result.success(Unit)
-        coEvery { mqttConnectionManager.connect() } returns Result.failure(mqttError)
+        coEvery { mqttConnectionManager.connect() } coAnswers { Result.failure(mqttError) }
         
         // When
-        val result = useCase("ESP32", "XX:XX:XX:XX:XX:XX", token)
+        val result = useCase("ESP32", "AA:BB:CC:DD:EE:FF", token)
         
         // Then
-        assertTrue(result.isFailure)
+        assertTrue("Result should be failure", result.isFailure)
         assertEquals(mqttError, result.exceptionOrNull())
     }
     
@@ -148,7 +149,7 @@ class PairDeviceWithTokenUseCaseTest {
         val invalidToken = "A3F@K2L7"  // Contiene @
         
         // When
-        val result = useCase("ESP32", "XX:XX:XX:XX:XX:XX", invalidToken)
+        val result = useCase("ESP32", "AA:BB:CC:DD:EE:FF", invalidToken)
         
         // Then
         assertTrue(result.isFailure)
@@ -161,10 +162,10 @@ class PairDeviceWithTokenUseCaseTest {
         val token = "TEST1234"
         
         coEvery { pairingRepository.savePairing(any()) } returns Result.success(Unit)
-        coEvery { mqttConnectionManager.connect() } returns Result.success(Unit)
+        coEvery { mqttConnectionManager.connect() } coAnswers { Result.success(Unit) }
         
         // When
-        useCase("ESP32", "XX:XX:XX:XX:XX:XX", token)
+        useCase("ESP32", "AA:BB:CC:DD:EE:FF", token)
         
         // Then
         coVerify {
