@@ -28,7 +28,6 @@ import kotlinx.coroutines.Job
 import java.util.*
 
 class NotificationForegroundService : Service() {
-    private val TAG = "NotificationFgService"
     private val CHANNEL_ID = "notification_manager_service"
     private val NOTIFICATION_ID = 1
     
@@ -45,7 +44,7 @@ class NotificationForegroundService : Service() {
     private var currentRetryAttempt = 0
     private var lastRetryTime = 0L
     
-    private var checkServiceTimer: Timer? = null
+    private var periodicCheckJob: Job? = null
     
     companion object {
         private const val TAG = "NotificationFgService"
@@ -418,53 +417,55 @@ class NotificationForegroundService : Service() {
     }
     
     private fun tryToRestartNotificationListenerService() {
-        try {
-            // Primero, intentamos simular la desactivación y reactivación de los permisos
-            // Esto puede requerir algunas acciones de usuario en versiones recientes de Android
-            toggleNotificationListenerService()
-            
-            // Luego, asegurarse de que la clase esté activada
-            val packageManager = applicationContext.packageManager
-            val componentName = ComponentName(applicationContext, NotificationListenerService::class.java)
-            
+        serviceScope.launch {
             try {
-                packageManager.setComponentEnabledSetting(
-                    componentName,
-                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                    PackageManager.DONT_KILL_APP
-                )
+                // Primero, intentamos simular la desactivación y reactivación de los permisos
+                // Esto puede requerir algunas acciones de usuario en versiones recientes de Android
+                toggleNotificationListenerService()
                 
-                // Esperar para evitar problemas de concurrencia
-                Thread.sleep(300)
+                // Luego, asegurarse de que la clase esté activada
+                val packageManager = applicationContext.packageManager
+                val componentName = ComponentName(applicationContext, NotificationListenerService::class.java)
                 
-                packageManager.setComponentEnabledSetting(
-                    componentName,
-                    PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-                    PackageManager.DONT_KILL_APP
-                )
+                try {
+                    packageManager.setComponentEnabledSetting(
+                        componentName,
+                        PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                        PackageManager.DONT_KILL_APP
+                    )
+                    
+                    // Esperar para evitar problemas de concurrencia (non-blocking)
+                    delay(300)
+                    
+                    packageManager.setComponentEnabledSetting(
+                        componentName,
+                        PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                        PackageManager.DONT_KILL_APP
+                    )
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error al cambiar estado del componente: ${e.message}")
+                }
+                
+                // Esperar un momento para que los cambios se apliquen (non-blocking)
+                delay(500)
+                
+                // Finalmente, intentar iniciar el servicio directamente
+                // (puede no funcionar en versiones recientes de Android)
+                try {
+                    val listenerIntent = Intent(applicationContext, NotificationListenerService::class.java)
+                    applicationContext.startService(listenerIntent)
+                    
+                    // Actualizar timestamp de intento de reinicio
+                    val prefs = getSharedPreferences("notification_listener_prefs", Context.MODE_PRIVATE)
+                    prefs.edit().putLong("last_restart_attempt", System.currentTimeMillis()).apply()
+                    
+                    Log.d(TAG, "Intento de reinicio del NotificationListenerService completado")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error al iniciar servicio directamente: ${e.message}")
+                }
             } catch (e: Exception) {
-                Log.e(TAG, "Error al cambiar estado del componente: ${e.message}")
+                Log.e(TAG, "Error al intentar reiniciar NotificationListenerService: ${e.message}")
             }
-            
-            // Esperar un momento para que los cambios se apliquen
-            Thread.sleep(500)
-            
-            // Finalmente, intentar iniciar el servicio directamente
-            // (puede no funcionar en versiones recientes de Android)
-            try {
-                val listenerIntent = Intent(applicationContext, NotificationListenerService::class.java)
-                applicationContext.startService(listenerIntent)
-                
-                // Actualizar timestamp de intento de reinicio
-                val prefs = getSharedPreferences("notification_listener_prefs", Context.MODE_PRIVATE)
-                prefs.edit().putLong("last_restart_attempt", System.currentTimeMillis()).apply()
-                
-                Log.d(TAG, "Intento de reinicio del NotificationListenerService completado")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error al iniciar servicio directamente: ${e.message}")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error al intentar reiniciar NotificationListenerService: ${e.message}")
         }
     }
     
@@ -575,9 +576,9 @@ class NotificationForegroundService : Service() {
             Log.e(TAG, "Error liberando wake lock: ${e.message}")
         }
         
-        // Detener temporizador de verificación
-        checkServiceTimer?.cancel()
-        checkServiceTimer = null
+        // Detener job de verificación periódica
+        periodicCheckJob?.cancel()
+        periodicCheckJob = null
     }
     
     private fun tryAutomaticRestart() {
@@ -657,18 +658,20 @@ class NotificationForegroundService : Service() {
     }
 
     private fun startPeriodicChecks() {
-        // Cancelar temporizador existente si hay uno
-        checkServiceTimer?.cancel()
+        // Cancelar job existente si hay uno
+        periodicCheckJob?.cancel()
         
-        // Crear nuevo temporizador
-        checkServiceTimer = Timer()
-        
-        // Programar verificación cada 3 horas
-        checkServiceTimer?.scheduleAtFixedRate(object : TimerTask() {
-            override fun run() {
+        // Usar coroutine en lugar de Timer deprecated
+        periodicCheckJob = serviceScope.launch {
+            // Esperar 30 minutos iniciales
+            delay(30 * 60 * 1000L)
+            
+            // Loop de verificación cada 3 horas
+            while (isActive) {
                 Log.d(TAG, "Realizando verificación programada del servicio...")
                 checkNotificationService()
+                delay(3 * 60 * 60 * 1000L) // Cada 3 horas
             }
-        }, 30 * 60 * 1000L, 3 * 60 * 60 * 1000L) // Inicia a los 30 minutos, luego cada 3 horas
+        }
     }
 }

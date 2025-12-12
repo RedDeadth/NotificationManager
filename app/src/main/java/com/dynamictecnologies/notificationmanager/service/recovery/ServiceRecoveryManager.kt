@@ -98,30 +98,14 @@ class ServiceRecoveryManager(
     }
     
     /**
-     * Toggle del NotificationListenerService
+     * Toggle del NotificationListenerService usando utilidad centralizada
      */
-    private fun toggleNotificationListenerService() {
-        try {
-            val componentName = ComponentName(context, NotificationListenerService::class.java)
-            
-            context.packageManager.setComponentEnabledSetting(
-                componentName,
-                android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                android.content.pm.PackageManager.DONT_KILL_APP
-            )
-            
-            Thread.sleep(500)
-            
-            context.packageManager.setComponentEnabledSetting(
-                componentName,
-                android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-                android.content.pm.PackageManager.DONT_KILL_APP
-            )
-            
-            Log.d(TAG, "Toggled NotificationListenerService")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error toggling service", e)
-        }
+    private suspend fun toggleNotificationListenerService() {
+        com.dynamictecnologies.notificationmanager.service.util.NotificationListenerToggler.toggle(
+            context = context,
+            delayMs = 500L
+        )
+        Log.d(TAG, "Toggled NotificationListenerService via Toggler")
     }
     
     /**

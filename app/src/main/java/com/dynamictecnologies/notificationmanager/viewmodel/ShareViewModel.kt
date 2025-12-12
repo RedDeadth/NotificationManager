@@ -4,11 +4,12 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.dynamictecnologies.notificationmanager.data.datasource.firebase.FirebaseNotificationObserver
+import com.dynamictecnologies.notificationmanager.data.datasource.firebase.UsernameResolver
 import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
 import com.dynamictecnologies.notificationmanager.data.model.SyncStatus
 import com.dynamictecnologies.notificationmanager.domain.entities.User
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
@@ -23,11 +24,11 @@ import java.util.*
 
 class ShareViewModel(
     private val auth: FirebaseAuth = FirebaseAuth.getInstance(),
-    private val database: FirebaseDatabase = FirebaseDatabase.getInstance()
+    private val database: FirebaseDatabase = FirebaseDatabase.getInstance(),
+    private val usernameResolver: UsernameResolver = UsernameResolver(),
+    private val notificationObserver: FirebaseNotificationObserver = FirebaseNotificationObserver()
 ) : ViewModel() {
     private val usersRef = database.getReference("users")
-    private val notificationsRef = database.getReference("notifications")
-    private val sharedAccessRef = database.getReference("shared_access")
 
     private val _sharedUsers = MutableStateFlow<List<User>>(emptyList())
     val sharedUsers = _sharedUsers.asStateFlow()
@@ -54,7 +55,6 @@ class ShareViewModel(
     val sharedUsersNotifications = _sharedUsersNotifications.asStateFlow()
 
     private var sharedUsersListener: ValueEventListener? = null
-    private val notificationListeners = mutableMapOf<String, ValueEventListener>()
 
     init {
         
@@ -67,20 +67,12 @@ class ShareViewModel(
         
         viewModelScope.launch {
             try {
-                // Obtener el username del usuario actual a partir de su UID
-                val usernamesRef = database.getReference("usernames")
-                val usernameSnapshot = usernamesRef.orderByValue().equalTo(currentUser.uid).get().await()
+                // Usar UsernameResolver para obtener username
+                val username = usernameResolver.getUsernameByUid(currentUser.uid)
                 
-                if (!usernameSnapshot.exists()) {
+                if (username == null) {
                     Log.d("ShareViewModel", "No se encontró username para UID: ${currentUser.uid}")
                     _error.value = "Perfil no encontrado. Por favor, configura tu perfil."
-                    return@launch
-                }
-                
-                val username = usernameSnapshot.children.firstOrNull()?.key
-                if (username == null) {
-                    Log.d("ShareViewModel", "Username es nulo para UID: ${currentUser.uid}")
-                    _error.value = "Error al recuperar información de perfil"
                     return@launch
                 }
                 
@@ -107,27 +99,13 @@ class ShareViewModel(
                                         val isShared = sharedUserSnapshot.getValue(Boolean::class.java) ?: false
                                         
                                         if (targetUid != null && isShared) {
-                                            // Buscar el username basado en el UID
-                                            val targetUsernameSnapshot = usernamesRef.orderByValue().equalTo(targetUid).get().await()
-                                            val targetUsername = targetUsernameSnapshot.children.firstOrNull()?.key
+                                            // Usar UsernameResolver para obtener info del usuario
+                                            val userInfo = usernameResolver.getUserInfoByUid(targetUid)
                                             
-                                            if (targetUsername != null) {
-                                                // Obtener información del usuario
-                                                val userDataSnapshot = usersRef.child(targetUsername).get().await()
-                                                
-                                                if (userDataSnapshot.exists()) {
-                                                    val userInfo = User(
-                                                        id = targetUid,
-                                                        username = targetUsername,
-                                                        email = userDataSnapshot.child("email").getValue(String::class.java),
-                                                        createdAt = userDataSnapshot.child("createdAt").getValue(Long::class.java)
-                                                            ?: System.currentTimeMillis()
-                                                    )
-                                                    sharedUsersList.add(userInfo)
-                                                    
-                                                    // Configurar observador de notificaciones
-                                                    observeUserNotifications(targetUid)
-                                                }
+                                            if (userInfo != null) {
+                                                sharedUsersList.add(userInfo)
+                                                // Configurar observador de notificaciones usando el nuevo observer
+                                                observeUserNotifications(targetUid)
                                             }
                                         }
                                     }
@@ -415,263 +393,19 @@ class ShareViewModel(
     }
     
     /**
-     * Configura el listener real de notificaciones una vez verificados los permisos
+     * Configura el listener de notificaciones usando el observer delegado.
+     * Toda la lógica de procesamiento está en FirebaseNotificationObserver.
      */
     private fun setupNotificationListener(targetUid: String) {
-        notificationListeners[targetUid]?.let { oldListener ->
-            database.reference
-                .child("notifications")
-                .child(targetUid)
-                .removeEventListener(oldListener)
-            Log.d("ShareViewModel", "Eliminado listener antiguo para $targetUid")
-        }
-
-        Log.d("ShareViewModel", "Añadiendo nuevo listener para $targetUid en path: notifications/$targetUid")
+        Log.d("ShareViewModel", "Configurando listener para $targetUid vía notificationObserver")
         
-        val listener = database.reference
-            .child("notifications")
-            .child(targetUid)
-            .addValueEventListener(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    val notifications = mutableListOf<NotificationInfo>()
-                    
-                    Log.d("ShareViewModel", "Recibiendo datos de notificaciones para $targetUid, cantidad de apps: ${snapshot.childrenCount}")
-
-                    // Analizamos la estructura para detectar si tenemos formato plano o anidado
-                    val isNestedStructure = checkIfNestedNotifications(snapshot)
-                    
-                    Log.d("ShareViewModel", "Estructura de notificaciones detectada: ${if (isNestedStructure) "anidada" else "plana"}")
-                    
-                    if (isNestedStructure) {
-                        // Estructura anidada: /notifications/{user_uid}/{app_package_or_ID}/{notification_id}/fields
-                        processNestedNotifications(snapshot, notifications)
-                    } else {
-                        // Estructura plana: /notifications/{user_uid}/{app_package_or_ID}/{field}
-                        processFlatNotifications(snapshot, notifications)
-                    }
-
-                    // Limitar a 20 notificaciones para mejor rendimiento
-                    val sortedNotifications = notifications
-                        .sortedByDescending { it.timestamp }
-                        .take(20)
-                    
-                    Log.d("ShareViewModel", "Total notificaciones procesadas para $targetUid: ${notifications.size}, después de filtrar y ordenar: ${sortedNotifications.size}")
-
-                    _sharedUsersNotifications.update { current ->
-                        current.toMutableMap().apply {
-                            put(targetUid, sortedNotifications)
-                        }
-                    }
-                }
-
-                override fun onCancelled(error: DatabaseError) {
-                    Log.e("ShareViewModel", "Error observing notifications for $targetUid: ${error.message}")
-                }
-            })
-
-        notificationListeners[targetUid] = listener
-        Log.d("ShareViewModel", "Listener configurado para $targetUid")
-    }
-    
-    /**
-     * Verifica si la estructura de notificaciones es anidada o plana
-     */
-    private fun checkIfNestedNotifications(snapshot: DataSnapshot): Boolean {
-        // Si hay al menos una app con notificaciones
-        val appSnapshot = snapshot.children.firstOrNull() ?: return true
-        
-        // Verificar la estructura del primer hijo
-        val firstChild = appSnapshot.children.firstOrNull() ?: return true
-        
-        // Si el primer hijo tiene un campo 'timestamp', es probablemente un nodo de notificación anidado
-        return firstChild.hasChild("timestamp")
-    }
-    
-    /**
-     * Procesa notificaciones con estructura anidada normal
-     */
-    private fun processNestedNotifications(snapshot: DataSnapshot, notifications: MutableList<NotificationInfo>) {
-        snapshot.children.forEach { appSnapshot ->
-            val appPackage = appSnapshot.key
-            val notificationsCount = appSnapshot.childrenCount
-            Log.d("ShareViewModel", "Procesando app: $appPackage con $notificationsCount notificaciones (formato anidado)")
+        notificationObserver.observeNotifications(targetUid) { notifications ->
+            Log.d("ShareViewModel", "Recibidas ${notifications.size} notificaciones para $targetUid")
             
-            appSnapshot.children.forEach { notificationSnapshot ->
-                try {
-                    // Obtener el ID de la notificación
-                    val notificationId = notificationSnapshot.key
-                    Log.d("ShareViewModel", "Analizando notificación $notificationId para app $appPackage")
-                    
-                    // Verificar si esta notificación tiene la estructura esperada
-                    if (!notificationSnapshot.hasChild("timestamp")) {
-                        Log.d("ShareViewModel", "Notificación $notificationId no tiene campo timestamp, saltando")
-                        return@forEach // Saltar esta notificación
-                    }
-                    
-                    // Obtener el timestamp como Long y validarlo
-                    val timestampValue = notificationSnapshot.child("timestamp").getValue()
-                    
-                    // Intentar diferentes tipos de conversión
-                    val timestampLong = when (timestampValue) {
-                        is Long -> timestampValue
-                        is Double -> timestampValue.toLong()
-                        is String -> try { timestampValue.toLong() } catch (e: Exception) { 0L }
-                        else -> 0L
-                    }
-                    
-                    // Usar timestamp actual si el valor es 0 o muy antiguo
-                    var actualTimestamp = timestampLong
-                    if (actualTimestamp <= 631152000000L) { // 01/01/1990
-                        Log.d("ShareViewModel", "Corrigiendo timestamp inválido para notificación $notificationId: $timestampLong -> ${System.currentTimeMillis()}")
-                        actualTimestamp = System.currentTimeMillis()
-                    }
-                    
-                    val timestamp = Date(actualTimestamp)
-                    
-                    // Convertir String a enum SyncStatus
-                    val syncStatusStr = notificationSnapshot.child("syncStatus").getValue(String::class.java) ?: "PENDING"
-                    val syncStatus = try {
-                        SyncStatus.valueOf(syncStatusStr)
-                    } catch (e: IllegalArgumentException) {
-                        SyncStatus.PENDING // Valor por defecto si hay error
-                    }
-                    
-                    // Validar título y contenido - usar valores predeterminados si faltan
-                    val title = notificationSnapshot.child("title").getValue(String::class.java) ?: "Sin título"
-                    val content = notificationSnapshot.child("content").getValue(String::class.java) ?: "Sin contenido"
-                    
-                    // Crear objeto de notificación con los datos disponibles
-                    val notification = NotificationInfo(
-                        packageName = notificationSnapshot.child("packageName").getValue(String::class.java) ?: appPackage ?: "",
-                        appName = notificationSnapshot.child("appName").getValue(String::class.java) ?: "App Desconocida",
-                        title = title,
-                        content = content,
-                        timestamp = timestamp,
-                        syncStatus = syncStatus,
-                        syncTimestamp = notificationSnapshot.child("syncTimestamp").getValue(Long::class.java) ?: System.currentTimeMillis()
-                    )
-                    notifications.add(notification)
-                    Log.d("ShareViewModel", "Notificación $notificationId añadida: $title (${timestamp.time})")
-                } catch (e: Exception) {
-                    Log.e("ShareViewModel", "Error parsing notification: ${e.message}", e)
+            _sharedUsersNotifications.update { current ->
+                current.toMutableMap().apply {
+                    put(targetUid, notifications)
                 }
-            }
-        }
-    }
-    
-    /**
-     * Procesa notificaciones con estructura plana (todos los campos como nodos independientes)
-     */
-    private fun processFlatNotifications(snapshot: DataSnapshot, notifications: MutableList<NotificationInfo>) {
-        snapshot.children.forEach { appSnapshot ->
-            val appId = appSnapshot.key
-            val fieldsCount = appSnapshot.childrenCount
-            Log.d("ShareViewModel", "Procesando app/grupo: $appId con $fieldsCount campos (formato plano)")
-            
-            // Verificar si este nodo tiene los campos básicos que necesitamos
-            val hasRequiredFields = appSnapshot.hasChild("title") || appSnapshot.hasChild("content")
-            
-            if (hasRequiredFields) {
-                try {
-                    // Extraer campos directamente del nodo app
-                    val timestampNode = appSnapshot.child("timestamp")
-                    
-                    // Leer timestamp con manejo flexible de tipos
-                    var timestampLong = 0L
-                    if (timestampNode.exists()) {
-                        // Primero intentamos obtener el valor directamente sin especificar tipo
-                        val rawValue = timestampNode.getValue()
-                        timestampLong = when (rawValue) {
-                            is Long -> rawValue
-                            is Double -> rawValue.toLong()
-                            is String -> try { rawValue.toLong() } catch (e: Exception) { 0L }
-                            else -> {
-                                Log.d("ShareViewModel", "Timestamp con tipo desconocido: ${rawValue?.javaClass?.simpleName}")
-                                0L
-                            }
-                        }
-                    }
-                    
-                    // Si el timestamp es inválido, usamos el tiempo actual
-                    if (timestampLong <= 631152000000L) { // 01/01/1990
-                        Log.d("ShareViewModel", "Usando timestamp actual en lugar de valor inválido: $timestampLong")
-                        timestampLong = System.currentTimeMillis()
-                    }
-                    
-                    val timestamp = Date(timestampLong)
-                    
-                    // Obtener resto de campos con manejo flexible de tipos
-                    val title = safeGetString(appSnapshot, "title", "Sin título")
-                    val content = safeGetString(appSnapshot, "content", "Sin contenido")
-                    val appName = safeGetString(appSnapshot, "appName", "App $appId")
-                    val packageName = safeGetString(appSnapshot, "packageName", appId ?: "")
-                    
-                    // Estado de sincronización
-                    val syncStatusStr = safeGetString(appSnapshot, "syncStatus", "PENDING")
-                    val syncStatus = try {
-                        SyncStatus.valueOf(syncStatusStr)
-                    } catch (e: Exception) {
-                        SyncStatus.PENDING
-                    }
-                    
-                    // Timestamp de sincronización con manejo flexible de tipos
-                    var syncTimestamp = 0L
-                    val syncTimestampNode = appSnapshot.child("syncTimestamp")
-                    if (syncTimestampNode.exists()) {
-                        val rawValue = syncTimestampNode.getValue()
-                        syncTimestamp = when (rawValue) {
-                            is Long -> rawValue
-                            is Double -> rawValue.toLong()
-                            is String -> try { rawValue.toLong() } catch (e: Exception) { 0L }
-                            else -> timestampLong
-                        }
-                    } else {
-                        syncTimestamp = timestampLong
-                    }
-                    
-                    // Crear el objeto notificación
-                    val notification = NotificationInfo(
-                        packageName = packageName,
-                        appName = appName,
-                        title = title,
-                        content = content,
-                        timestamp = timestamp,
-                        syncStatus = syncStatus,
-                        syncTimestamp = syncTimestamp
-                    )
-                    
-                    notifications.add(notification)
-                    Log.d("ShareViewModel", "Notificación añadida desde app $appId: $title (${timestamp.time})")
-                    
-                } catch (e: Exception) {
-                    Log.e("ShareViewModel", "Error procesando notificación plana para $appId: ${e.message}", e)
-                }
-            } else {
-                Log.d("ShareViewModel", "App/grupo $appId no contiene los campos necesarios")
-            }
-        }
-    }
-    
-    /**
-     * Lee un valor String de forma segura de un DataSnapshot, manejando diferentes tipos
-     */
-    private fun safeGetString(snapshot: DataSnapshot, childName: String, defaultValue: String): String {
-        val childNode = snapshot.child(childName)
-        if (!childNode.exists()) return defaultValue
-        
-        // Intentar obtener el valor sin especificar tipo primero
-        val rawValue = childNode.getValue()
-        
-        return when (rawValue) {
-            is String -> rawValue
-            is Long -> rawValue.toString()
-            is Double -> rawValue.toString()
-            is Boolean -> rawValue.toString()
-            is Map<*, *> -> rawValue.toString()
-            null -> defaultValue
-            else -> {
-                Log.d("ShareViewModel", "Valor para $childName con tipo desconocido: ${rawValue.javaClass.simpleName}")
-                rawValue.toString()
             }
         }
     }
@@ -795,10 +529,7 @@ class ShareViewModel(
 
     override fun onCleared() {
         super.onCleared()
-        notificationListeners.forEach { (_, listener) ->
-            database.reference.removeEventListener(listener)
-        }
-        notificationListeners.clear()
+        notificationObserver.removeAllListeners()
     }
     
     /**
@@ -807,11 +538,8 @@ class ShareViewModel(
     fun clearData() {
         viewModelScope.launch {
             try {
-                // Eliminar todos los listeners
-                notificationListeners.forEach { (_, listener) ->
-                    database.reference.removeEventListener(listener)
-                }
-                notificationListeners.clear()
+                // Eliminar todos los listeners usando el observer
+                notificationObserver.removeAllListeners()
                 
                 // Limpiar todos los StateFlows con datos del usuario
                 _sharedUsers.value = emptyList()
@@ -830,51 +558,13 @@ class ShareViewModel(
     }
     
     /**
-     * Verifica si el usuario actual tiene un perfil completo en la base de datos
+     * Verifica si el usuario actual tiene un perfil completo en la base de datos.
+     * Delegado a UsernameResolver.
      */
     suspend fun hasValidUserProfile(): Boolean {
-        return try {
-            val currentUser = auth.currentUser ?: return false
-            Log.d("ShareViewModel", "Verificando perfil para UID: ${currentUser.uid}")
-            
-            // Primero verificar si el UID existe en usernames
-            val usernamesRef = database.getReference("usernames")
-            val usernameSnapshot = usernamesRef.orderByValue().equalTo(currentUser.uid).get().await()
-            
-            if (!usernameSnapshot.exists()) {
-                Log.d("ShareViewModel", "No se encontró username para UID: ${currentUser.uid}")
-                return false
-            }
-            
-            // Obtener el username basado en el UID
-            val username = usernameSnapshot.children.firstOrNull()?.key
-            if (username == null) {
-                Log.d("ShareViewModel", "Username es nulo para UID: ${currentUser.uid}")
-                return false
-            }
-            
-            Log.d("ShareViewModel", "Username encontrado: $username")
-            
-            // Verificar si existe el perfil en users con ese username
-            val userSnapshot = usersRef.child(username).get().await()
-            
-            // Verificar los campos
-            val email = userSnapshot.child("email").getValue(String::class.java)
-            val uid = userSnapshot.child("uid").getValue(String::class.java)
-            
-            Log.d("ShareViewModel", "Datos del perfil - email: $email, uid: $uid")
-            
-            val isValid = userSnapshot.exists() && 
-                          !email.isNullOrEmpty() &&
-                          !uid.isNullOrEmpty()
-            
-            Log.d("ShareViewModel", "Perfil válido para $username: $isValid")
-            return isValid
-            
-        } catch (e: Exception) {
-            Log.e("ShareViewModel", "Error verificando perfil de usuario: ${e.message}", e)
-            false
-        }
+        val currentUser = auth.currentUser ?: return false
+        Log.d("ShareViewModel", "Verificando perfil para UID: ${currentUser.uid}")
+        return usernameResolver.hasValidProfile(currentUser.uid)
     }
 
     /**

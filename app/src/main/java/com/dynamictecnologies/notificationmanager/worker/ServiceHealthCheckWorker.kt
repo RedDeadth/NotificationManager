@@ -4,12 +4,15 @@ import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import android.util.Log
-import androidx.work.Worker
+import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.dynamictecnologies.notificationmanager.service.NotificationForegroundService
 import com.dynamictecnologies.notificationmanager.service.ServiceNotificationManager
 import com.dynamictecnologies.notificationmanager.util.device.DeviceManufacturerDetector
 import com.dynamictecnologies.notificationmanager.util.device.DeviceManufacturer
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 /**
  * Worker que verifica la salud del servicio periódicamente.
@@ -28,11 +31,12 @@ import com.dynamictecnologies.notificationmanager.util.device.DeviceManufacturer
  * Principios aplicados:
  * - SRP: Solo verifica salud del servicio
  * - Robustez: Funciona incluso si servicio es matado agresivamente
+ * - Clean Code: Usa CoroutineWorker con suspend functions
  */
 class ServiceHealthCheckWorker(
     context: Context,
     params: WorkerParameters
-) : Worker(context, params) {
+) : CoroutineWorker(context, params) {
 
     companion object {
         private const val TAG = "ServiceHealthCheck"
@@ -56,12 +60,12 @@ class ServiceHealthCheckWorker(
         }
     }
 
-    override fun doWork(): Result {
+    override suspend fun doWork(): Result {
         val manufacturer = DeviceManufacturerDetector().detectManufacturer()
         val timeout = getHeartbeatTimeout()
         Log.d(TAG, "🔍 Verificación de salud del servicio ($manufacturer, timeout: ${timeout/60000}min)...")
         
-        try {
+        return try {
             // 1. Verificar si el servicio debería estar corriendo
             val prefs = applicationContext.getSharedPreferences("service_state", Context.MODE_PRIVATE)
             val shouldBeRunning = prefs.getBoolean("service_should_be_running", false)
@@ -97,11 +101,11 @@ class ServiceHealthCheckWorker(
             }
             
             Log.d(TAG, "✅ Servicio saludable (heartbeat hace ${timeSinceHeartbeat/1000}s)")
-            return Result.success()
+            Result.success()
             
         } catch (e: Exception) {
             Log.e(TAG, "Error en verificación: ${e.message}", e)
-            return Result.failure()
+            Result.failure()
         }
     }
     
@@ -130,33 +134,38 @@ class ServiceHealthCheckWorker(
      * - LUEGO: Muestra notificación roja
      * - Registra evento
      */
-    private fun handleDeadService() {
+    private suspend fun handleDeadService() {
         Log.w(TAG, "🚨 Servicio muerto detectado por watchdog externo")
         
-        // 1. PRIMERO: Detener el servicio foreground para que libere su notificación
-        try {
-            val stopIntent = Intent(applicationContext, NotificationForegroundService::class.java)
-            applicationContext.stopService(stopIntent)
-            Log.d(TAG, "✓ Servicio foreground detenido")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error deteniendo servicio: ${e.message}")
+        // Ejecutar operaciones en Main thread para UI/notificaciones
+        withContext(Dispatchers.Main) {
+            // 1. PRIMERO: Detener el servicio foreground para que libere su notificación
+            try {
+                val stopIntent = Intent(applicationContext, NotificationForegroundService::class.java)
+                applicationContext.stopService(stopIntent)
+                Log.d(TAG, "✓ Servicio foreground detenido")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error deteniendo servicio: ${e.message}")
+            }
+            
+            // 2. Cancelar manualmente la notificación del foreground service
+            try {
+                val notificationManager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) 
+                    as android.app.NotificationManager
+                notificationManager.cancel(ServiceNotificationManager.NOTIFICATION_ID_RUNNING)
+                Log.d(TAG, "✓ Notificación running cancelada")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error cancelando notificación: ${e.message}")
+            }
         }
         
-        // 2. Cancelar manualmente la notificación del foreground service
-        try {
-            val notificationManager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) 
-                as android.app.NotificationManager
-            notificationManager.cancel(ServiceNotificationManager.NOTIFICATION_ID_RUNNING)
-            Log.d(TAG, "✓ Notificación running cancelada")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error cancelando notificación: ${e.message}")
+        // 3. Pequeño delay para asegurar que la notificación verde se cancele (non-blocking)
+        delay(200)
+        
+        // 4. AHORA: Mostrar notificación roja (en Main thread)
+        withContext(Dispatchers.Main) {
+            ServiceNotificationManager(applicationContext).showStoppedNotification()
         }
-        
-        // 3. Pequeño delay para asegurar que la notificación verde se cancele
-        Thread.sleep(200)
-        
-        // 4. AHORA: Mostrar notificación roja
-        ServiceNotificationManager(applicationContext).showStoppedNotification()
         
         // 5. Registrar evento para diagnóstico
         val prefs = applicationContext.getSharedPreferences("service_state", Context.MODE_PRIVATE)

@@ -11,6 +11,7 @@ import com.dynamictecnologies.notificationmanager.service.NotificationForeground
 import com.dynamictecnologies.notificationmanager.service.ServiceNotificationManager
 import io.mockk.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
@@ -78,7 +79,7 @@ class ServiceHealthCheckWorkerTest {
     // ===== HEARTBEAT DETECTION TESTS =====
 
     @Test
-    fun `doWork returns success when service should not be running`() {
+    fun `doWork returns success when service should not be running`() = runTest {
         // Given: Service is not supposed to be running
         every { sharedPreferences.getBoolean("service_should_be_running", false) } returns false
 
@@ -92,10 +93,11 @@ class ServiceHealthCheckWorkerTest {
     }
 
     @Test
-    fun `doWork detects dead service when no heartbeat exists`() {
+    fun `doWork detects dead service when no heartbeat exists`() = runTest {
         // Given: Service should be running but no heartbeat
         every { sharedPreferences.getBoolean("service_should_be_running", false) } returns true
         every { sharedPreferences.getLong("service_last_heartbeat", 0) } returns 0L
+        every { sharedPreferences.getInt("death_count", 0) } returns 0
 
         // When: Worker executes
         val worker = createWorker()
@@ -108,11 +110,12 @@ class ServiceHealthCheckWorkerTest {
     }
 
     @Test
-    fun `doWork detects dead service when heartbeat is stale`() {
+    fun `doWork detects dead service when heartbeat is stale`() = runTest {
         // Given: Service should be running but heartbeat is old (> 15 minutes)
         every { sharedPreferences.getBoolean("service_should_be_running", false) } returns true
         val staleHeartbeat = System.currentTimeMillis() - (20 * 60 * 1000L) // 20 minutes ago
         every { sharedPreferences.getLong("service_last_heartbeat", 0) } returns staleHeartbeat
+        every { sharedPreferences.getInt("death_count", 0) } returns 0
         
         // Mock: Service not running
         every { activityManager.getRunningServices(any()) } returns emptyList()
@@ -127,7 +130,7 @@ class ServiceHealthCheckWorkerTest {
     }
 
     @Test
-    fun `doWork returns success when service is healthy and heartbeat is recent`() {
+    fun `doWork returns success when service is healthy and heartbeat is recent`() = runTest {
         // Given: Service should be running and heartbeat is very recent (within safe range)
         every { sharedPreferences.getBoolean("service_should_be_running", false) } returns true
         // Heartbeat: 1 minute ago (well within the 8-15 min timeout)
@@ -149,7 +152,7 @@ class ServiceHealthCheckWorkerTest {
     // ===== HANDLE DEAD SERVICE TESTS =====
 
     @Test
-    fun `handleDeadService stops foreground service first`() {
+    fun `handleDeadService stops foreground service first`() = runTest {
         // Given: Service is dead
         every { sharedPreferences.getBoolean("service_should_be_running", false) } returns true
         every { sharedPreferences.getLong("service_last_heartbeat", 0) } returns 0L
@@ -167,7 +170,7 @@ class ServiceHealthCheckWorkerTest {
     }
 
     @Test
-    fun `handleDeadService cancels running notification`() {
+    fun `handleDeadService cancels running notification`() = runTest {
         // Given: Service is dead
         every { sharedPreferences.getBoolean("service_should_be_running", false) } returns true
         every { sharedPreferences.getLong("service_last_heartbeat", 0) } returns 0L
@@ -182,7 +185,7 @@ class ServiceHealthCheckWorkerTest {
     }
 
     @Test
-    fun `handleDeadService updates shared preferences correctly`() {
+    fun `handleDeadService updates shared preferences correctly`() = runTest {
         // Given: Service is dead
         every { sharedPreferences.getBoolean("service_should_be_running", false) } returns true
         every { sharedPreferences.getLong("service_last_heartbeat", 0) } returns 0L
@@ -200,7 +203,7 @@ class ServiceHealthCheckWorkerTest {
     }
 
     @Test
-    fun `handleDeadService increments death count`() {
+    fun `handleDeadService increments death count`() = runTest {
         // Given: Service has died before
         every { sharedPreferences.getBoolean("service_should_be_running", false) } returns true
         every { sharedPreferences.getLong("service_last_heartbeat", 0) } returns 0L
@@ -217,7 +220,7 @@ class ServiceHealthCheckWorkerTest {
     // ===== ERROR HANDLING TESTS =====
 
     @Test
-    fun `doWork returns failure on exception`() {
+    fun `doWork returns failure on exception`() = runTest {
         // Given: Context throws exception
         every { context.getSharedPreferences(any(), any()) } throws RuntimeException("Test error")
 
@@ -230,7 +233,7 @@ class ServiceHealthCheckWorkerTest {
     }
 
     @Test
-    fun `handleDeadService handles stopService exception gracefully`() {
+    fun `handleDeadService handles stopService exception gracefully`() = runTest {
         // Given: stopService throws exception
         every { sharedPreferences.getBoolean("service_should_be_running", false) } returns true
         every { sharedPreferences.getLong("service_last_heartbeat", 0) } returns 0L

@@ -22,7 +22,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.GlobalScope
 
 /**
  * Receptor que se activa cuando el dispositivo se inicia.
@@ -48,8 +47,9 @@ class BootReceiver : BroadcastReceiver() {
             intent.action == "com.htc.intent.action.QUICKBOOT_POWERON" ||
             intent.action == "android.intent.action.MY_PACKAGE_REPLACED") {
             
-            // Iniciar con retraso para asegurarnos de que el sistema esté completamente iniciado
-            GlobalScope.launch {
+            // Usar scope con SupervisorJob en lugar de GlobalScope (mejor práctica)
+            val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+            scope.launch {
                 try {
                     // Programar WorkManager watchdog PRIMERO
                     delay(3000) // Esperar 3 segundos para que el sistema se estabilice
@@ -88,28 +88,14 @@ class BootReceiver : BroadcastReceiver() {
         }
     }
     
-    private fun enableNotificationListenerService(context: Context) {
+    private suspend fun enableNotificationListenerService(context: Context) {
         try {
-            val componentName = ComponentName(context, NotificationListenerService::class.java)
-            val pm = context.packageManager
-            
-            // Primero deshabilitar, luego habilitar (ayuda a reiniciar el servicio)
-            pm.setComponentEnabledSetting(
-                componentName,
-                PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                PackageManager.DONT_KILL_APP
+            // Usar toggler centralizado en lugar de código duplicado
+            com.dynamictecnologies.notificationmanager.service.util.NotificationListenerToggler.toggle(
+                context = context,
+                delayMs = 300L
             )
-            
-            // Esperar un momento para que el cambio se aplique
-            Thread.sleep(300)
-            
-            pm.setComponentEnabledSetting(
-                componentName,
-                PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-                PackageManager.DONT_KILL_APP
-            )
-            
-            Log.d(TAG, "NotificationListenerService habilitado")
+            Log.d(TAG, "NotificationListenerService habilitado via Toggler")
         } catch (e: Exception) {
             Log.e(TAG, "Error habilitando NotificationListenerService: ${e.message}", e)
         }
@@ -138,22 +124,15 @@ class BootReceiver : BroadcastReceiver() {
         }
     }
     
-    private fun performForceRestart(context: Context) {
+    private suspend fun performForceRestart(context: Context) {
         try {
             Log.w(TAG, "Realizando reinicio forzado completo de los servicios")
             
-            // 1. Desactivar completamente el componente
-            val componentName = ComponentName(context, NotificationListenerService::class.java)
-            val pm = context.packageManager
+            // 1. Usar toggler centralizado para disable
+            com.dynamictecnologies.notificationmanager.service.util.NotificationListenerToggler.disable(context)
             
-            pm.setComponentEnabledSetting(
-                componentName,
-                PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                PackageManager.DONT_KILL_APP
-            )
-            
-            // 2. Esperar para asegurar que el cambio se aplique
-            Thread.sleep(1000)
+            // 2. Esperar con non-blocking delay
+            delay(1000)
             
             // 3. Reiniciar las preferencias
             val prefs = context.getSharedPreferences("notification_listener_prefs", Context.MODE_PRIVATE)
@@ -165,12 +144,8 @@ class BootReceiver : BroadcastReceiver() {
                 apply()
             }
             
-            // 4. Habilitar nuevamente el componente
-            pm.setComponentEnabledSetting(
-                componentName,
-                PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-                PackageManager.DONT_KILL_APP
-            )
+            // 4. Usar toggler centralizado para enable
+            com.dynamictecnologies.notificationmanager.service.util.NotificationListenerToggler.enable(context)
             
             // 5. Iniciar el servicio de primer plano con acción de reinicio forzado
             val serviceIntent = Intent(context, NotificationForegroundService::class.java)

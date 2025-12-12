@@ -2,6 +2,7 @@ package com.dynamictecnologies.notificationmanager.data.datasource.mqtt
 
 import android.content.Context
 import com.dynamictecnologies.notificationmanager.BuildConfig
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -98,7 +99,7 @@ class MqttConnectionManager(
             if (mqttClient?.isConnected == true) {
                 try {
                     mqttClient?.disconnect()
-                    Thread.sleep(1000)
+                    delay(1000) // Non-blocking delay
                 } catch (e: Exception) {
                 }
             }
