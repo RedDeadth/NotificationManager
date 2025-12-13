@@ -262,7 +262,7 @@ class MainActivity : ComponentActivity() {
         // Registrar el receiver para permisos
         registerPermissionReceiver()
 
-        initializeFirebase()
+        // Firebase ya inicializado en NotificationManagerApp.kt
         
         // Pedir permiso POST_NOTIFICATIONS antes de iniciar servicio (Android 13+)
         requestNotificationPermissionAndStartService()
@@ -473,19 +473,8 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun initializeFirebase() {
-        try {
-            if (FirebaseApp.getApps(this).isEmpty()) {
-                FirebaseApp.initializeApp(this)
-            }
-            FirebaseDatabase.getInstance().apply {
-                setPersistenceEnabled(true)
-            }
-            Log.d("MainActivity", "✅ Firebase inicializado correctamente")
-        } catch (e: Exception) {
-            Log.e("MainActivity", "❌ Error inicializando Firebase: ${e.message}", e)
-        }
-    }
+    // ELIMINADO: initializeFirebase() - ya está en NotificationManagerApp.kt
+    // setPersistenceEnabled() solo puede llamarse una vez
 
     private fun startNotificationService() {
         try {

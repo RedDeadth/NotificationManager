@@ -778,11 +778,21 @@ class ShareViewModel(
     }
 }
 
-class ShareViewModelFactory : ViewModelProvider.Factory {
+class ShareViewModelFactory(
+    private val auth: FirebaseAuth = FirebaseAuth.getInstance(),
+    private val database: FirebaseDatabase = FirebaseDatabase.getInstance(),
+    private val usernameResolver: UsernameResolver = UsernameResolver(),
+    private val notificationObserver: FirebaseNotificationObserver = FirebaseNotificationObserver()
+) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(ShareViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return ShareViewModel() as T
+            return ShareViewModel(
+                auth = auth,
+                database = database,
+                usernameResolver = usernameResolver,
+                notificationObserver = notificationObserver
+            ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }
