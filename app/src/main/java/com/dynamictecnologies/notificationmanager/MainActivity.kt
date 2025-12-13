@@ -267,8 +267,8 @@ class MainActivity : ComponentActivity() {
         // Pedir permiso POST_NOTIFICATIONS antes de iniciar servicio (Android 13+)
         requestNotificationPermissionAndStartService()
         
-        // Solicitar permisos de Bluetooth
-        requestBluetoothPermissions()
+        // Nota: Permisos Bluetooth se solicitan SOLO cuando el usuario 
+        // presiona el botón "Conectar" en la pantalla principal
 
         setContent {
             NotificationManagerTheme {
