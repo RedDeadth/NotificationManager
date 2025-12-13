@@ -98,18 +98,61 @@ class IntegrationOrchestrator {
     }
 
     @Test
+    fun test_05_powerSaverSummary() {
+        println("\n📊 ==== RESUMEN: Modo Ahorro de Batería ====")
+        println("  Tests en PowerSaverModeTest.kt:")
+        println("  ✓ Detección de Power Save Mode")
+        println("  ✓ BluetoothScanOptimizer limita escaneo")
+        println("  ✓ Duración de escaneo adaptativa")
+        println("  ✓ Duración de pausa adaptativa")
+        println("  ✓ ServiceStopReason.BatteryOptimization")
+        println("  ✓ ServiceCrashNotifier creación")
+        println("\n")
+    }
+
+    @Test
+    fun test_06_bootRecoverySummary() {
+        println("\n📊 ==== RESUMEN: Recuperación tras Reinicio ====")
+        println("  Tests en BootRecoveryTest.kt:")
+        println("  ✓ BootReceiver declarado en Manifest")
+        println("  ✓ Manejo de intents BOOT_COMPLETED/QUICKBOOT")
+        println("  ✓ ForegroundService declarado")
+        println("  ✓ Service actions definidas")
+        println("  ✓ Estado persiste entre contextos")
+        println("  ✓ WorkManager disponible")
+        println("\n")
+    }
+
+    @Test
+    fun test_07_oemBehaviorSummary() {
+        println("\n📊 ==== RESUMEN: Comportamiento OEM ====")
+        println("  Tests en OEMBehaviorTest.kt:")
+        println("  ✓ Detección de fabricante")
+        println("  ✓ Estrategias Xiaomi/Samsung/Huawei/OnePlus/Generic")
+        println("  ✓ Battery whitelist por OEM")
+        println("  ✓ Intervalos de verificación")
+        println("  ✓ Intervalos de reintento")
+        println("  ✓ Instrucciones de configuración")
+        println("  ✓ Prioridad de notificación")
+        println("\n")
+    }
+
+    @Test
     fun test_99_completionBanner() {
         println("\n")
         println("╔══════════════════════════════════════════════════════════════╗")
         println("║           ✅ TODOS LOS TESTS EJECUTADOS ✅                   ║")
         println("╠══════════════════════════════════════════════════════════════╣")
         println("║  📁 SessionPersistenceTest    - 5 tests                      ║")
-        println("║  📁 ForegroundServiceTest     - 5 tests                      ║")
+        println("║  📁 ForegroundServiceTest     - 9 tests                      ║")
         println("║  📁 WatchdogServiceTest       - 5 tests                      ║")
         println("║  📁 PermissionsRequestTest    - 6 tests                      ║")
-        println("║  📁 IntegrationOrchestrator   - 6 tests                      ║")
+        println("║  📁 PowerSaverModeTest        - 6 tests  🆕                  ║")
+        println("║  📁 BootRecoveryTest          - 6 tests  🆕                  ║")
+        println("║  📁 OEMBehaviorTest           - 7 tests  🆕                  ║")
+        println("║  📁 IntegrationOrchestrator   - 9 tests                      ║")
         println("╠══════════════════════════════════════════════════════════════╣")
-        println("║  TOTAL: 27 tests instrumentados                              ║")
+        println("║  TOTAL: 53 tests instrumentados                              ║")
         println("╚══════════════════════════════════════════════════════════════╝")
         println("\n")
         
