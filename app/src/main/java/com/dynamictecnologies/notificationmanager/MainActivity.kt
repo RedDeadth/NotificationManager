@@ -490,11 +490,12 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Provee NotificationRepository como singleton via AppModule.
+     * ANTES: Creaba nueva instancia cada vez (memory leak potencial).
+     * AHORA: Usa singleton con double-checked locking.
+     */
     private fun createRepository(): NotificationRepository {
-        val database = NotificationDatabase.getDatabase(applicationContext)
-        return NotificationRepository(
-            notificationDao = database.notificationDao(),
-            context = applicationContext
-        )
+        return AppModule.provideNotificationRepository(applicationContext)
     }
 }

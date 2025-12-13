@@ -118,17 +118,16 @@ object BluetoothMqttModule {
     // VIEW MODEL FACTORIES
     // ========================================
     
-    fun provideDevicePairingViewModelFactory(context: Context): androidx.lifecycle.ViewModelProvider.Factory {
-        return object : androidx.lifecycle.ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-                if (modelClass.isAssignableFrom(com.dynamictecnologies.notificationmanager.viewmodel.DevicePairingViewModel::class.java)) {
-                    return com.dynamictecnologies.notificationmanager.viewmodel.DevicePairingViewModel(
-                        context.applicationContext as android.app.Application
-                    ) as T
-                }
-                throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
-            }
-        }
+    fun provideDevicePairingViewModelFactory(context: Context): com.dynamictecnologies.notificationmanager.viewmodel.DevicePairingViewModelFactory {
+        val bluetoothScanner = provideBluetoothDeviceScanner(context)
+        val mqttConnectionManager = provideMqttConnectionManager(context)
+        val pairingRepository = provideDevicePairingRepository(context)
+        
+        return com.dynamictecnologies.notificationmanager.viewmodel.DevicePairingViewModelFactory(
+            scanBluetoothDevicesUseCase = provideScanBluetoothDevicesUseCase(bluetoothScanner),
+            pairDeviceUseCase = providePairDeviceWithTokenUseCase(pairingRepository, mqttConnectionManager),
+            unpairDeviceUseCase = provideUnpairDeviceUseCase(pairingRepository, mqttConnectionManager),
+            pairingRepository = pairingRepository
+        )
     }
 }

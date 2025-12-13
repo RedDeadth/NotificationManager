@@ -33,8 +33,28 @@ object AppModule {
     }
     
     // ========================================
-    // REPOSITORIES
+    // REPOSITORIES (SINGLETONS)
     // ========================================
+    
+    @Volatile
+    private var notificationRepositoryInstance: NotificationRepository? = null
+    
+    /**
+     * Provee singleton de NotificationRepository.
+     * Usa double-checked locking para thread-safety.
+     */
+    fun provideNotificationRepository(context: Context): NotificationRepository {
+        return notificationRepositoryInstance ?: synchronized(this) {
+            notificationRepositoryInstance ?: run {
+                val database = com.dynamictecnologies.notificationmanager.data.db.NotificationDatabase
+                    .getDatabase(context.applicationContext)
+                NotificationRepository(
+                    notificationDao = database.notificationDao(),
+                    context = context.applicationContext
+                ).also { notificationRepositoryInstance = it }
+            }
+        }
+    }
     
     fun provideAppRepository(context: Context): AppRepository {
         return AppRepositoryImpl(
