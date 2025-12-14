@@ -6,9 +6,6 @@ import com.dynamictecnologies.notificationmanager.domain.entities.User
 /**
  * Data Source local para operaciones de sesión y caché.
  * 
- * Principios aplicados:
- * - SRP: Solo maneja almacenamiento local de sesiones
- * - DIP: Depende de la abstracción SessionStorage
  * - Clean Architecture: Pertenece a la capa de datos
  */
 class LocalAuthDataSource(

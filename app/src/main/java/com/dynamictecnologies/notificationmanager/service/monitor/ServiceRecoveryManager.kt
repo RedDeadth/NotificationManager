@@ -34,10 +34,6 @@ sealed class RecoveryResult {
 /**
  * Gestor de recuperación del servicio.
  * 
- * Principios aplicados:
- * - SRP: Solo maneja la recuperación del servicio
- * - Strategy Pattern: Diferentes estrategias de recuperación
- * - DIP: Depende de abstracciones
  */
 class ServiceRecoveryManager(
     private val context: Context,

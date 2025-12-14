@@ -6,10 +6,6 @@ import android.util.Log
 /**
  * Helper para logging consistente en toda la app.
  * 
- * Principios aplicados:
- * - DRY: Centraliza logging logic
- * - SRP: Solo responsable de logging
- * - Strategy Pattern: Puede implementarse diferentes loggers (Crashlytics, etc.)
  */
 object LogHelper {
     

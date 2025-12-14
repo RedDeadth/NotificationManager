@@ -15,10 +15,6 @@ import kotlinx.coroutines.withTimeout
 /**
  * Data Source remoto para operaciones de perfiles de usuario con Firebase Database.
  * 
- * Principios aplicados:
- * - SRP: Solo maneja comunicación con Firebase Database para perfiles
- * - DIP: Puede ser inyectado como dependencia
- * - ISP: Interfaz específica para perfiles (separada de Auth)
  * - Clean Architecture: Pertenece a la capa de datos
  */
 class RemoteUserDataSource(

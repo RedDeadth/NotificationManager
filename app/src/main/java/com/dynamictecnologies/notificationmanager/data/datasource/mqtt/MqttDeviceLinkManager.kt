@@ -7,11 +7,6 @@ import org.json.JSONObject
  * 
  * Responsabilidad única: Gestionar el protocolo de linking de dispositivos.
  * 
- * Principios aplicados:
- * - SRP: Solo maneja linking/unlinking de dispositivos
- * - DIP: Depende de abstracción (MqttConnectionManager)
- * - Clean Code: Lógica clara y enfocada en protocolo MQTT
- * - OCP: Abierto para extensión (callbacks), cerrado para modificación
  */
 class MqttDeviceLinkManager(
     private val connectionManager: MqttConnectionManager,

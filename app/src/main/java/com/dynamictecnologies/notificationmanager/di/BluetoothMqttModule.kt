@@ -24,9 +24,6 @@ import com.dynamictecnologies.notificationmanager.domain.usecases.device.UnpairD
  * - Vinculación de dispositivos
  * - Comunicación MQTT
  * 
- * Principios aplicados:
- * - DIP: Centraliza creación de dependencias
- * - SRP: Solo provee dependencias de Bluetooth/MQTT
  * - Security: Credenciales desde BuildConfig
  */
 object BluetoothMqttModule {

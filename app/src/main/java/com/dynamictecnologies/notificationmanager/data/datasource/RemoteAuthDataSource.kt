@@ -11,9 +11,6 @@ import kotlinx.coroutines.tasks.await
 /**
  * Data Source remoto para operaciones de autenticación con Firebase.
  * 
- * Principios aplicados:
- * - SRP: Solo maneja comunicación con Firebase Auth
- * - DIP: Puede ser inyectado como dependencia
  * - Clean Architecture: Pertenece a la capa de datos
  */
 class RemoteAuthDataSource(

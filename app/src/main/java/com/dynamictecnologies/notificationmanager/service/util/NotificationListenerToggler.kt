@@ -17,10 +17,6 @@ import kotlinx.coroutines.delay
  * - ServiceRecoveryManager.toggleNotificationListenerService()
  * - BootReceiver.enableNotificationListenerService()
  * 
- * Principios aplicados:
- * - DRY: Elimina duplicación de código
- * - SRP: Solo maneja toggle del componente
- * - Clean Code: Nombres claros, métodos pequeños
  */
 object NotificationListenerToggler {
     
@@ -66,10 +62,10 @@ object NotificationListenerToggler {
                 PackageManager.DONT_KILL_APP
             )
             
-            Log.d(TAG, "✅ Toggle completado exitosamente")
+            Log.d(TAG, "Toggle completado exitosamente")
             true
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error en toggle: ${e.message}", e)
+            Log.e(TAG, "Error en toggle: ${e.message}", e)
             false
         }
     }

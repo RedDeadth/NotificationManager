@@ -7,9 +7,6 @@ import com.dynamictecnologies.notificationmanager.domain.repositories.MqttReposi
  * 
  * Responsabilidad única: Gestionar la conexión MQTT.
  * 
- * Principios aplicados:
- * - SRP: Solo conecta a MQTT
- * - DIP: Depende de abstracción (MqttRepository)
  * - Clean Architecture: Use case en domain layer
  */
 class ConnectToMqttUseCase(

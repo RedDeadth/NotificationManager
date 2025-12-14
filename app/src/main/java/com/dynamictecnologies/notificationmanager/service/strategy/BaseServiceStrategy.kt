@@ -6,10 +6,7 @@ package com.dynamictecnologies.notificationmanager.service.strategy
  * Proporciona funcionalidad común a todas las implementaciones de BackgroundServiceStrategy,
  * eliminando código duplicado (DRY) y centralizando constantes compartidas.
  * 
- * Principios aplicados:
- * - DRY: Elimina repetición de getAppName() en 5 strategies
  * - Template Method Pattern: Define estructura común
- * - Open/Closed: Abierto para extensión (nuevas strategies), cerrado para modificación
  */
 abstract class BaseServiceStrategy : BackgroundServiceStrategy {
     

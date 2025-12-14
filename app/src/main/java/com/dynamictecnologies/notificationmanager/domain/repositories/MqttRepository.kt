@@ -9,11 +9,7 @@ import kotlinx.coroutines.flow.Flow
  * 
  * Encapsula toda la lógica de comunicación MQTT con el broker y dispositivos ESP32.
  * 
- * Principios aplicados:
- * - DIP: Inversión de dependencias, ViewModel dependerá de esta abstracción
- * - ISP: Interfaz específica para operaciones MQTT
  * - Clean Architecture: Define contrato en capa de dominio
- * - Repository Pattern: Fuente única de verdad para comunicación MQTT
  */
 interface MqttRepository {
     /**

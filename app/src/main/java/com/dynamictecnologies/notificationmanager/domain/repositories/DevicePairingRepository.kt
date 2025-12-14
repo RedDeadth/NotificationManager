@@ -9,9 +9,6 @@ import kotlinx.coroutines.flow.Flow
  * Almacenamiento local únicamente (SharedPreferences).
  * Sin Firebase, sin sincronización remota.
  * 
- * Principios aplicados:
- * - DIP: Abstracción en capa de dominio
- * - ISP: Interfaz segregada con operaciones específicas
  * - Clean Architecture: Sin dependencias de implementación
  */
 interface DevicePairingRepository {

@@ -3,9 +3,6 @@ package com.dynamictecnologies.notificationmanager.data.constants
 /**
  * Objeto centralizado para todos los strings relacionados con autenticación.
  * 
- * Principios aplicados:
- * - DRY: Elimina duplicación de strings literales en el código
- * - SRP: Solo contiene constantes de strings
  * - Facilita internacionalización futura
  * - Mejora mantenibilidad
  */

@@ -12,12 +12,7 @@ import kotlinx.coroutines.tasks.await
  * Extrae la lógica de gestión de sharing de ShareViewModel para:
  * - Reducir ShareViewModel de 789L a ~300L
  * - Reutilizar UsernameResolver (DRY)
- * - SRP: Solo maneja lógica de compartir
  * 
- * Principios aplicados:
- * - SRP: Solo gestiona compartir/dejar de compartir
- * - DRY: Reutiliza UsernameResolver para queries UID↔username
- * - Clean Code: Métodos pequeños y enfocados
  */
 class SharedUsersManager(
     private val auth: FirebaseAuth = FirebaseAuth.getInstance(),

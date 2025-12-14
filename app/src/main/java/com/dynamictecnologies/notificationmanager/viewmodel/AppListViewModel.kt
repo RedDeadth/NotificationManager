@@ -21,11 +21,7 @@ import kotlinx.coroutines.launch
  * ViewModel para gestión de aplicaciones instaladas y selección de app.
  * Refactorizado para seguir Clean Architecture y SOLID principles.
  * 
- * Principios aplicados:
- * - SRP: Solo maneja UI state para apps y notificaciones
- * - DIP: Depende de abstracciones (Use Cases) no de implementaciones
  * - Clean Architecture: No tiene lógica de negocio, solo coordina Use Cases
- * - DRY: Reutiliza Use Cases compartidos
  * 
  * @param getInstalledAppsUseCase Use case para obtener apps instaladas
  * @param saveSelectedAppUseCase Use case para guardar app seleccionada
@@ -206,9 +202,6 @@ class AppListViewModel(
  * Factory para crear instancias de AppListViewModel con inyección de dependencias.
  * Refactorizado para usar Use Cases en lugar de dependencias concretas.
  * 
- * Principios aplicados:
- * - Factory Pattern: Centraliza creación del ViewModel
- * - DIP: Inyecta abstracciones (Use Cases)
  */
 class AppListViewModelFactory(
     private val getInstalledAppsUseCase: GetInstalledAppsUseCase,

@@ -26,9 +26,6 @@ import java.util.concurrent.ConcurrentHashMap
  * Servicio de escucha de notificaciones refactorizado siguiendo principios SOLID.
  * 
  * Buenas prácticas aplicadas:
- * - SRP: Solo escucha y procesa notificaciones, delega monitoreo y recuperación
- * - DIP: Depende de abstracciones (Repository, Strategy)
- * - Clean Code: Métodos pequeños, nombres claros, sin comentarios redundantes
  * - DI Manual: Usa BluetoothMqttModule para obtener dependencias
  */
 class NotificationListenerService : NotificationListenerService() {
@@ -101,7 +98,7 @@ class NotificationListenerService : NotificationListenerService() {
     
     override fun onCreate() {
         super.onCreate()
-        Log.i(TAG, "✅ Servicio iniciado")
+        Log.i(TAG, "Servicio iniciado")
         
         initializeComponents()
         startForegroundService()
@@ -189,7 +186,7 @@ class NotificationListenerService : NotificationListenerService() {
     
     override fun onListenerConnected() {
         super.onListenerConnected()
-        Log.d(TAG, "✅ Listener conectado")
+        Log.d(TAG, "Listener conectado")
         
         getPrefs().edit()
             .putLong("last_connection_time", System.currentTimeMillis())
@@ -201,7 +198,7 @@ class NotificationListenerService : NotificationListenerService() {
     
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
-        Log.w(TAG, "⚠️ Listener desconectado")
+        Log.w(TAG, "Listener desconectado")
         
         // Intentar reconectar
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -274,7 +271,7 @@ class NotificationListenerService : NotificationListenerService() {
         
         if (title.isNullOrEmpty() && text.isNullOrEmpty()) return false
         
-        // ✅ FIX: Verificar app seleccionada solo por package name
+        // FIX: Verificar app seleccionada solo por package name
         val selectedPackageName = getSelectedApp() ?: return false
         
         // Solo procesar si el packageName coincide exactamente con la app seleccionada
@@ -311,12 +308,12 @@ class NotificationListenerService : NotificationListenerService() {
                 
                 // Guardar en base de datos local
                 repository.insertNotification(notificationInfo)
-                Log.d(TAG, "✅ Notificación guardada localmente: ${notificationInfo.title}")
+                Log.d(TAG, "Notificación guardada localmente: ${notificationInfo.title}")
                 
                 // Enviar a ESP32 vinculado (nuevo flujo simplificado)
                 if (devicePairingRepository.hasPairedDevice()) {
                     sendNotificationUseCase(notificationInfo).onSuccess {
-                        Log.d(TAG, "📡 Notificación enviada a ESP32 via MQTT")
+                        Log.d(TAG, "Notificación enviada a ESP32 via MQTT")
                     }.onFailure { error ->
                         Log.w(TAG, "No se pudo enviar a ESP32: ${error.message}")
                     }
@@ -325,7 +322,7 @@ class NotificationListenerService : NotificationListenerService() {
                 }
                 
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Error procesando notificación: ${e.message}", e)
+                Log.e(TAG, "Error procesando notificación: ${e.message}", e)
             }
         }
     }

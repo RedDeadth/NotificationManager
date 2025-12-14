@@ -13,9 +13,6 @@ import java.net.SocketTimeoutException
  * - Delay máximo configurable
  * - Filtro de excepciones reintentatables
  * 
- * Principios aplicados:
- * - SRP: Solo maneja lógica de reintentos
- * - OCP: Extensible mediante configuración
  */
 class RetryPolicy(
     private val maxRetries: Int = 3,

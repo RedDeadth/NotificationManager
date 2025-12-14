@@ -26,7 +26,7 @@ class ServiceActionReceiver : BroadcastReceiver() {
     }
     
     override fun onReceive(context: Context, intent: Intent) {
-        Log.d(TAG, "🔔 Action received: ${intent.action}")
+        Log.d(TAG, "Action received: ${intent.action}")
         
         when (intent.action) {
             ACTION_STOP_SERVICE -> handleStopService(context)
@@ -40,7 +40,7 @@ class ServiceActionReceiver : BroadcastReceiver() {
      * El usuario quiere detener el servicio temporalmente.
      */
     private fun handleStopService(context: Context) {
-        Log.d(TAG, "🛑 Usuario presionó DETENER")
+        Log.d(TAG, "Usuario presionó DETENER")
         
         // Cambiar estado a STOPPED
         ServiceStateManager.setState(context, ServiceStateManager.ServiceState.STOPPED)
@@ -57,7 +57,7 @@ class ServiceActionReceiver : BroadcastReceiver() {
         // Ocultar todas las notificaciones (usuario quiso detener)
         ServiceNotificationManager(context).hideAllNotifications()
         
-        Log.d(TAG, "✅ Servicios detenidos por el usuario. No se molestarán más.")
+        Log.d(TAG, "Servicios detenidos por el usuario. No se molestarán más.")
     }
     
     /**
@@ -65,7 +65,7 @@ class ServiceActionReceiver : BroadcastReceiver() {
      * El usuario quiere volver a activar el servicio.
      */
     private fun handleRestartService(context: Context) {
-        Log.d(TAG, "🔄 Usuario presionó REINICIAR")
+        Log.d(TAG, "Usuario presionó REINICIAR")
         
         // Cambiar estado a RUNNING
         ServiceStateManager.setState(context, ServiceStateManager.ServiceState.RUNNING)
@@ -82,12 +82,12 @@ class ServiceActionReceiver : BroadcastReceiver() {
                 context.startService(intent)
             }
             
-            Log.d(TAG, "✅ Servicio reiniciado exitosamente")
+            Log.d(TAG, "Servicio reiniciado exitosamente")
             
             // Ocultar notificación roja explícitamente (verde se mostrará en onCreate del servicio)
             ServiceNotificationManager(context).hideAllNotifications()
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error reiniciando servicio: ${e.message}")
+            Log.e(TAG, "Error reiniciando servicio: ${e.message}")
             
             // Si falla, volver a mostrar notificación de error
             ServiceNotificationManager(context).showStoppedNotification()
@@ -101,7 +101,7 @@ class ServiceActionReceiver : BroadcastReceiver() {
      * El usuario NO quiere usar el servicio, detener TODO.
      */
     private fun handleAcknowledge(context: Context) {
-        Log.d(TAG, "✓ Usuario presionó ENTENDIDO - Deteniendo todo definitivamente")
+        Log.d(TAG, "Usuario presionó ENTENDIDO - Deteniendo todo definitivamente")
         
         // Cambiar estado a DISABLED
         ServiceStateManager.setState(context, ServiceStateManager.ServiceState.DISABLED)
@@ -138,6 +138,6 @@ class ServiceActionReceiver : BroadcastReceiver() {
         // Ocultar todas las notificaciones
         ServiceNotificationManager(context).hideAllNotifications()
         
-        Log.d(TAG, "✅ TODO detenido. Solo se reactivará cuando usuario abra la app de nuevo")
+        Log.d(TAG, "TODO detenido. Solo se reactivará cuando usuario abra la app de nuevo")
     }
 }

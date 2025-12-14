@@ -28,9 +28,6 @@ sealed class ServiceStopReason {
 /**
  * Gestor de notificaciones para informar al usuario sobre el estado del servicio.
  * 
- * Principios aplicados:
- * - SRP: Solo maneja notificaciones relacionadas con el servicio
- * - DIP: Depende de abstracciones (Context, no implementaciones específicas)
  */
 class ServiceCrashNotifier(private val context: Context) {
     
@@ -144,7 +141,7 @@ class ServiceCrashNotifier(private val context: Context) {
         )
         
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setContentTitle("⚠️ Servicio detenido inesperadamente")
+            .setContentTitle("Servicio detenido inesperadamente")
             .setContentText(reasonText + timeInfo)
             .setStyle(NotificationCompat.BigTextStyle()
                 .bigText("$reasonText$timeInfo\n\nEl monitoreo de notificaciones no está funcionando. " +
@@ -191,7 +188,7 @@ class ServiceCrashNotifier(private val context: Context) {
         Log.d(TAG, "Mostrando notificación de recuperación (intento #$attemptCount)")
         
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setContentTitle("🔄 Recuperando servicio...")
+            .setContentTitle("Recuperando servicio...")
             .setContentText("Intento #$attemptCount de reiniciar el monitoreo")
             .setSmallIcon(R.drawable.ic_notification)
             .setPriority(NotificationCompat.PRIORITY_LOW)
@@ -212,7 +209,7 @@ class ServiceCrashNotifier(private val context: Context) {
         dismissCrashNotification()
         
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setContentTitle("✅ Servicio restaurado")
+            .setContentTitle("Servicio restaurado")
             .setContentText("El monitoreo está funcionando correctamente")
             .setSmallIcon(R.drawable.ic_notification)
             .setPriority(NotificationCompat.PRIORITY_LOW)

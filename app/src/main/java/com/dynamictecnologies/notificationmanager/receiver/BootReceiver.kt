@@ -39,7 +39,7 @@ class BootReceiver : BroadcastReceiver() {
     }
     
     override fun onReceive(context: Context, intent: Intent) {
-        Log.d(TAG, "🔄 Boot completado o acción recibida: ${intent.action}")
+        Log.d(TAG, "Boot completado o acción recibida: ${intent.action}")
         
         // Verificar que la acción sea la correcta
         if (intent.action == Intent.ACTION_BOOT_COMPLETED ||
@@ -72,7 +72,7 @@ class BootReceiver : BroadcastReceiver() {
                         context.startService(serviceIntent)
                     }
                     
-                    Log.d(TAG, "✅ Servicio iniciado tras reinicio del dispositivo")
+                    Log.d(TAG, "Servicio iniciado tras reinicio del dispositivo")
                     
                     // Si no hay permisos, enviar broadcast para mostrar diálogo
                     if (!hasPermissions) {
@@ -82,7 +82,7 @@ class BootReceiver : BroadcastReceiver() {
                         Log.d(TAG, "📣 Solicitando mostrar diálogo de permisos")
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "❌ Error al iniciar servicio tras arranque: ${e.message}")
+                    Log.e(TAG, "Error al iniciar servicio tras arranque: ${e.message}")
                 }
             }
         }
@@ -209,7 +209,7 @@ class BootReceiver : BroadcastReceiver() {
                 workRequest
             )
             
-            Log.d(TAG, "✅ WorkManager watchdog programado (intervalo: 15 min)")
+            Log.d(TAG, "WorkManager watchdog programado (intervalo: 15 min)")
         } catch (e: Exception) {
             Log.e(TAG, "Error programando WorkManager watchdog: ${e.message}", e)
         }

@@ -10,8 +10,6 @@ import kotlinx.coroutines.delay
  * Gestiona el tiempo de espera entre reintentos que aumenta
  * exponencialmente para evitar loops de reintentos rápidos.
  * 
- * Principios aplicados:
- * - SRP: Solo gestiona cálculo de backoff
  * - Stateful: Mantiene contador de reintentos
  * - Configurable: Tiempos min/max customizables
  */

@@ -4,9 +4,7 @@ package com.dynamictecnologies.notificationmanager.domain.entities
  * Entidad de dominio que representa un usuario.
  * No depende de ninguna implementación externa (Firebase, etc.)
  * 
- * Principios aplicados:
  * - Clean Architecture: Entidad pura del dominio sin dependencias externas
- * - SRP: Solo representa los datos del usuario
  */
 // domain/entities/User.kt
 data class User(

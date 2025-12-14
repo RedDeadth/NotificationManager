@@ -15,8 +15,6 @@ import com.dynamictecnologies.notificationmanager.domain.repositories.DevicePair
  * 3. Guardar en repository
  * 4. Conectar MQTT al topic del dispositivo
  * 
- * Principios aplicados:
- * - SRP: Solo vinculación de dispositivos
  * - Input validation: Token validado antes de procesar
  * - Clean Architecture: Domain layer, no dependencias Android
  */

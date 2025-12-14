@@ -23,13 +23,13 @@ class ServiceRestartReceiver : BroadcastReceiver() {
     }
     
     override fun onReceive(context: Context, intent: Intent) {
-        Log.d(TAG, "🔄 Reiniciando servicios desde AlarmManager...")
+        Log.d(TAG, "Reiniciando servicios desde AlarmManager...")
         
         // CRÍTICO: Verificar si el usuario eligió "Entendido" (DISABLED state)
         val currentState = ServiceStateManager.getCurrentState(context)
         
         if (currentState == ServiceStateManager.ServiceState.DISABLED) {
-            Log.d(TAG, "❌ Estado DISABLED - Usuario no quiere el servicio. No reiniciar.")
+            Log.d(TAG, "Estado DISABLED - Usuario no quiere el servicio. No reiniciar.")
             return
         }
         
@@ -50,9 +50,9 @@ class ServiceRestartReceiver : BroadcastReceiver() {
                 context.startService(foregroundIntent)
             }
             
-            Log.d(TAG, "✅ NotificationForegroundService reiniciado")
+            Log.d(TAG, "NotificationForegroundService reiniciado")
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error reiniciando NotificationForegroundService: ${e.message}")
+            Log.e(TAG, "Error reiniciando NotificationForegroundService: ${e.message}")
         }
         
         try {
@@ -65,9 +65,9 @@ class ServiceRestartReceiver : BroadcastReceiver() {
                 context.startService(backgroundIntent)
             }
             
-            Log.d(TAG, "✅ BackgroundMonitoringService reiniciado")
+            Log.d(TAG, "BackgroundMonitoringService reiniciado")
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error reiniciando BackgroundMonitoringService: ${e.message}")
+            Log.e(TAG, "Error reiniciando BackgroundMonitoringService: ${e.message}")
         }
     }
 }

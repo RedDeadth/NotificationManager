@@ -16,11 +16,6 @@ import kotlinx.coroutines.flow.map
 /**
  * Implementación del repositorio de autenticación que coordina entre data sources.
  * 
- * Principios aplicados:
- * - SRP: Coordina entre data sources sin lógica de negocio compleja
- * - DIP: Todas las dependencias son inyectadas, sin valores por defecto
- * - DRY: Lógica común extraída a funciones privadas
- * - OCP: Extensible para nuevos métodos de autenticación
  * - Clean Architecture: Implementación en capa de datos, expone entidades de dominio
  */
 class AuthRepositoryImpl(

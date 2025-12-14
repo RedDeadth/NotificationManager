@@ -8,9 +8,6 @@ import java.util.concurrent.TimeUnit
 /**
  * Implementación de SessionStorage usando SharedPreferences.
  * 
- * Principios aplicados:
- * - SRP: Solo maneja el almacenamiento de sesiones en SharedPreferences
- * - DIP: Implementa la abstracción SessionStorage
  */
 class SharedPreferencesSessionStorage(context: Context) : SessionStorage {
     

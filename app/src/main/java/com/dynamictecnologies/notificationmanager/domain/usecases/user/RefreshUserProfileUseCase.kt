@@ -6,9 +6,6 @@ import com.dynamictecnologies.notificationmanager.domain.repositories.UserProfil
 /**
  * Caso de uso para refrescar el perfil del usuario desde el servidor.
  * 
- * Principios aplicados:
- * - SRP: Solo maneja el refresco del perfil
- * - DIP: Depende de la abstracción UserProfileRepository
  * - Clean Architecture: Caso de uso en la capa de dominio
  */
 class RefreshUserProfileUseCase(

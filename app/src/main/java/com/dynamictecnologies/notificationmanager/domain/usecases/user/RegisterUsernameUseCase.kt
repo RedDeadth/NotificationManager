@@ -6,9 +6,6 @@ import com.dynamictecnologies.notificationmanager.domain.repositories.UserProfil
 /**
  * Caso de uso para registrar un username para el usuario actual.
  * 
- * Principios aplicados:
- * - SRP: Solo maneja la lógica de negocio de registrar username
- * - DIP: Depende de la abstracción UserProfileRepository
  * - Clean Architecture: Caso de uso en la capa de dominio
  */
 class RegisterUsernameUseCase(

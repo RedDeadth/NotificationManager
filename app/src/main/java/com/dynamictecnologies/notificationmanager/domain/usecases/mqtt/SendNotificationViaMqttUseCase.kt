@@ -8,9 +8,6 @@ import com.dynamictecnologies.notificationmanager.domain.repositories.MqttReposi
  * 
  * Responsabilidad única: Enviar notificaciones a dispositivos ESP32.
  * 
- * Principios aplicados:
- * - SRP: Solo envía notificaciones
- * - DIP: Depende de abstracción
  * - Clean Architecture: Domain layer
  */
 class SendNotificationViaMqttUseCase(

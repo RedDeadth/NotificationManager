@@ -28,10 +28,7 @@ import kotlinx.coroutines.withContext
  * - Samsung: Menos agresivo, intervalo estándar
  * - Google Pixel: Stock Android, intervalo estándar
  * 
- * Principios aplicados:
- * - SRP: Solo verifica salud del servicio
  * - Robustez: Funciona incluso si servicio es matado agresivamente
- * - Clean Code: Usa CoroutineWorker con suspend functions
  */
 class ServiceHealthCheckWorker(
     context: Context,
@@ -63,7 +60,7 @@ class ServiceHealthCheckWorker(
     override suspend fun doWork(): Result {
         val manufacturer = DeviceManufacturerDetector().detectManufacturer()
         val timeout = getHeartbeatTimeout()
-        Log.d(TAG, "🔍 Verificación de salud del servicio ($manufacturer, timeout: ${timeout/60000}min)...")
+        Log.d(TAG, "Verificación de salud del servicio ($manufacturer, timeout: ${timeout/60000}min)...")
         
         return try {
             // 1. Verificar si el servicio debería estar corriendo
@@ -71,7 +68,7 @@ class ServiceHealthCheckWorker(
             val shouldBeRunning = prefs.getBoolean("service_should_be_running", false)
             
             if (!shouldBeRunning) {
-                Log.d(TAG, "✓ Servicio no debería estar corriendo (usuario lo detuvo)")
+                Log.d(TAG, "Servicio no debería estar corriendo (usuario lo detuvo)")
                 return Result.success()
             }
             
@@ -80,13 +77,13 @@ class ServiceHealthCheckWorker(
             val timeSinceHeartbeat = System.currentTimeMillis() - lastHeartbeat
             
             if (lastHeartbeat == 0L) {
-                Log.w(TAG, "⚠️ No hay heartbeat registrado, servicio probablemente nunca inició")
+                Log.w(TAG, "No hay heartbeat registrado, servicio probablemente nunca inició")
                 handleDeadService()
                 return Result.success()
             }
             
             if (timeSinceHeartbeat > timeout) {
-                Log.w(TAG, "⚠️ Servicio sin heartbeat por ${timeSinceHeartbeat/60000}m (límite: ${timeout/60000}m)")
+                Log.w(TAG, "Servicio sin heartbeat por ${timeSinceHeartbeat/60000}m (límite: ${timeout/60000}m)")
                 handleDeadService()
                 return Result.success()
             }
@@ -95,12 +92,12 @@ class ServiceHealthCheckWorker(
             val isRunning = isServiceRunning()
             
             if (!isRunning) {
-                Log.w(TAG, "⚠️ Servicio debería estar corriendo pero NO lo está!")
+                Log.w(TAG, "Servicio debería estar corriendo pero NO lo está!")
                 handleDeadService()
                 return Result.success()
             }
             
-            Log.d(TAG, "✅ Servicio saludable (heartbeat hace ${timeSinceHeartbeat/1000}s)")
+            Log.d(TAG, "Servicio saludable (heartbeat hace ${timeSinceHeartbeat/1000}s)")
             Result.success()
             
         } catch (e: Exception) {
@@ -135,7 +132,7 @@ class ServiceHealthCheckWorker(
      * - Registra evento
      */
     private suspend fun handleDeadService() {
-        Log.w(TAG, "🚨 Servicio muerto detectado por watchdog externo")
+        Log.w(TAG, "Servicio muerto detectado por watchdog externo")
         
         // Ejecutar operaciones en Main thread para UI/notificaciones
         withContext(Dispatchers.Main) {
@@ -143,7 +140,7 @@ class ServiceHealthCheckWorker(
             try {
                 val stopIntent = Intent(applicationContext, NotificationForegroundService::class.java)
                 applicationContext.stopService(stopIntent)
-                Log.d(TAG, "✓ Servicio foreground detenido")
+                Log.d(TAG, "Servicio foreground detenido")
             } catch (e: Exception) {
                 Log.e(TAG, "Error deteniendo servicio: ${e.message}")
             }
@@ -153,7 +150,7 @@ class ServiceHealthCheckWorker(
                 val notificationManager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) 
                     as android.app.NotificationManager
                 notificationManager.cancel(ServiceNotificationManager.NOTIFICATION_ID_RUNNING)
-                Log.d(TAG, "✓ Notificación running cancelada")
+                Log.d(TAG, "Notificación running cancelada")
             } catch (e: Exception) {
                 Log.e(TAG, "Error cancelando notificación: ${e.message}")
             }
@@ -177,6 +174,6 @@ class ServiceHealthCheckWorker(
             apply()
         }
         
-        Log.w(TAG, "📱 Notificación roja mostrada (muerte detectada por watchdog)")
+        Log.w(TAG, "Notificación roja mostrada (muerte detectada por watchdog)")
     }
 }

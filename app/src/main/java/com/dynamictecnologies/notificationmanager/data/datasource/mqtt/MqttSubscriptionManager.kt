@@ -7,11 +7,7 @@ import java.util.concurrent.ConcurrentHashMap
  * 
  * Responsabilidad única: Administrar suscripciones a topics MQTT.
  * 
- * Principios aplicados:
- * - SRP: Solo gestiona suscripciones
- * - DIP: Depende de abstracción (MqttConnectionManager)
  * - Thread Safety: Usa ConcurrentHashMap para manejo concurrente
- * - Clean Code: Métodos pequeños y enfocados
  */
 class MqttSubscriptionManager(
     private val connectionManager: MqttConnectionManager

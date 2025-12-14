@@ -84,16 +84,16 @@ object PermissionHelper {
     fun showNotificationPermissionDialog(context: Context) {
         try {
             AlertDialog.Builder(context)
-                .setTitle("🔔 Permisos necesarios")
+                .setTitle("Permisos necesarios")
                 .setMessage(
                     "Para recolectar notificaciones, esta aplicación necesita acceso especial.\n\n" +
-                            "📱 **Pasos a seguir:**\n" +
+                            "**Pasos a seguir:**\n" +
                             "1. Toca 'Ir a configuración'\n" +
                             "2. Busca 'Notification Manager' en la lista\n" +
                             "3. Activa el interruptor junto al nombre\n" +
                             "4. Toca 'Permitir' en el diálogo de confirmación\n" +
                             "5. Regresa a la app\n\n" +
-                            "⚠️ **Sin estos permisos NO se pueden recolectar notificaciones**"
+                            "**Sin estos permisos NO se pueden recolectar notificaciones**"
                 )
                 .setPositiveButton("Ir a configuración") { _, _ ->
                     openNotificationListenerSettings(context)
@@ -105,9 +105,9 @@ object PermissionHelper {
                 .setCancelable(false)
                 .show()
 
-            Log.d(TAG, "📱 Diálogo de permisos mostrado")
+            Log.d(TAG, "Diálogo de permisos mostrado")
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error mostrando diálogo: ${e.message}")
+            Log.e(TAG, "Error mostrando diálogo: ${e.message}")
         }
     }
 
@@ -119,27 +119,27 @@ object PermissionHelper {
             val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(intent)
-            Log.d(TAG, "✅ Abriendo configuración de NotificationListener")
+            Log.d(TAG, "Abriendo configuración de NotificationListener")
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error abriendo configuración principal: ${e.message}")
+            Log.e(TAG, "Error abriendo configuración principal: ${e.message}")
 
             // Fallback: abrir configuración general de seguridad
             try {
                 val fallbackIntent = Intent(Settings.ACTION_SECURITY_SETTINGS)
                 fallbackIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 context.startActivity(fallbackIntent)
-                Log.d(TAG, "✅ Abriendo configuración de seguridad como fallback")
+                Log.d(TAG, "Abriendo configuración de seguridad como fallback")
             } catch (fallbackException: Exception) {
-                Log.e(TAG, "❌ Error abriendo configuración de seguridad: ${fallbackException.message}")
+                Log.e(TAG, "Error abriendo configuración de seguridad: ${fallbackException.message}")
 
                 // Último fallback: configuración general
                 try {
                     val lastResortIntent = Intent(Settings.ACTION_SETTINGS)
                     lastResortIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     context.startActivity(lastResortIntent)
-                    Log.d(TAG, "✅ Abriendo configuración general como último recurso")
+                    Log.d(TAG, "Abriendo configuración general como último recurso")
                 } catch (lastException: Exception) {
-                    Log.e(TAG, "❌ Error crítico: No se puede abrir ninguna configuración: ${lastException.message}")
+                    Log.e(TAG, "Error crítico: No se puede abrir ninguna configuración: ${lastException.message}")
                 }
             }
         }
@@ -151,10 +151,10 @@ object PermissionHelper {
     fun showManualInstructions(context: Context) {
         try {
             AlertDialog.Builder(context)
-                .setTitle("🔍 Instrucciones manuales")
+                .setTitle("Instrucciones manuales")
                 .setMessage(
                     "Si no encuentras la configuración automáticamente:\n\n" +
-                            "📱 **Búsqueda manual:**\n" +
+                            "**Búsqueda manual:**\n" +
                             "1. Ve a 'Configuración' de tu dispositivo\n" +
                             "2. Busca 'Aplicaciones' o 'Apps'\n" +
                             "3. Busca 'Acceso especial' o 'Permisos especiales'\n" +
@@ -169,9 +169,9 @@ object PermissionHelper {
                 .setPositiveButton("Entendido", null)
                 .show()
 
-            Log.d(TAG, "📖 Instrucciones manuales mostradas")
+            Log.d(TAG, "Instrucciones manuales mostradas")
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error mostrando instrucciones: ${e.message}")
+            Log.e(TAG, "Error mostrando instrucciones: ${e.message}")
         }
     }
 
@@ -182,20 +182,20 @@ object PermissionHelper {
         val hasPermissions = hasNotificationListenerPermission(context)
 
         if (hasPermissions) {
-            Log.d(TAG, "✅ Estado de permisos: ACTIVOS")
-            Log.d(TAG, "🔔 La app puede recolectar notificaciones")
+            Log.d(TAG, "Estado de permisos: ACTIVOS")
+            Log.d(TAG, "La app puede recolectar notificaciones")
         } else {
-            Log.w(TAG, "❌ Estado de permisos: INACTIVOS")
-            Log.w(TAG, "⚠️ La app NO puede recolectar notificaciones")
-            Log.w(TAG, "📱 Es necesario otorgar permisos en: Configuración → Notificaciones → Acceso de notificaciones")
+            Log.w(TAG, "Estado de permisos: INACTIVOS")
+            Log.w(TAG, "La app NO puede recolectar notificaciones")
+            Log.w(TAG, "Es necesario otorgar permisos en: Configuración → Notificaciones → Acceso de notificaciones")
         }
 
         // Log adicional para debugging
         try {
             val packageName = context.packageName
             val appName = context.packageManager.getApplicationLabel(context.applicationInfo)
-            Log.d(TAG, "📦 Package: $packageName")
-            Log.d(TAG, "📱 App name: $appName")
+            Log.d(TAG, "Package: $packageName")
+            Log.d(TAG, "App name: $appName")
         } catch (e: Exception) {
             Log.e(TAG, "Error obteniendo info de la app: ${e.message}")
         }

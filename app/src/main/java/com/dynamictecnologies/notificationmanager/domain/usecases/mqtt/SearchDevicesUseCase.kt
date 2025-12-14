@@ -8,9 +8,6 @@ import com.dynamictecnologies.notificationmanager.domain.repositories.MqttReposi
  * 
  * Responsabilidad única: Iniciar búsqueda de dispositivos vía MQTT.
  * 
- * Principios aplicados:
- * - SRP: Solo busca dispositivos
- * - DIP: Depende de abstracción
  * - Clean Architecture: Domain layer use case
  */
 class SearchDevicesUseCase(

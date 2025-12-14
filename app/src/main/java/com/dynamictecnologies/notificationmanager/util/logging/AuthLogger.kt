@@ -6,8 +6,6 @@ import com.dynamictecnologies.notificationmanager.data.exceptions.AuthException
  * Logger especializado para operaciones de autenticación.
  * Proporciona logging estructurado y seguro para el módulo de auth.
  * 
- * Principios aplicados:
- * - SRP: Solo maneja logging de autenticación
  * - Security by Design: Enmascara datos sensibles automáticamente
  */
 class AuthLogger(

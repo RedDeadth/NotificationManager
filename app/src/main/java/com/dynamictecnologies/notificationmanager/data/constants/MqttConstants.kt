@@ -3,8 +3,6 @@ package com.dynamictecnologies.notificationmanager.data.constants
 /**
  * Constantes MQTT centralizadas.
  * 
- * Principios aplicados:
- * - DRY: Elimina duplicación de constantes across el proyecto
  * - Single Source of Truth: Todos los valores MQTT en un solo lugar
  * - Maintainability: Cambios en un solo archivo
  */

@@ -5,9 +5,6 @@ import com.dynamictecnologies.notificationmanager.domain.entities.User
 /**
  * Interfaz para el almacenamiento de sesiones.
  * 
- * Principios aplicados:
- * - DIP: Abstracción que permite diferentes implementaciones
- * - ISP: Interfaz segregada solo con operaciones de sesión
  */
 interface SessionStorage {
     /**

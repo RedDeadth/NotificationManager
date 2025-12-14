@@ -52,13 +52,13 @@ object ServiceDeathDetector {
             val heartbeatTimeout = 15 * 60 * 1000L // 15 minutos
             
             if (lastHeartbeat > 0 && timeSinceHeartbeat > heartbeatTimeout) {
-                Log.w(TAG, "⚠️ Servicio murió inesperadamente (sin heartbeat por ${timeSinceHeartbeat/60000}min)")
+                Log.w(TAG, "Servicio murió inesperadamente (sin heartbeat por ${timeSinceHeartbeat/60000}min)")
                 return true
             }
             
             // Si nunca hubo heartbeat pero debería estar corriendo
             if (lastHeartbeat == 0L) {
-                Log.w(TAG, "⚠️ Servicio debería estar corriendo pero nunca inició")
+                Log.w(TAG, "Servicio debería estar corriendo pero nunca inició")
                 return true
             }
         }
@@ -76,10 +76,10 @@ object ServiceDeathDetector {
      * 2. Registra el evento para diagnóstico
      */
     fun handleDeathOnAppStart(context: Context) {
-        Log.d(TAG, "🔍 Verificando si el servicio murió mientras la app estaba cerrada...")
+        Log.d(TAG, "Verificando si el servicio murió mientras la app estaba cerrada...")
         
         if (wasServiceKilledUnexpectedly(context)) {
-            Log.w(TAG, "🚨 Servicio murió mientras la app estaba cerrada - mostrando notificación")
+            Log.w(TAG, "Servicio murió mientras la app estaba cerrada - mostrando notificación")
             
             // Mostrar notificación roja
             ServiceNotificationManager(context).showStoppedNotification()
@@ -91,7 +91,7 @@ object ServiceDeathDetector {
             // Registrar evento para diagnóstico
             recordDeathEvent(context)
         } else {
-            Log.d(TAG, "✅ Servicio no murió inesperadamente (o ya fue manejado)")
+            Log.d(TAG, "Servicio no murió inesperadamente (o ya fue manejado)")
         }
     }
     
@@ -106,7 +106,7 @@ object ServiceDeathDetector {
             .putLong("last_start_time", System.currentTimeMillis())
             .apply()
         
-        Log.d(TAG, "✓ Servicio marcado como activo")
+        Log.d(TAG, "Servicio marcado como activo")
     }
     
     /**
@@ -121,6 +121,6 @@ object ServiceDeathDetector {
             .putLong("last_death_on_start", System.currentTimeMillis())
             .apply()
         
-        Log.d(TAG, "📊 Muerte al inicio registrada (total: ${currentCount + 1})")
+        Log.d(TAG, "Muerte al inicio registrada (total: ${currentCount + 1})")
     }
 }

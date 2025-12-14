@@ -8,8 +8,6 @@ package com.dynamictecnologies.notificationmanager.domain.entities
  * - Topic MQTT derivado del token
  * - Sin userId, sin Firebase sync
  * 
- * Principios aplicados:
- * - SRP: Solo datos de vinculación
  * - Inmutabilidad: Data class read-only
  * - Clean Architecture: Entidad pura sin dependencias
  * - Validación: Init block con validaciones estrictas
@@ -64,8 +62,6 @@ data class DevicePairing(
  * Token format: 8 caracteres alfanuméricos uppercase
  * Ej: "A3F9K2L7"
  * 
- * Principios aplicados:
- * - SRP: Solo validación de tokens
  * - Stateless: Object sin estado
  */
 object TokenValidator {

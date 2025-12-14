@@ -6,8 +6,6 @@ import com.google.firebase.auth.FirebaseUser
 /**
  * Mapper para convertir entre FirebaseUser y User del dominio.
  * 
- * Principios aplicados:
- * - SRP: Solo se encarga de mapear entidades
  * - Clean Architecture: Convierte detalles de implementación a entidades de dominio
  */
 object UserMapper {

@@ -8,10 +8,6 @@ import org.eclipse.paho.client.mqttv3.MqttMessage
  * 
  * Responsabilidad única: Búsqueda y descubrimiento de dispositivos vía MQTT.
  * 
- * Principios aplicados:
- * - SRP: Solo busca dispositivos
- * - DIP: Depende de abstracción (MqttConnectionManager)
- * - Clean Code: Lógica clara y enfocada
  */
 class MqttDeviceScanner(
     private val connectionManager: MqttConnectionManager

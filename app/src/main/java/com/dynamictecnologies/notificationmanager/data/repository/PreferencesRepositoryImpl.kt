@@ -9,9 +9,6 @@ import com.dynamictecnologies.notificationmanager.domain.repositories.Preference
  * 
  * Encapsula el acceso a SharedPreferences para la gestión de la app seleccionada.
  * 
- * Principios aplicados:
- * - SRP: Solo maneja persistencia de la app seleccionada
- * - DIP: Depende de la abstracción SharedPreferences (inyectado)
  * - Clean Architecture: Implementación en capa de datos
  * 
  * @property sharedPreferences SharedPreferences para persistencia

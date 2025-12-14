@@ -42,11 +42,6 @@ import com.dynamictecnologies.notificationmanager.viewmodel.UserViewModelFactory
  * Implementa patrón Dependency Injection Container de forma manual.
  * En una aplicación real, se recomienda usar Dagger/Hilt o Koin.
  * 
- * Principios aplicados:
- * - DIP: Todas las dependencias se crean e inyectan aquí
- * - SRP: Solo se encarga de crear y proveer dependencias
- * - Single Responsibility: Centraliza la creación de objetos
- * - ISP: Proveedores segregados por funcionalidad (Auth, UserProfile)
  */
 object AuthModule {
     

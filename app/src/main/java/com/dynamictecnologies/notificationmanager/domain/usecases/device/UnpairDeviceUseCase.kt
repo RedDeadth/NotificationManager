@@ -10,8 +10,6 @@ import com.dynamictecnologies.notificationmanager.domain.repositories.DevicePair
  * 1. Eliminar de repository
  * 2. Desconectar MQTT
  * 
- * Principios aplicados:
- * - SRP: Solo desvinculación
  * - Cleanup: Libera recursos MQTT
  */
 class UnpairDeviceUseCase(

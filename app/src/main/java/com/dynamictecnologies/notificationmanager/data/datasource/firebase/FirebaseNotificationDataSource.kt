@@ -13,8 +13,6 @@ import java.util.*
  * 
  * Responsabilidad única: Gestionar acceso a datos de notificaciones en Firebase.
  * 
- * Principios aplicados:
- * - SRP: Solo maneja operaciones Firebase de notificaciones
  * - Clean Architecture: Data layer
  */
 class FirebaseNotificationDataSource(

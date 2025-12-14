@@ -13,11 +13,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * 
  * Responsabilidad única: Gestionar la lógica de reconexión automática.
  * 
- * Principios aplicados:
- * - SRP: Solo maneja reconexión
- * - OCP: Configurable mediante intervalos personalizables
  * - Thread Safety: Usa AtomicBoolean y AtomicInteger
- * - Clean Code: Lógica clara y separada
  */
 class MqttReconnectionStrategy(
     private val connectionManager: MqttConnectionManager,

@@ -7,9 +7,6 @@ import kotlinx.coroutines.flow.Flow
 /**
  * Caso de uso para obtener el perfil del usuario actual.
  * 
- * Principios aplicados:
- * - SRP: Solo maneja la obtención del perfil
- * - DIP: Depende de la abstracción UserProfileRepository
  * - Clean Architecture: Caso de uso en la capa de dominio
  */
 class GetUserProfileUseCase(

@@ -14,9 +14,6 @@ import kotlinx.coroutines.flow.asStateFlow
  * Sin Firebase, sin complejidad, sin sincronización.
  * Solo almacenamiento local persistente.
  * 
- * Principios aplicados:
- * - SRP: Solo gestiona almacenamiento de vinculación
- * - DIP: Implementa abstracción del dominio
  * - Clean Architecture: Implementación en capa de datos
  */
 class DevicePairingRepositoryImpl(

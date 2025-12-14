@@ -6,9 +6,6 @@ import com.dynamictecnologies.notificationmanager.domain.repositories.AppReposit
 /**
  * Caso de uso para obtener las aplicaciones instaladas en el dispositivo.
  * 
- * Principios aplicados:
- * - SRP: Una sola responsabilidad - obtener apps instaladas
- * - DIP: Depende de la abstracción AppRepository
  * - Clean Architecture: Encapsula lógica de negocio en la capa de dominio
  * 
  * @param appRepository Repository para acceder a las aplicaciones

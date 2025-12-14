@@ -7,9 +7,6 @@ import kotlinx.coroutines.flow.Flow
 /**
  * Caso de uso para obtener el usuario actual.
  * 
- * Principios aplicados:
- * - SRP: Solo maneja la lógica de negocio de obtener usuario actual
- * - DIP: Depende de la abstracción AuthRepository
  * - Clean Architecture: Caso de uso en la capa de dominio
  */
 class GetCurrentUserUseCase(

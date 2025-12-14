@@ -8,10 +8,6 @@ import org.json.JSONObject
  * 
  * Responsabilidad única: Enviar notificaciones a dispositivos ESP32.
  * 
- * Principios aplicados:
- * - SRP: Solo envía notificaciones
- * - DIP: Depende de MqttConnectionManager (abstracción)
- * - Clean Code: Lógica de serialización separada
  */
 class MqttNotificationSender(
     private val connectionManager: MqttConnectionManager

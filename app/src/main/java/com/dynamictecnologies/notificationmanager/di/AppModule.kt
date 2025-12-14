@@ -17,10 +17,6 @@ import com.dynamictecnologies.notificationmanager.viewmodel.AppListViewModelFact
  * 
  * Sigue el mismo patrón que AuthModule para mantener consistencia.
  * 
- * Principios aplicados:
- * - SRP: Solo provee dependencias para el módulo de apps
- * - DIP: Provee abstracciones, no implementaciones concretas
- * - Factory Pattern: Centraliza creación de objetos
  */
 object AppModule {
     

@@ -12,9 +12,6 @@ import com.dynamictecnologies.notificationmanager.util.notification.ServiceCrash
 /**
  * BroadcastReceiver para manejar acciones desde las notificaciones de crash del servicio.
  * 
- * Principios aplicados:
- * - SRP: Solo maneja acciones de las notificaciones de recuperación
- * - OCP: Fácil de extender con nuevas acciones
  */
 class ServiceRecoveryReceiver : BroadcastReceiver() {
     

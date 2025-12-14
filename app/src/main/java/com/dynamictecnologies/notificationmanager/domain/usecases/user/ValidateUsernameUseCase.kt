@@ -5,9 +5,6 @@ import com.dynamictecnologies.notificationmanager.domain.repositories.UserProfil
 /**
  * Caso de uso para validar disponibilidad de un username.
  * 
- * Principios aplicados:
- * - SRP: Solo maneja la validación de disponibilidad
- * - DIP: Depende de la abstracción UserProfileRepository
  * - Clean Architecture: Caso de uso en la capa de dominio
  */
 class ValidateUsernameUseCase(

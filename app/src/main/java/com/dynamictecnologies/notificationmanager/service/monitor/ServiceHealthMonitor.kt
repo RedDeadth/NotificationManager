@@ -25,10 +25,6 @@ sealed class ServiceHealth {
 /**
  * Monitor de salud del servicio de notificaciones.
  * 
- * Principios aplicados:
- * - SRP: Solo monitorea la salud del servicio
- * - DIP: Depende de abstracciones (Strategy, Notifier)
- * - OCP: Extensible con nuevas métricas de salud
  */
 class ServiceHealthMonitor(
     private val context: Context,
@@ -145,14 +141,14 @@ class ServiceHealthMonitor(
         when (health) {
             is ServiceHealth.Healthy -> {
                 if (previousHealth != ServiceHealth.Healthy) {
-                    Log.i(TAG, "✅ Servicio restaurado a salud normal")
+                    Log.i(TAG, "Servicio restaurado a salud normal")
                     crashNotifier.dismissAllNotifications()
                 }
             }
             
             is ServiceHealth.Degraded -> {
                 if (previousHealth is ServiceHealth.Healthy) {
-                    Log.w(TAG, "⚠️ Servicio degradado: ${health.reason}")
+                    Log.w(TAG, "Servicio degradado: ${health.reason}")
                     // No notificar todavía, solo logear
                 }
             }

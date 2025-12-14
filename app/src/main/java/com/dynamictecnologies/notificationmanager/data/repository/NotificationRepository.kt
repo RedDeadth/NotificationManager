@@ -25,8 +25,6 @@ import kotlinx.coroutines.launch
  * - NetworkConnectivityChecker: Estado de red
  * - AppNameResolver: Resolución de nombres
  * 
- * Principios aplicados:
- * - SRP: Solo coordinación y operaciones de datos
  * - Composition: Usa componentes especializados
  * - Clean Architecture: Repository pattern
  */
@@ -98,7 +96,7 @@ class NotificationRepository(
         try {
             // Verificar permisos
             if (!permissionChecker.hasPermission()) {
-                Log.w(TAG, "❌ Notificación rechazada: Sin permisos")
+                Log.w(TAG, "Notificación rechazada: Sin permisos")
                 return
             }
             
@@ -123,7 +121,7 @@ class NotificationRepository(
             )
             
             val id = notificationDao.insertNotification(notificationToSave)
-            Log.d(TAG, "✅ Notificación guardada: ID=$id, App=$appName")
+            Log.d(TAG, "Notificación guardada: ID=$id, App=$appName")
             
             // Limpiar si es necesario
             scope.launch(Dispatchers.IO) {
@@ -131,7 +129,7 @@ class NotificationRepository(
             }
             
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error insertando notificación: ${e.message}", e)
+            Log.e(TAG, "Error insertando notificación: ${e.message}", e)
         }
     }
     

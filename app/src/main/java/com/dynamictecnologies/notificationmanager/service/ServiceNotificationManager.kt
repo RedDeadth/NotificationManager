@@ -13,8 +13,8 @@ import com.dynamictecnologies.notificationmanager.R
  * Gestor de notificaciones dinámicas del servicio.
  * 
  * Maneja 2 tipos de notificaciones:
- * 1. RUNNING: "📱 Corriendo en segundo plano [DETENER]"
- * 2. STOPPED: "⚠️ Servicio Detenido [Reiniciar] [Entendido]"
+ * 1. RUNNING: "Corriendo en segundo plano [DETENER]"
+ * 2. STOPPED: "Servicio Detenido [Reiniciar] [Entendido]"
  * 
  * Las notificaciones cambian dinámicamente según el estado del servicio.
  */
@@ -89,7 +89,7 @@ class ServiceNotificationManager(private val context: Context) {
         )
         
         val builder = NotificationCompat.Builder(context, CHANNEL_ID_RUNNING)
-            .setContentTitle("📱 Gestor de Notificaciones")
+            .setContentTitle("Gestor de Notificaciones")
             .setContentText("Corriendo en segundo plano")
             .setSmallIcon(R.drawable.ic_notification)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -99,7 +99,7 @@ class ServiceNotificationManager(private val context: Context) {
             .setColorized(true) // Hace que el color cubra toda la notificación
             .addAction(
                 R.drawable.ic_notification,
-                "🛑 DETENER",
+                "DETENER",
                 stopPendingIntent
             )
         
@@ -134,7 +134,7 @@ class ServiceNotificationManager(private val context: Context) {
         )
         
         return NotificationCompat.Builder(context, CHANNEL_ID_STOPPED)
-            .setContentTitle("⚠️ Servicio Detenido")
+            .setContentTitle("Servicio Detenido")
             .setContentText("El servicio se detuvo inesperadamente")
             .setStyle(NotificationCompat.BigTextStyle()
                 .bigText("El servicio de notificaciones se detuvo.\n\n" +
@@ -147,12 +147,12 @@ class ServiceNotificationManager(private val context: Context) {
             .setColorized(true) // Hace que el color cubra toda la notificación
             .addAction(
                 R.drawable.ic_notification,
-                "🔄 Reiniciar",
+                "Reiniciar",
                 restartPendingIntent
             )
             .addAction(
                 R.drawable.ic_notification,
-                "✓ Entendido",
+                "Entendido",
                 acknowledgePendingIntent
             )
             .build()

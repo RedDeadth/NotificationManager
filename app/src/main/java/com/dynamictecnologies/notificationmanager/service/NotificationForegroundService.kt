@@ -84,7 +84,7 @@ class NotificationForegroundService : Service() {
                 "NotificationManager::ServiceWakeLock"
             )
             wakeLock?.acquire(10 * 60 * 60 * 1000L) // 10 horas con timeout
-            Log.d(TAG, "✅ Wake lock adquirido")
+            Log.d(TAG, "Wake lock adquirido")
         } catch (e: Exception) {
             Log.e(TAG, "Error adquiriendo wake lock: ${e.message}")
         }
@@ -105,7 +105,7 @@ class NotificationForegroundService : Service() {
         // Iniciar heartbeat para watchdog externo
         startHeartbeat()
         
-        Log.d(TAG, "📱 Notificación RUNNING mostrada con botón DETENER")
+        Log.d(TAG, "Notificación RUNNING mostrada con botón DETENER")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -113,7 +113,7 @@ class NotificationForegroundService : Service() {
         
         // Verificar que los permisos estén habilitados antes de realizar cualquier acción
         if (!NotificationListenerService.isNotificationListenerEnabled(applicationContext)) {
-            Log.w(TAG, "⚠️ NotificationListenerService no está habilitado. Las acciones pueden fallar.")
+            Log.w(TAG, "NotificationListenerService no está habilitado. Las acciones pueden fallar.")
 
         }
         
@@ -124,7 +124,7 @@ class NotificationForegroundService : Service() {
                     tryToRestartNotificationListenerService()
                 }
                 ACTION_FORCE_RESET -> {
-                    Log.d(TAG, "⚠️ Acción de reinicio forzado recibida")
+                    Log.d(TAG, "Acción de reinicio forzado recibida")
                     // Reinicio más agresivo para casos de emergencia
                     performForceReset()
                 }
@@ -257,7 +257,7 @@ class NotificationForegroundService : Service() {
                                     
                                     // Si llevamos más de 12 horas sin servicio, forzar un reinicio completo
                                     if (timeSinceLastNotif > MAX_TIME_WITHOUT_SERVICE) {
-                                        Log.w(TAG, "⚠️ Crisis detectada: Sin notificaciones por más de 12 horas. Reinicio forzado completo...")
+                                        Log.w(TAG, "Crisis detectada: Sin notificaciones por más de 12 horas. Reinicio forzado completo...")
                                         performDeepReset()
                                     }
                                 }
@@ -298,7 +298,7 @@ class NotificationForegroundService : Service() {
                     
                     if (lastNotificationTime > 0 && (currentTime - lastNotificationTime > 6 * 60 * 60 * 1000L)) {
                         // Si han pasado más de 6 horas sin notificaciones, hacer un reinicio forzado
-                        Log.w(TAG, "⚠️ Verificación periódica: 6+ horas sin notificaciones. Realizando reinicio forzado.")
+                        Log.w(TAG, "Verificación periódica: 6+ horas sin notificaciones. Realizando reinicio forzado.")
                         performForceReset()
                     }
                 } catch (e: Exception) {
@@ -497,7 +497,7 @@ class NotificationForegroundService : Service() {
      */
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
-        Log.d(TAG, "📱 onTaskRemoved: Activity cerrada pero servicio sigue corriendo")
+        Log.d(TAG, "onTaskRemoved: Activity cerrada pero servicio sigue corriendo")
         
         // NO mostrar notificación roja - el servicio sigue activo.
         // La notificación verde ya está visible y el servicio sigue monitoreando.
@@ -546,7 +546,7 @@ class NotificationForegroundService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        Log.w(TAG, "⚠️ Servicio en primer plano destruido")
+        Log.w(TAG, "Servicio en primer plano destruido")
         
         // Verificar estado actual
         val currentState = ServiceStateManager.getCurrentState(this)
@@ -560,7 +560,7 @@ class NotificationForegroundService : Service() {
                 ServiceNotificationManager(this).showStoppedNotification()
                 ServiceStateManager.markStoppedNotificationShown(this)
                 ServiceStateManager.setState(this, ServiceStateManager.ServiceState.STOPPED)
-                Log.d(TAG, "📱 Notificación STOPPED mostrada con opciones Reiniciar/Entendido")
+                Log.d(TAG, "Notificación STOPPED mostrada con opciones Reiniciar/Entendido")
             } else {
                 Log.d(TAG, "Notificación STOPPED ya fue mostrada en esta sesión")
             }

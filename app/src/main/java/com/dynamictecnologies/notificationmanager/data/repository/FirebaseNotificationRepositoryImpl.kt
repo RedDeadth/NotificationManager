@@ -18,9 +18,6 @@ import java.util.*
  * 
  * Responsabilidad única: Coordinar operaciones de notificaciones.
  * 
- * Principios aplicados:
- * - SRP: Solo coordina notification operations
- * - DIP: Implementa interfaz del domain
  * - Clean Architecture: Data layer implements domain contracts
  * 
  * NOTA: MQTT es el canal principal para ESP32. 

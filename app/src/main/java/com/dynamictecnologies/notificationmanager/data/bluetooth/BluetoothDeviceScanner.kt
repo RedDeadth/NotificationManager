@@ -21,9 +21,6 @@ import kotlinx.coroutines.flow.asStateFlow
  * Busca dispositivos cuyo nombre comience con "ESP32" y los agrega
  * a una lista reactiva ordenada por señal (RSSI).
  * 
- * Principios aplicados:
- * - SRP: Solo escanea dispositivos Bluetooth
- * - Clean Code: API simple con Flow reactivo
  * - Error Handling: Result types y validación de permisos
  */
 class BluetoothDeviceScanner(private val context: Context) {

@@ -12,10 +12,6 @@ import java.util.*
 /**
  * Observer para notificaciones de Firebase con soporte para múltiples formatos.
  * 
- * Principios aplicados:
- * - SRP: Solo observa y procesa notificaciones
- * - OCP: Extensible para nuevos formatos de notificación
- * - Clean Code: Métodos pequeños y enfocados
  */
 class FirebaseNotificationObserver(
     private val database: FirebaseDatabase = FirebaseDatabase.getInstance()

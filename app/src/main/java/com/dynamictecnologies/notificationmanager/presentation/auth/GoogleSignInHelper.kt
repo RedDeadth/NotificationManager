@@ -12,8 +12,6 @@ import com.google.android.gms.common.api.ApiException
  * Helper para manejar Google Sign In.
  * Encapsula la lógica específica de Android para Google Sign In.
  *
- * Principios aplicados:
- * - SRP: Solo maneja la configuración y obtención de intents de Google Sign In
  * - Clean Architecture: Mantiene detalles de Android fuera del dominio
  */
 class GoogleSignInHelper(private val context: Context) {

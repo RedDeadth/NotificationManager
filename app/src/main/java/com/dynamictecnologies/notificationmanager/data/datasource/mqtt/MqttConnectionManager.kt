@@ -17,9 +17,6 @@ import javax.net.ssl.SSLSocketFactory
  * 
  * Responsabilidad única: Conectar/desconectar del broker MQTT.
  * 
- * Principios aplicados:
- * - SRP: Solo maneja conexión y desconexión
- * - OCP: Abierto para extensión (callbacks), cerrado para modificación
  * - Clean Architecture: Componente de data layer sin lógica de negocio
  * - Security: Credenciales desde BuildConfig (configuradas en local.properties)
  */

@@ -3,10 +3,6 @@ package com.dynamictecnologies.notificationmanager.service.strategy
 /**
  * Interfaz para estrategias de gestión de servicios en background según el fabricante.
  * 
- * Principios aplicados:
- * - SRP: Cada estrategia maneja solo la configuración de su fabricante
- * - OCP: Fácil de extender con nuevos fabricantes sin modificar código existente
- * - DIP: El código depende de esta abstracción, no de implementaciones concretas
  */
 interface BackgroundServiceStrategy {
     

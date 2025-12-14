@@ -21,8 +21,6 @@ import com.dynamictecnologies.notificationmanager.domain.entities.TokenValidator
  * - Auto-uppercase
  * - Feedback visual de validez
  * 
- * Principios aplicados:
- * - SRP: Solo gestiona entrada de token
  * - Stateless: No mantiene estado entre aperturas
  */
 @Composable
@@ -75,7 +73,7 @@ fun TokenInputDialog(
                             text = when {
                                 token.isEmpty() -> "Ingrese el token (${TokenValidator.TOKEN_LENGTH} caracteres)"
                                 remainingChars > 0 -> "Faltan $remainingChars caracteres"
-                                isValid -> "✓ Token válido"
+                                isValid -> "Token válido"
                                 else -> "✗ Token inválido"
                             },
                             color = when {

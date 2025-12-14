@@ -7,9 +7,6 @@ import com.dynamictecnologies.notificationmanager.domain.repositories.MqttReposi
  * 
  * Responsabilidad única: Gestionar la desconexión MQTT.
  * 
- * Principios aplicados:
- * - SRP: Solo desconecta de MQTT
- * - DIP: Depende de abstracción
  * - Clean Architecture: Use case en domain layer
  */
 class DisconnectFromMqttUseCase(

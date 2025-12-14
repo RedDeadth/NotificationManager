@@ -21,9 +21,6 @@ import kotlinx.coroutines.launch
  * - Desvinculación
  * - Estado de UI
  * 
- * Principios aplicados:
- * - SRP: Solo gestión de pairing
- * - DIP: Recibe Use Cases inyectados via Factory
  * - Reactive: StateFlow para UI reactiva
  * - Clean Architecture: Usa Use Cases del dominio
  */
@@ -169,9 +166,6 @@ class DevicePairingViewModel(
 /**
  * Factory para crear DevicePairingViewModel con inyección de dependencias.
  * 
- * Principios aplicados:
- * - DIP: Inyecta Use Cases y Repository
- * - Factory Pattern: Centraliza creación del ViewModel
  */
 class DevicePairingViewModelFactory(
     private val scanBluetoothDevicesUseCase: ScanBluetoothDevicesUseCase,

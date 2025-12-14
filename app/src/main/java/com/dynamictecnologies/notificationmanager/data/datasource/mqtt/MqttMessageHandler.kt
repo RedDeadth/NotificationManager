@@ -9,10 +9,6 @@ import org.json.JSONObject
  * 
  * Responsabilidad única: Procesar y parsear mensajes recibidos vía MQTT.
  * 
- * Principios aplicados:
- * - SRP: Solo procesa mensajes, no maneja conexión
- * - ISP: Interfaz simple para procesamiento
- * - Clean Code: Métodos pequeños, nombres claros
  */
 class MqttMessageHandler(
     private val context: Context

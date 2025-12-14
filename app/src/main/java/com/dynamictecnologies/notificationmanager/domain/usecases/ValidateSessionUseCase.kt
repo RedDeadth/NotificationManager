@@ -5,9 +5,6 @@ import com.dynamictecnologies.notificationmanager.domain.repositories.AuthReposi
 /**
  * Caso de uso para validar si la sesión es válida.
  * 
- * Principios aplicados:
- * - SRP: Solo maneja la lógica de validación de sesión
- * - DIP: Depende de la abstracción AuthRepository
  * - Clean Architecture: Caso de uso en la capa de dominio
  */
 class ValidateSessionUseCase(

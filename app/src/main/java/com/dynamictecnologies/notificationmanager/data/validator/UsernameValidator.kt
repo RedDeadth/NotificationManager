@@ -6,10 +6,6 @@ import com.dynamictecnologies.notificationmanager.data.constants.AuthStrings
  * Validador de nombres de usuario siguiendo el principio de responsabilidad única (SRP).
  * Extraído de UserViewModel y UserService para aplicar DRY.
  * 
- * Principios aplicados:
- * - SRP: Solo valida usernames
- * - DRY: Elimina duplicación entre UserViewModel y UserService
- * - OCP: Fácil de extender con nuevas reglas de validación
  */
 class UsernameValidator {
     

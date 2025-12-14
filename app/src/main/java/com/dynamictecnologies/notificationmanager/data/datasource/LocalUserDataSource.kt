@@ -6,9 +6,6 @@ import java.util.concurrent.TimeUnit
 /**
  * Data Source local para caché de perfiles de usuario.
  * 
- * Principios aplicados:
- * - SRP: Solo maneja caché en memoria de perfiles
- * - DIP: No depende de implementaciones específicas
  * - Clean Architecture: Pertenece a la capa de datos
  */
 class LocalUserDataSource {

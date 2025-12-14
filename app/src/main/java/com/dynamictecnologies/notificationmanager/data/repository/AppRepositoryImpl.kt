@@ -12,11 +12,7 @@ import com.dynamictecnologies.notificationmanager.domain.repositories.AppReposit
  * Coordina entre el data source (PackageManager) y la capa de dominio,
  * transformando los datos según sea necesario.
  * 
- * Principios aplicados:
- * - SRP: Solo coordina entre data source y dominio
- * - DIP: Depende de abstracción (AppDataSource puede ser inyectado)
  * - Clean Architecture: Implementación en capa de datos, expone entidades de dominio
- * - Repository Pattern: Fuente única de verdad para datos de apps
  * 
  * @property appDataSource Data source para acceder a aplicaciones del sistema
  */

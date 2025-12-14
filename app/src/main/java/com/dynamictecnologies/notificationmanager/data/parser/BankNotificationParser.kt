@@ -17,9 +17,6 @@ import java.util.regex.Pattern
  * - "Transferencia recibida de $500.00 - Código: ABC123"
  * - "Pago exitoso por $25.50 a Juan Pérez"
  * 
- * Principios aplicados:
- * - SRP: Solo parsea notificaciones financieras
- * - OCP: Extensible para nuevos formatos
  */
 class BankNotificationParser {
     

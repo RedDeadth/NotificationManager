@@ -3,8 +3,6 @@ package com.dynamictecnologies.notificationmanager.util.logging
 /**
  * Enmascarador de datos sensibles para prevenir filtración de información en logs.
  * 
- * Principios aplicados:
- * - SRP: Solo enmascara datos sensibles
  * - Security by Design: Protección de datos por defecto
  */
 class SensitiveDataMasker {

@@ -21,8 +21,6 @@ import java.util.concurrent.TimeUnit
  * }
  * ```
  * 
- * Principios aplicados:
- * - SRP: Solo maneja rate limiting
  * - Thread-safe: ConcurrentHashMap
  */
 class RateLimiter(

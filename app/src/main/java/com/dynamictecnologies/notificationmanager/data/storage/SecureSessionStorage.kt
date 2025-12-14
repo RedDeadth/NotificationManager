@@ -14,9 +14,6 @@ import java.util.concurrent.TimeUnit
  * - Encriptación AES256-SIV para claves
  * - MasterKey gestionado por Android Keystore
  * 
- * Principios aplicados:
- * - SRP: Solo maneja el almacenamiento seguro de sesiones
- * - DIP: Implementa la abstracción SessionStorage
  * - Security by Design: Encriptación por defecto
  */
 class SecureSessionStorage(context: Context) : SessionStorage {

@@ -70,7 +70,7 @@ fun AppListScreen(
         when (pairingState) {
             is DevicePairingViewModel.PairingState.Success -> {
                 snackbarHostState.showSnackbar(
-                    message = "✅ Dispositivo vinculado exitosamente",
+                    message = "Dispositivo vinculado exitosamente",
                     duration = SnackbarDuration.Short
                 )
                 devicePairingViewModel.resetPairingState()
@@ -78,7 +78,7 @@ fun AppListScreen(
             is DevicePairingViewModel.PairingState.Error -> {
                 val errorMsg = (pairingState as DevicePairingViewModel.PairingState.Error).message
                 snackbarHostState.showSnackbar(
-                    message = "❌ Error: $errorMsg",
+                    message = "Error: $errorMsg",
                     duration = SnackbarDuration.Long
                 )
             }

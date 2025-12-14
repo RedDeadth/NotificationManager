@@ -11,9 +11,6 @@ import com.dynamictecnologies.notificationmanager.domain.repositories.UserProfil
  * 1. Registrar usuario en Firebase Auth (email + password)
  * 2. Registrar username en Firestore (perfil de usuario)
  * 
- * Principios aplicados:
- * - SRP: Encapsula toda la lógica de orquestación de registro
- * - DIP: Depende de abstracciones (repositories)
  * - Clean Architecture: Lógica de negocio en capa de dominio
  * - Separation of Concerns: ViewModel solo maneja UI state, UseCas maneja negocio
  * 

@@ -7,10 +7,6 @@ import kotlinx.coroutines.tasks.await
 /**
  * Resolver centralizado para consultas de username ↔ UID en Firebase.
  * 
- * Principios aplicados:
- * - SRP: Solo resuelve usernames y UIDs
- * - DRY: Elimina 8 repeticiones del patrón de consulta
- * - Clean Code: Métodos pequeños y enfocados
  */
 class UsernameResolver(
     private val database: FirebaseDatabase = FirebaseDatabase.getInstance()

@@ -16,8 +16,6 @@ import kotlinx.coroutines.launch
  * Responsabilidad única: Mantener límite de notificaciones por app
  * mediante limpieza periódica.
  * 
- * Principios aplicados:
- * - SRP: Solo limpieza de notificaciones
  * - Configurable: MAX_NOTIFICATIONS_PER_APP ajustable
  * - Background: Ejecuta en coroutine scope
  */
@@ -80,7 +78,7 @@ class NotificationCleanupService(
                 notificationDao.keepOnlyRecentNotifications(appName, maxNotificationsPerApp)
                 
                 val deleted = count - maxNotificationsPerApp
-                Log.d(TAG, "✓ Eliminadas $deleted notificaciones antiguas de $appName")
+                Log.d(TAG, "Eliminadas $deleted notificaciones antiguas de $appName")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error limpiando notificaciones de $appName: ${e.message}", e)

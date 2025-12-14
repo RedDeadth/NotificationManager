@@ -11,8 +11,6 @@ import com.dynamictecnologies.notificationmanager.service.NotificationListenerSe
  * Responsabilidad única: Verificar permisos de NotificationListener
  * y notificar a la UI cuando falten.
  * 
- * Principios aplicados:
- * - SRP: Solo gestión de permisos
  * - Observable: Emite broadcast cuando faltan permisos
  * - Stateless: Solo verifica, no mantiene estado
  */
@@ -33,7 +31,7 @@ class NotificationPermissionChecker(private val context: Context) {
         Log.d(TAG, "Estado de permisos: $hasPermissions")
         
         if (!hasPermissions) {
-            Log.w(TAG, "⚠️ NotificationListener no está habilitado")
+            Log.w(TAG, "NotificationListener no está habilitado")
             notifyPermissionsNeeded()
         }
         
@@ -44,13 +42,13 @@ class NotificationPermissionChecker(private val context: Context) {
      * Fuerza verificación de permisos (llamada desde UI)
      */
     fun recheckPermissions(): Boolean {
-        Log.d(TAG, "🔄 Reverificando permisos")
+        Log.d(TAG, "Reverificando permisos")
         val hasPermissions = checkAndNotify()
         
         if (hasPermissions) {
-            Log.d(TAG, "✅ Permisos confirmados")
+            Log.d(TAG, "Permisos confirmados")
         } else {
-            Log.w(TAG, "❌ Permisos aún no otorgados")
+            Log.w(TAG, "Permisos aún no otorgados")
         }
         
         return hasPermissions
@@ -62,7 +60,7 @@ class NotificationPermissionChecker(private val context: Context) {
     private fun notifyPermissionsNeeded() {
         val intent = Intent(ACTION_NEED_PERMISSIONS)
         context.sendBroadcast(intent)
-        Log.d(TAG, "📱 Broadcast enviado: se necesitan permisos")
+        Log.d(TAG, "Broadcast enviado: se necesitan permisos")
     }
     
     companion object {

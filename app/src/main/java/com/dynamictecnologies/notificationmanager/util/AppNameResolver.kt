@@ -8,8 +8,6 @@ import android.util.Log
  * 
  * Responsabilidad única: Traducir packageName a nombre legible.
  * 
- * Principios aplicados:
- * - SRP: Solo obtención de nombres de app
  * - Stateless: Sin estado interno
  * - Cached (futuro): Podría agregar cache para eficiencia
  */

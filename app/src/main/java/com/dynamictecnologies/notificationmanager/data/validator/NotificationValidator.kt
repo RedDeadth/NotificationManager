@@ -8,8 +8,6 @@ package com.dynamictecnologies.notificationmanager.data.validator
  * - Caracteres permitidos
  * - Previene inyección de código malicioso
  * 
- * Principios aplicados:
- * - SRP: Solo valida notificaciones
  * - Seguridad: Sanitización de contenido
  */
 class NotificationValidator {

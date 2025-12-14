@@ -15,8 +15,6 @@ import com.dynamictecnologies.notificationmanager.util.security.RateLimitExceede
  * 2. Crear DTO con límites de tamaño
  * 3. Publicar vía MQTT al topic del dispositivo
  * 
- * Principios aplicados:
- * - SRP: Solo envío de notificaciones
  * - Fail-fast: Validaciones tempranas
  * - DTO Pattern: Datos sanitizados
  */

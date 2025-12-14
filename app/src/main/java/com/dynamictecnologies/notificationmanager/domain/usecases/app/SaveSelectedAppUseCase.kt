@@ -5,9 +5,6 @@ import com.dynamictecnologies.notificationmanager.domain.repositories.Preference
 /**
  * Caso de uso para guardar la aplicación seleccionada.
  * 
- * Principios aplicados:
- * - SRP: Solo guarda la app seleccionada
- * - DIP: Depende de PreferencesRepository abstraction
  * - Clean Architecture: Lógica de negocio en dominio
  * 
  * @param preferencesRepository Repository para gestionar preferencias

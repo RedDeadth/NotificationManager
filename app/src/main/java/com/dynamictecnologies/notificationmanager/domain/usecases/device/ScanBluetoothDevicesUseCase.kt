@@ -9,8 +9,6 @@ import kotlinx.coroutines.flow.Flow
  * Wrapper simple alrededor de BluetoothDeviceScanner para
  * mantener consistencia con patrón de Use Cases.
  * 
- * Principios aplicados:
- * - SRP: Solo descubrimiento Bluetooth
  * - Clean Architecture: Use Case en dominio
  */
 class ScanBluetoothDevicesUseCase(

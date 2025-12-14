@@ -22,8 +22,6 @@ import java.util.*
  * - Fecha de vinculación
  * - Botón de desvinculación
  * 
- * Principios aplicados:
- * - SRP: Solo visualización de pairing activo
  * - Composable puro sin estado
  */
 @Composable
@@ -92,7 +90,7 @@ fun PairedDeviceCard(
             
             // Nota
             Text(
-                text = "📱 Las notificaciones se envían automáticamente a este dispositivo",
+                text = "Las notificaciones se envían automáticamente a este dispositivo",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
             )

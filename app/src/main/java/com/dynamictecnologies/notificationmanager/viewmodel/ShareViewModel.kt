@@ -27,10 +27,6 @@ import kotlinx.coroutines.tasks.await
  * - UsernameResolver: queries UID↔username
  * - FirebaseNotificationObserver: observación de notificaciones
  * 
- * Principios aplicados:
- * - SRP: Solo coordina UI state, delega lógica a componentes
- * - DIP: Recibe dependencias inyectadas
- * - DRY: Reutiliza componentes centralizados
  */
 class ShareViewModel(
     private val auth: FirebaseAuth = FirebaseAuth.getInstance(),

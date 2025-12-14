@@ -9,9 +9,6 @@ import kotlinx.coroutines.flow.Flow
  * Interfaz del repositorio de autenticación en la capa de dominio.
  * No tiene dependencias de Android ni de Firebase.
  * 
- * Principios aplicados:
- * - DIP: Abstracción que no depende de detalles de implementación
- * - ISP: Interfaz segregada con operaciones específicas de autenticación
  * - Clean Architecture: Pertenece a la capa de dominio, sin conocer detalles de infraestructura
  */
 interface AuthRepository {

@@ -19,8 +19,6 @@ import kotlinx.coroutines.flow.asStateFlow
  * - Estado de MQTT broker
  * - Proporciona mensajes user-friendly para cada escenario
  * 
- * Principios aplicados:
- * - SRP: Solo monitorea salud de servicios
  * - Observable: Flow para reactive updates
  */
 class ServiceHealthManager(private val context: Context) {
@@ -113,7 +111,7 @@ class ServiceHealthManager(private val context: Context) {
         return when {
             // Sin internet
             internetStatus == ServiceStatus.DOWN -> 
-                "📡 Sin conexión a internet. Verifica tu conexión WiFi o datos móviles."
+                "Sin conexión a internet. Verifica tu conexión WiFi o datos móviles."
             
             // Firebase caído
             firebaseStatus == ServiceStatus.DOWN ->
@@ -122,22 +120,22 @@ class ServiceHealthManager(private val context: Context) {
             
             // MQTT caído
             mqttStatus == ServiceStatus.DOWN ->
-                "📱 El servicio de notificaciones en tiempo real está temporalmente no disponible. " +
+                "El servicio de notificaciones en tiempo real está temporalmente no disponible. " +
                 "Las notificaciones funcionarán normalmente pero sin sincronización con dispositivos ESP32."
             
             // Firebase degradado
             firebaseStatus == ServiceStatus.DEGRADED ->
-                "⚠️ El servicio de sincronización está experimentando problemas. " +
+                "El servicio de sincronización está experimentando problemas. " +
                 "Algunas funciones pueden estar lentas."
             
             // MQTT degradado
             mqttStatus == ServiceStatus.DEGRADED ->
-                "⚠️ Conexión inestable con dispositivos ESP32. " +
+                "Conexión inestable con dispositivos ESP32. " +
                 "Reintentando automáticamente..."
             
             // Servicios degradados pero funcionales
             firebaseStatus == ServiceStatus.DEGRADED || mqttStatus == ServiceStatus.DEGRADED ->
-                "⚠️ Algunos servicios están experimentando problemas. " +
+                "Algunos servicios están experimentando problemas. " +
                 "La funcionalidad básica está disponible."
             
             // Todo healthy

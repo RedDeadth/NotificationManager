@@ -10,8 +10,6 @@ import android.util.Log
  * 
  * Responsabilidad única: Verificar disponibilidad de internet.
  * 
- * Principios aplicados:
- * - SRP: Solo verificación de red
  * - Stateless: Solo verifica estado actual
  * - Reusable: Útil para cualquier componente que necesite red
  */

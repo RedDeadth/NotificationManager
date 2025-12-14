@@ -117,7 +117,7 @@ fun ServiceRecoveryDialogContent(
                         )
                     ) {
                         Text(
-                            text = "🔄 Reiniciar Servicio",
+                            text = "Reiniciar Servicio",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -132,7 +132,7 @@ fun ServiceRecoveryDialogContent(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = "✓ Entendido",
+                            text = "Entendido",
                             fontSize = 14.sp
                         )
                     }
@@ -155,7 +155,7 @@ fun ServiceRecoveryDialogContent(
 private fun getDialogContent(reason: ServiceRecoveryDialog.StopReason): Pair<String, String> {
     return when (reason) {
         ServiceRecoveryDialog.StopReason.USER_STOPPED -> Pair(
-            "⚠️ Servicio Detenido",
+            "Servicio Detenido",
             "Has detenido el servicio de monitoreo de notificaciones.\n\nLas notificaciones no se capturarán hasta que lo reinicies."
         )
         
@@ -170,7 +170,7 @@ private fun getDialogContent(reason: ServiceRecoveryDialog.StopReason): Pair<Str
         )
         
         ServiceRecoveryDialog.StopReason.PERMISSION_REVOKED -> Pair(
-            "🔒 Permiso Revocado",
+            "Permiso Revocado",
             "El permiso de acceso a notificaciones fue revocado.\n\nNecesitas otorgarlo nuevamente."
         )
         
@@ -180,7 +180,7 @@ private fun getDialogContent(reason: ServiceRecoveryDialog.StopReason): Pair<Str
         )
         
         ServiceRecoveryDialog.StopReason.UNKNOWN -> Pair(
-            "⚠️ Servicio No Activo",
+            "Servicio No Activo",
             "El servicio de monitoreo dejó de funcionar.\n\nEsto puede afectar la captura de notificaciones."
         )
     }

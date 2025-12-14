@@ -80,10 +80,6 @@ data class RestrictionInfo(
 /**
  * Detector de fabricante de dispositivo con recomendaciones específicas.
  * 
- * Principios aplicados:
- * - SRP: Solo detecta y proporciona información del fabricante
- * - OCP: Fácil de extender con nuevos fabricantes
- * - DIP: No depende de implementaciones concretas
  */
 class DeviceManufacturerDetector {
     

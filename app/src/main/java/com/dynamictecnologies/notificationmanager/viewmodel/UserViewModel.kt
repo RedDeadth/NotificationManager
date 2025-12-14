@@ -16,11 +16,7 @@ import kotlinx.coroutines.launch
  * ViewModel para gestión de perfiles de usuario.
  * Refactorizado para seguir Clean Architecture y SOLID.
  * 
- * Principios aplicados:
- * - SRP: Solo maneja UI state para perfiles
- * - DIP: Depende de abstracciones (UseCases) no de Firebase directamente
  * - Clean Architecture: No tiene lógica de negocio, solo coordina UseCases
- * - DRY: Eliminada lógica duplicada de validación y caché
  */
 class UserViewModel(
     private val getUserProfileUseCase: GetUserProfileUseCase,

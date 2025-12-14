@@ -8,9 +8,6 @@ import kotlinx.coroutines.flow.Flow
  * 
  * Define el contrato para gestión de notificaciones en el domain layer.
  * 
- * Principios aplicados:
- * - DIP: Define abstracción para data layer
- * - ISP: Interfaz específica para notificaciones
  * - Clean Architecture: Domain layer contract
  */
 interface NotificationRepository {

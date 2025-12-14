@@ -10,9 +10,6 @@ import com.dynamictecnologies.notificationmanager.domain.repositories.UserProfil
  * - Movido UserService del Repository al Use Case (arquitectura correcta)
  * - Lógica de negocio de cleanup en el caso de uso
  * 
- * Principios aplicados:
- * - SRP: Coordina el cierre de sesión completo
- * - DIP: Depende de abstracciones
  * - Clean Architecture: Lógica de negocio en capa de dominio
  */
 class SignOutUseCase(

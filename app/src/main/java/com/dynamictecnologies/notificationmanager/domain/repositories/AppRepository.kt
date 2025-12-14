@@ -5,9 +5,6 @@ import com.dynamictecnologies.notificationmanager.data.model.AppInfo
 /**
  * Repository abstraction para gestión de aplicaciones instaladas.
  * 
- * Principios aplicados:
- * - DIP: Inversión de dependencias, el ViewModel dependerá de esta abstracción
- * - ISP: Interfaz específica para gestión de apps
  * - Clean Architecture: Define el contrato en la capa de dominio
  */
 interface AppRepository {

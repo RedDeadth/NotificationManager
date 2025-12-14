@@ -7,7 +7,6 @@ import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
  * 
  * Reduce tamaño de payload y valida límites.
  * 
- * Principios aplicados:
  * - Security: Límites estrictos de tamaño
  * - DTO Pattern: Separación presentación/transporte
  * - Immutable: Data class read-only

@@ -6,8 +6,6 @@ package com.dynamictecnologies.notificationmanager.data.validator
  * Formato esperado: "device{número}" o "esp32_{número}"
  * Ejemplos válidos: "device123", "esp32_456"
  * 
- * Principios aplicados:
- * - SRP: Solo valida Device IDs
  * - Seguridad: Previene inyección de comandos maliciosos
  */
 class DeviceIdValidator {

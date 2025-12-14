@@ -5,9 +5,6 @@ import android.util.Log
 /**
  * Implementación de Logger usando android.util.Log.
  * 
- * Principios aplicados:
- * - SRP: Solo implementa logging usando Android Log
- * - DIP: Implementa la abstracción Logger
  */
 class AndroidLogger : Logger {
     override fun d(tag: String, message: String) {

@@ -19,9 +19,6 @@ import androidx.core.content.ContextCompat
  * - Verificar permiso POST_NOTIFICATIONS (Android 13+)
  * - Mostrar diálogos de permisos
  * 
- * Principios aplicados:
- * - SRP: Solo maneja lógica de permisos
- * - DRY: Centraliza checks duplicados
  * - Testable: Sin dependencias de Activity
  */
 object PermissionManager {

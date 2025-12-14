@@ -3,10 +3,6 @@ package com.dynamictecnologies.notificationmanager.domain.repositories
 /**
  * Repository abstraction para gestión de preferencias de la aplicación.
  * 
- * Principios aplicados:
- * - SRP: Solo maneja preferencias relacionadas con apps
- * - DIP: Abstracción para almacenamiento de preferencias
- * - ISP: Interfaz segregada, solo operaciones de app selection
  * - Clean Architecture: Contrato definido en dominio
  */
 interface PreferencesRepository {

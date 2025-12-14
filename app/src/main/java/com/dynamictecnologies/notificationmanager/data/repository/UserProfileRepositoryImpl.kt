@@ -17,12 +17,7 @@ import kotlinx.coroutines.flow.first
  * Implementación del repositorio de perfiles de usuario.
  * Coordina entre data sources local y remoto.
  * 
- * Principios aplicados:
- * - SRP: Solo coordina entre data sources, no tiene lógica de negocio compleja
- * - DIP: Depende de abstracciones (inyección de datasources)
- * - DRY: Reutiliza validator y mappers
  * - Clean Architecture: Implementación en capa de datos
- * - Repository Pattern: Fuente única de verdad para perfiles
  */
 class UserProfileRepositoryImpl(
     private val remoteDataSource: RemoteUserDataSource,

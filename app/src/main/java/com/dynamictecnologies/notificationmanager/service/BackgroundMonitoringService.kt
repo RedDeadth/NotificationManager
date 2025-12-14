@@ -130,7 +130,7 @@ class BackgroundMonitoringService : Service() {
         
         // Construir notificación
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("📱 Gestor de Notificaciones Activo")
+            .setContentTitle("Gestor de Notificaciones Activo")
             .setContentText("Monitoreando notificaciones en segundo plano")
             .setSmallIcon(R.drawable.ic_notification)
             .setPriority(NotificationCompat.PRIORITY_LOW) // Baja prioridad, no molesta
@@ -153,7 +153,7 @@ class BackgroundMonitoringService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         
-        Log.w(TAG, "⚠️ BackgroundMonitoringService destruido - Iniciando recuperación...")
+        Log.w(TAG, "BackgroundMonitoringService destruido - Iniciando recuperación...")
         
         // MÉTODO 1: Reinicio directo
         try {

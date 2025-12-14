@@ -7,10 +7,6 @@ import kotlinx.coroutines.flow.Flow
  * Interfaz del repositorio de perfiles de usuario en la capa de dominio.
  * No tiene dependencias de Android ni de Firebase.
  * 
- * Principios aplicados:
- * - DIP: Abstracción que no depende de detalles de implementación
- * - ISP: Interfaz segregada específica para perfiles (separada de AuthRepository)
- * - SRP: Solo operaciones relacionadas con perfiles de usuario
  * - Clean Architecture: Pertenece a la capa de dominio
  */
 interface UserProfileRepository {

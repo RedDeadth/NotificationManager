@@ -9,7 +9,6 @@ import java.util.concurrent.ConcurrentHashMap
  * Previene spam y DoS attacks limitando número de operaciones
  * por ventana de tiempo.
  * 
- * Principios aplicados:
  * - Security: Protección DoS
  * - Thread-safe: ConcurrentHashMap
  * - Configurable: Window y max requests ajustables

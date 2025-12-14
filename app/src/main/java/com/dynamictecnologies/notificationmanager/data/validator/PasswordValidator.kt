@@ -11,9 +11,6 @@ package com.dynamictecnologies.notificationmanager.data.validator
  * - Al menos un carácter especial
  * - No puede estar en lista de contraseñas comunes
  * 
- * Principios aplicados:
- * - SRP: Solo valida contraseñas
- * - OCP: Extensible mediante adición de reglas
  */
 class PasswordValidator {
     

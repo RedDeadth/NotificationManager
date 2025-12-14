@@ -7,9 +7,6 @@ import com.dynamictecnologies.notificationmanager.data.model.AppInfoData
 /**
  * Mapper para transformar entre la capa de datos y la capa de dominio/presentación.
  * 
- * Principios aplicados:
- * - SRP: Solo transforma datos entre capas
- * - DRY: Centraliza la lógica de transformación
  * - Clean Architecture: Separa modelos de datos y dominio
  */
 object AppInfoMapper {

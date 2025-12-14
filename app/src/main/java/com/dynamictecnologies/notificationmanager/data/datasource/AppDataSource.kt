@@ -18,9 +18,6 @@ import kotlinx.coroutines.withContext
  * - Facilitar testing (mockear este data source)
  * - Centralizar lógica de filtrado y transformación
  * 
- * Principios aplicados:
- * - SRP: Solo maneja acceso a PackageManager
- * - DIP: Puede ser inyectado como dependencia
  * - Clean Architecture: Encapsula detalles del framework
  * 
  * @property packageManager PackageManager del sistema Android

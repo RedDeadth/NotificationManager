@@ -11,9 +11,6 @@ import com.dynamictecnologies.notificationmanager.domain.repositories.Preference
  * 1. PreferencesRepository: Para obtener el package name guardado
  * 2. AppRepository: Para obtener la información completa de la app
  * 
- * Principios aplicados:
- * - SRP: Solo se encarga de recuperar la app seleccionada
- * - DIP: Depende de abstracciones
  * - Clean Architecture: Orquesta operaciones en la capa de dominio
  * 
  * @param preferencesRepository Repository para obtener preferencias

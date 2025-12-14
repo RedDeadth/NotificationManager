@@ -12,9 +12,6 @@ import kotlinx.coroutines.flow.StateFlow
  * 
  * Coordina los diferentes managers MQTT para proporcionar funcionalidad completa.
  * 
- * Principios aplicados:
- * - SRP: Solo coordina managers, no implementa lógica MQTT directamente
- * - DIP: Implementa interfaz del domain layer
  * - Facade Pattern: Simplifica uso de múltiples managers
  * - Clean Architecture: Data layer implementa contratos de domain
  */

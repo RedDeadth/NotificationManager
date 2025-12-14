@@ -120,10 +120,10 @@ class MainActivity : ComponentActivity() {
     ) { permissions ->
         val allGranted = permissions.values.all { it }
         if (allGranted) {
-            Log.d("MainActivity", "✅ Permisos Bluetooth otorgados")
+            Log.d("MainActivity", "Permisos Bluetooth otorgados")
             checkAndEnableBluetooth()
         } else {
-            Log.w("MainActivity", "⚠️ Algunos permisos Bluetooth fueron denegados")
+            Log.w("MainActivity", "Algunos permisos Bluetooth fueron denegados")
             showBluetoothPermissionRationale()
         }
     }
@@ -133,10 +133,10 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == RESULT_OK) {
-            Log.d("MainActivity", "✅ Bluetooth habilitado por el usuario")
+            Log.d("MainActivity", "Bluetooth habilitado por el usuario")
             devicePairingViewModel.startBluetoothScan()
         } else {
-            Log.w("MainActivity", "❌ Usuario rechazó habilitar Bluetooth")
+            Log.w("MainActivity", "Usuario rechazó habilitar Bluetooth")
             showBluetoothEnableRationale()
         }
     }
@@ -147,10 +147,10 @@ class MainActivity : ComponentActivity() {
      */
     private fun requestBluetoothPermissions() {
         if (PermissionHelper.hasBluetoothPermissions(this)) {
-            Log.d("MainActivity", "✅ Permisos Bluetooth ya otorgados")
+            Log.d("MainActivity", "Permisos Bluetooth ya otorgados")
             checkAndEnableBluetooth()
         } else {
-            Log.d("MainActivity", "📋 Solicitando permisos Bluetooth...")
+            Log.d("MainActivity", "Solicitando permisos Bluetooth...")
             val permissions = PermissionHelper.getRequiredBluetoothPermissions()
             bluetoothPermissionLauncher.launch(permissions)
         }
@@ -169,11 +169,11 @@ class MainActivity : ComponentActivity() {
         }
         
         if (!bluetoothAdapter.isEnabled) {
-            Log.d("MainActivity", "⚠️ Bluetooth apagado, solicitando habilitarlo...")
+            Log.d("MainActivity", "Bluetooth apagado, solicitando habilitarlo...")
             val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
             enableBluetoothLauncher.launch(enableBtIntent)
         } else {
-            Log.d("MainActivity", "✅ Bluetooth ya está encendido")
+            Log.d("MainActivity", "Bluetooth ya está encendido")
             devicePairingViewModel.startBluetoothScan()
         }
     }
@@ -247,7 +247,7 @@ class MainActivity : ComponentActivity() {
                     showPermissionDialog()
                 }
                 "com.dynamictecnologies.notificationmanager.PERMISSIONS_GRANTED" -> {
-                    Log.d("MainActivity", "✅ Permisos otorgados - notificando al repositorio")
+                    Log.d("MainActivity", "Permisos otorgados - notificando al repositorio")
                     notifyPermissionGranted()
                 }
             }
@@ -303,19 +303,19 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        Log.d(TAG, "📱 onResume - verificando permisos...")
+        Log.d(TAG, "onResume - verificando permisos...")
         
         // Verificar permisos cada vez que la app vuelve al foco
         val hasNotificationListenerPermission = NotificationListenerService.isNotificationListenerEnabled(this)
         
         if (hasNotificationListenerPermission) {
-            Log.d(TAG, "✅ Permisos NotificationListener activos")
+            Log.d(TAG, "Permisos NotificationListener activos")
             notifyPermissionGranted()
             
             // Reiniciar servicio si no está corriendo
             startNotificationService()
         } else {
-            Log.w(TAG, "⚠️ Sin permisos NotificationListener - mostrando diálogo")
+            Log.w(TAG, "Sin permisos NotificationListener - mostrando diálogo")
             showPermissionDialog()
         }
     }
@@ -332,7 +332,7 @@ class MainActivity : ComponentActivity() {
                     Manifest.permission.POST_NOTIFICATIONS
                 ) == PackageManager.PERMISSION_GRANTED -> {
                     // Permiso ya otorgado
-                    Log.d("MainActivity", "✅ POST_NOTIFICATIONS ya otorgado")
+                    Log.d("MainActivity", "POST_NOTIFICATIONS ya otorgado")
                     startNotificationService()
                 }
                 shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS) -> {
@@ -341,7 +341,7 @@ class MainActivity : ComponentActivity() {
                 }
                 else -> {
                     // Pedir permiso directamente
-                    Log.d("MainActivity", "📱 Pidiendo permiso POST_NOTIFICATIONS")
+                    Log.d("MainActivity", "Pidiendo permiso POST_NOTIFICATIONS")
                     notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 }
             }
@@ -393,7 +393,7 @@ class MainActivity : ComponentActivity() {
             addAction("com.dynamictecnologies.notificationmanager.SHOW_PERMISSION_DIALOG")
             addAction("com.dynamictecnologies.notificationmanager.PERMISSIONS_GRANTED")
         }
-        // ✅ CORRECCIÓN PARA ANDROID 13+
+        // CORRECCIÓN PARA ANDROID 13+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(
                 permissionBroadcastReceiver,
@@ -403,9 +403,9 @@ class MainActivity : ComponentActivity() {
         } else {
             registerReceiver(permissionBroadcastReceiver, filter)
         }
-        Log.d("MainActivity", "✅ BroadcastReceiver de permisos registrado")
+        Log.d("MainActivity", "BroadcastReceiver de permisos registrado")
     } catch (e: Exception) {
-        Log.e("MainActivity", "❌ Error registrando BroadcastReceiver: ${e.message}")
+        Log.e("MainActivity", "Error registrando BroadcastReceiver: ${e.message}")
     }
 }
 
@@ -446,7 +446,7 @@ class MainActivity : ComponentActivity() {
                 workRequest
             )
             
-            Log.d(TAG, "✅ Watchdog WorkManager verificado/programado desde MainActivity")
+            Log.d(TAG, "Watchdog WorkManager verificado/programado desde MainActivity")
         } catch (e: Exception) {
             Log.e(TAG, "Error verificando watchdog: ${e.message}", e)
         }
@@ -457,10 +457,10 @@ class MainActivity : ComponentActivity() {
      */
     private fun checkPermissionsOnResume() {
         if (PermissionHelper.hasNotificationListenerPermission(this)) {
-            Log.d("MainActivity", "✅ Permisos confirmados en onResume")
+            Log.d("MainActivity", "Permisos confirmados en onResume")
             notifyPermissionGranted()
         } else {
-            Log.w("MainActivity", "⚠️ Sin permisos en onResume")
+            Log.w("MainActivity", "Sin permisos en onResume")
         }
     }
 
@@ -469,10 +469,10 @@ class MainActivity : ComponentActivity() {
      */
     private fun showPermissionDialog() {
         if (!isFinishing && !isDestroyed) {
-            Log.d("MainActivity", "📱 Mostrando diálogo de permisos")
+            Log.d("MainActivity", "Mostrando diálogo de permisos")
             PermissionHelper.showNotificationPermissionDialog(this)
         } else {
-            Log.w("MainActivity", "⚠️ Activity terminando - no se muestra diálogo")
+            Log.w("MainActivity", "Activity terminando - no se muestra diálogo")
         }
     }
 
@@ -485,9 +485,9 @@ class MainActivity : ComponentActivity() {
             val repository = createRepository()
             repository.recheckPermissions()
 
-            Log.d("MainActivity", "✅ Repositorio notificado sobre permisos otorgados")
+            Log.d("MainActivity", "Repositorio notificado sobre permisos otorgados")
         } catch (e: Exception) {
-            Log.e("MainActivity", "❌ Error notificando permisos: ${e.message}")
+            Log.e("MainActivity", "Error notificando permisos: ${e.message}")
         }
     }
 
@@ -502,9 +502,9 @@ class MainActivity : ComponentActivity() {
             } else {
                 startService(serviceIntent)
             }
-            Log.d("MainActivity", "✅ Servicio de notificaciones iniciado")
+            Log.d("MainActivity", "Servicio de notificaciones iniciado")
         } catch (e: Exception) {
-            Log.e("MainActivity", "❌ Error iniciando servicio: ${e.message}", e)
+            Log.e("MainActivity", "Error iniciando servicio: ${e.message}", e)
         }
     }
 

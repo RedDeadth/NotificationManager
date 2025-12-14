@@ -10,8 +10,6 @@ import android.util.Log
  * Gestiona el escaneo Bluetooth de manera eficiente para minimizar
  * consumo de batería, con tiempos de escaneo limitados y pausas.
  * 
- * Principios aplicados:
- * - SRP: Solo optimización de batería para Bluetooth
  * - Configurable: Tiempos ajustables
  * - Battery-aware: Detecta modo de ahorro de energía
  */
