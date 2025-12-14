@@ -3,13 +3,23 @@
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
-    android:viewportHeight="24"
-    android:tint="#FFFFFF">
+    android:viewportHeight="24">
     
-    <!-- Alerti "A" icon for notifications - matches brand colors -->
-    <!-- Stylized "A" shape in white for notification bar -->
+    <!-- 
+    Icono de notificación Alerti
+    - Fondo transparente (para barra de notificaciones Android)
+    - "A" estilizada en blanco
+    - Android aplicará tint automáticamente según el tema
+    -->
+    
+    <!-- Letra "A" estilizada - forma principal -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M12,2 L20,22 L16,22 L14,17 L10,17 L8,22 L4,22 L12,2z M11,14 L13,14 L12,10 L11,14z"/>
+        android:pathData="M12,3 L21,21 L17.5,21 L15.5,17 L8.5,17 L6.5,21 L3,21 L12,3z"/>
+    
+    <!-- Hueco interior de la "A" (forma triangular) -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M12,9 L14.5,15 L9.5,15 L12,9z"/>
         
 </vector>
