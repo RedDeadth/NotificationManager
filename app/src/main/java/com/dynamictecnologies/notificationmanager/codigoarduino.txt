@@ -223,8 +223,8 @@ void playUnpairSound() {
 }
 
 /**
- * Callback MQTT - SIMPLIFICADO
- * Solo recibe notificaciones, sin validación de userId
+ * Callback MQTT
+ * Recibe notificaciones y filtra por appName (opcional)
  */
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Mensaje en [");
@@ -237,13 +237,21 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   }
   Serial.println(message);
   
-  // Parsear JSON simple: {"t":"Título","c":"Contenido"}
-  DynamicJsonDocument doc(256);
+  // Parsear JSON: {"title":"...","content":"...","appName":"..."}
+  DynamicJsonDocument doc(512);
   DeserializationError error = deserializeJson(doc, message);
 
   if (!error) {
-    String title = doc["t"].as<String>();
-    String content = doc["c"].as<String>();
+    String title = doc["title"].as<String>();
+    String content = doc["content"].as<String>();
+    String appName = doc["appName"].as<String>();
+    
+    // Filtro: solo mostrar notificaciones de Yape
+    // Descomenta las siguientes lineas si quieres filtrar solo Yape:
+    // if (appName.indexOf("Yape") == -1 && appName.indexOf("yape") == -1) {
+    //   Serial.println("Notificacion ignorada (no es Yape): " + appName);
+    //   return;
+    // }
     
     if (title.length() > 0 && content.length() > 0) {
       // Agregar a cola
@@ -254,13 +262,13 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         queueTail = (queueTail + 1) % MAX_QUEUE_SIZE;
         queueCount++;
         
-        Serial.println("✅ Notificación encolada: " + title);
+        Serial.println("Notificacion encolada: " + title + " (" + appName + ")");
       } else {
-        Serial.println("❌ Cola llena, notificación descartada");
+        Serial.println("Cola llena, notificacion descartada");
       }
     }
   } else {
-    Serial.println("❌ Error parseando JSON");
+    Serial.println("Error parseando JSON");
   }
 }
 
@@ -268,7 +276,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
  * Procesa cola de notificaciones
  */
 void processNotificationQueue() {
-  // Esperar tiempo mínimo antes de mostrar siguiente notificación
+  // Esperar tiempo minimo antes de mostrar siguiente notificacion
   if (activeNotificationOnScreen && 
       (millis() - lastNotificationShownTime) < MIN_NOTIFICATION_DISPLAY_TIME) {
     return;
@@ -279,7 +287,7 @@ void processNotificationQueue() {
   if (queueCount > 0) {
     Notification notification = notificationQueue[queueHead];
     
-    Serial.println("📱 Mostrando: " + notification.title);
+    Serial.println("Mostrando: " + notification.title);
     showOnLCD(notification.title, notification.content);
     playNotificationSound();
     
@@ -307,7 +315,7 @@ void setupWiFi() {
     Serial.print(".");
   }
 
-  Serial.println("\n✅ WiFi conectado");
+  Serial.println("\nWiFi conectado");
   Serial.println("IP: " + WiFi.localIP().toString());
   
   showOnLCD("WiFi OK", WiFi.localIP().toString());
@@ -331,11 +339,11 @@ boolean connectMQTT() {
     String clientId = "ESP32_" + String(random(0xffff), HEX);
     
     if (mqttClient.connect(clientId.c_str(), MQTT_USERNAME, MQTT_PASSWORD)) {
-      Serial.println("✅ MQTT Conectado");
+      Serial.println("MQTT Conectado");
       
       // Suscribirse al topic con el token
       mqttClient.subscribe(mqttTopic.c_str());
-      Serial.println("📡 Suscrito a: " + mqttTopic);
+      Serial.println("Suscrito a: " + mqttTopic);
       
       if (isPaired) {
         showOnLCD(deviceId, "Vinculado");
@@ -345,7 +353,7 @@ boolean connectMQTT() {
       
       return true;
     } else {
-      Serial.print("❌ MQTT Error: ");
+      Serial.print("MQTT Error: ");
       Serial.println(mqttClient.state());
       showOnLCD("MQTT Error", "Reintentando...");
       return false;
@@ -377,7 +385,7 @@ void handleUnpairButton() {
     
     if (holdTime >= UNPAIR_BUTTON_HOLD_TIME && isPaired) {
       // Desvincular dispositivo
-      Serial.println("🔓 Desvinculando dispositivo...");
+      Serial.println("Desvinculando dispositivo...");
       
       mqttClient.unsubscribe(mqttTopic.c_str());
       
@@ -396,7 +404,7 @@ void handleUnpairButton() {
       // Resubscribirse a nuevo topic
       delay(500);
       mqttClient.subscribe(mqttTopic.c_str());
-      Serial.println("📡 Nuevo topic: " + mqttTopic);
+      Serial.println("Nuevo topic: " + mqttTopic);
       
       // Reset button state
       buttonWasPressed = false;

@@ -137,9 +137,8 @@ fun ServiceRecoveryDialogContent(
                         )
                     }
                     
-                    // Info text
                     Text(
-                        text = "ℹ️ Debes seleccionar una opción para continuar",
+                        text = "Debes seleccionar una opcion para continuar",
                         fontSize = 12.sp,
                         textAlign = TextAlign.Center,
                         fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
@@ -160,13 +159,13 @@ private fun getDialogContent(reason: ServiceRecoveryDialog.StopReason): Pair<Str
         )
         
         ServiceRecoveryDialog.StopReason.SYSTEM_KILLED -> Pair(
-            "🔋 Servicio Interrumpido",
-            "El sistema Android detuvo el servicio para ahorrar batería o memoria.\n\nRecomendación: Agrega la app a la lista blanca de optimización."
+            "Servicio Interrumpido",
+            "El sistema Android detuvo el servicio para ahorrar bateria o memoria.\n\nRecomendacion: Agrega la app a la lista blanca de optimizacion."
         )
         
         ServiceRecoveryDialog.StopReason.EXTERNAL_SERVICE -> Pair(
-            "🛡️ Servicio Detenido Externamente",
-            "Una aplicación externa (antivirus, task killer) detuvo el servicio.\n\nConfigura excepciones en apps de limpieza."
+            "Servicio Detenido Externamente",
+            "Una aplicacion externa (antivirus, task killer) detuvo el servicio.\n\nConfigura excepciones en apps de limpieza."
         )
         
         ServiceRecoveryDialog.StopReason.PERMISSION_REVOKED -> Pair(
@@ -175,8 +174,8 @@ private fun getDialogContent(reason: ServiceRecoveryDialog.StopReason): Pair<Str
         )
         
         ServiceRecoveryDialog.StopReason.CRASH -> Pair(
-            "💥 Error en el Servicio",
-            "El servicio encontró un error y se detuvo.\n\nSe enviará un reporte automático."
+            "Error en el Servicio",
+            "El servicio encontro un error y se detuvo.\n\nSe enviara un reporte automatico."
         )
         
         ServiceRecoveryDialog.StopReason.UNKNOWN -> Pair(

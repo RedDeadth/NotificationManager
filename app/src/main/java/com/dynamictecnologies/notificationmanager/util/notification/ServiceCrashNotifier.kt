@@ -165,7 +165,7 @@ class ServiceCrashNotifier(private val context: Context) {
             )
             .addAction(
                 R.drawable.ic_notification,
-                "⚙️ Config",
+                "Config",
                 settingsPendingIntent
             )
             .build()
