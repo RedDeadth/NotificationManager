@@ -486,6 +486,27 @@ class NotificationForegroundService : Service() {
     // REMOVED: Duplicate isNotificationListenerEnabled function (now using NotificationListenerService.isNotificationListenerEnabled)
 
 
+    /**
+     * Detecta cuando el usuario hace swipe para cerrar desde Recientes.
+     * 
+     * IMPORTANTE: 
+     * - Este método se llama cuando el usuario elimina la app de la lista de Recientes.
+     * - El SERVICIO SIGUE CORRIENDO porque es un ForegroundService.
+     * - NO debemos mostrar notificación roja porque el servicio NO murió.
+     * - Solo hacemos log para debugging.
+     */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        Log.d(TAG, "📱 onTaskRemoved: Activity cerrada pero servicio sigue corriendo")
+        
+        // NO mostrar notificación roja - el servicio sigue activo.
+        // La notificación verde ya está visible y el servicio sigue monitoreando.
+        
+        // Solo registrar el evento para diagnóstico
+        val prefs = getSharedPreferences("service_state", Context.MODE_PRIVATE)
+        prefs.edit().putLong("last_task_removed", System.currentTimeMillis()).apply()
+    }
+    
     override fun onBind(intent: Intent?): IBinder? = null
 
     private fun createNotificationChannel() {

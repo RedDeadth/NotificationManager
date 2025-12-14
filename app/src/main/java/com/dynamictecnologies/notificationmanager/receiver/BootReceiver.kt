@@ -192,7 +192,7 @@ class BootReceiver : BroadcastReceiver() {
     private fun scheduleServiceHealthCheck(context: Context) {
         try {
             val workRequest = PeriodicWorkRequestBuilder<ServiceHealthCheckWorker>(
-                30, TimeUnit.MINUTES // Cada 30 minutos
+                15, TimeUnit.MINUTES // Cada 15 minutos (mínimo de Android)
             )
                 .setInitialDelay(5, TimeUnit.MINUTES) // Esperar 5 min tras boot
                 .setConstraints(
@@ -209,7 +209,7 @@ class BootReceiver : BroadcastReceiver() {
                 workRequest
             )
             
-            Log.d(TAG, "✅ WorkManager watchdog programado (intervalo: 30 min)")
+            Log.d(TAG, "✅ WorkManager watchdog programado (intervalo: 15 min)")
         } catch (e: Exception) {
             Log.e(TAG, "Error programando WorkManager watchdog: ${e.message}", e)
         }

@@ -21,6 +21,7 @@ import com.dynamictecnologies.notificationmanager.presentation.core.navigation.A
 import com.dynamictecnologies.notificationmanager.service.NotificationForegroundService
 import com.dynamictecnologies.notificationmanager.service.NotificationListenerService
 import com.dynamictecnologies.notificationmanager.service.ServiceStateManager
+import com.dynamictecnologies.notificationmanager.service.util.ServiceDeathDetector
 
 import com.dynamictecnologies.notificationmanager.presentation.core.theme.NotificationManagerTheme
 import com.dynamictecnologies.notificationmanager.util.PermissionHelper
@@ -256,6 +257,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        // IMPORTANTE: Detectar si el servicio murió mientras la app estaba cerrada
+        // Esto debe ir ANTES de resetOnAppOpen para poder verificar el estado previo
+        ServiceDeathDetector.handleDeathOnAppStart(this)
+        
         // IMPORTANTE: Resetear estado del servicio cuando usuario abre la app
         ServiceStateManager.resetOnAppOpen(this)
         
@@ -298,8 +303,21 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        Log.d(TAG, "📱 onResume - verificando permisos...")
+        
         // Verificar permisos cada vez que la app vuelve al foco
-        checkPermissionsOnResume()
+        val hasNotificationListenerPermission = NotificationListenerService.isNotificationListenerEnabled(this)
+        
+        if (hasNotificationListenerPermission) {
+            Log.d(TAG, "✅ Permisos NotificationListener activos")
+            notifyPermissionGranted()
+            
+            // Reiniciar servicio si no está corriendo
+            startNotificationService()
+        } else {
+            Log.w(TAG, "⚠️ Sin permisos NotificationListener - mostrando diálogo")
+            showPermissionDialog()
+        }
     }
 
     
@@ -412,7 +430,7 @@ class MainActivity : ComponentActivity() {
     private fun scheduleServiceHealthCheckIfNeeded() {
         try {
             val workRequest = PeriodicWorkRequestBuilder<ServiceHealthCheckWorker>(
-                30, TimeUnit.MINUTES // Cada 30 minutos
+                15, TimeUnit.MINUTES // Cada 15 minutos (mínimo de Android)
             )
                 .setConstraints(
                     Constraints.Builder()

@@ -83,6 +83,9 @@ class ServiceActionReceiver : BroadcastReceiver() {
             }
             
             Log.d(TAG, "✅ Servicio reiniciado exitosamente")
+            
+            // Ocultar notificación roja explícitamente (verde se mostrará en onCreate del servicio)
+            ServiceNotificationManager(context).hideAllNotifications()
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error reiniciando servicio: ${e.message}")
             
