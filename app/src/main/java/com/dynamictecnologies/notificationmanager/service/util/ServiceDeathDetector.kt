@@ -81,8 +81,8 @@ object ServiceDeathDetector {
         if (wasServiceKilledUnexpectedly(context)) {
             Log.w(TAG, "Servicio murió mientras la app estaba cerrada - mostrando notificación")
             
-            // Mostrar notificación roja
-            ServiceNotificationManager(context).showStoppedNotification()
+            // Mostrar notificación amarilla por permiso revocado
+            ServiceNotificationManager(context).showStoppedNotification(ServiceNotificationManager.StopReason.PERMISSION_REVOKED)
             
             // Marcar que la notificación fue mostrada
             ServiceStateManager.markStoppedNotificationShown(context)

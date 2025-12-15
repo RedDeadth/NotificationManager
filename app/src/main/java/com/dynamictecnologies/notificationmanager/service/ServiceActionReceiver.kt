@@ -90,7 +90,7 @@ class ServiceActionReceiver : BroadcastReceiver() {
             Log.e(TAG, "Error reiniciando servicio: ${e.message}")
             
             // Si falla, volver a mostrar notificación de error
-            ServiceNotificationManager(context).showStoppedNotification()
+            ServiceNotificationManager(context).showStoppedNotification(ServiceNotificationManager.StopReason.ERROR)
         }
         
         // La notificación de running se mostrará en onCreate() del servicio
