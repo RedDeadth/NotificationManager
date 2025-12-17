@@ -102,18 +102,23 @@ const char* root_ca = \
 "-----END CERTIFICATE-----\n";
 
 /**
- * Genera token aleatorio de 8 caracteres alfanuméricos
+ * Genera token aleatorio de 4 caracteres (mayúsculas + números)
  */
 String generateRandomToken() {
   const char chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   String token = "";
-  randomSeed(ESP.getEfuseMac());  // Usar MAC como seed
   
-  for (int i = 0; i < 8; i++) {
+  // Mejor seed usando múltiples fuentes de entropía
+  uint32_t seed = ESP.getEfuseMac() ^ millis() ^ micros();
+  seed ^= analogRead(0);  // Ruido analógico para más aleatoriedad
+  randomSeed(seed);
+  
+  for (int i = 0; i < 4; i++) {
     token += chars[random(0, 36)];
   }
   return token;
 }
+
 
 /**
  * Muestra texto en LCD
