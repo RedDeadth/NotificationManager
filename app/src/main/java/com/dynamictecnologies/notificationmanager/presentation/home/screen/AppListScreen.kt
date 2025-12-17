@@ -27,7 +27,6 @@ import com.dynamictecnologies.notificationmanager.presentation.home.components.I
 import com.dynamictecnologies.notificationmanager.presentation.home.components.AppSelectionDialog
 import com.dynamictecnologies.notificationmanager.presentation.home.components.NotificationHistoryCard
 import com.dynamictecnologies.notificationmanager.presentation.home.components.DeviceSelectionDialog
-import com.dynamictecnologies.notificationmanager.presentation.home.components.PairedDeviceCard
 import com.dynamictecnologies.notificationmanager.presentation.home.components.TokenInputDialog
 import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
 
@@ -208,7 +207,7 @@ fun AppListScreen(
                                 }
                             ) {
                                 Text(
-                                    if (currentPairing != null) "Desemparejar" else "Conectar"
+                                    if (currentPairing != null) "Desconectar" else "Conectar"
                                 )
                             }
                         }
@@ -217,15 +216,7 @@ fun AppListScreen(
                 
                 // Mostrar tarjeta de dispositivo emparejado si existe
                 currentPairing?.let { pairing ->
-                    PairedDeviceCard(
-                        device = pairing,
-                        onUnpair = {
-                            devicePairingViewModel.unpairDevice()
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 16.dp)
-                    )
+
                 }
                 
                 // Botón para reiniciar el servicio de notificaciones

@@ -33,6 +33,22 @@ fun NotificationHistoryCard(
 
     var expanded by remember { mutableStateOf(false) }
     val groupedNotifications = notifications.groupBy { it.syncStatus }
+    
+    // Calcular tamaño aproximado de almacenamiento
+    val storageSize = remember(notifications) {
+        val totalBytes = notifications.sumOf { notification ->
+            notification.title.length * 2 + 
+            notification.content.length * 2 + 
+            notification.appName.length * 2 +
+            notification.packageName.length * 2 + 
+            50 // overhead por objeto
+        }
+        when {
+            totalBytes < 1024 -> "$totalBytes B"
+            totalBytes < 1024 * 1024 -> "${totalBytes / 1024} KB"
+            else -> "${totalBytes / (1024 * 1024)} MB"
+        }
+    }
 
     // Tarjeta normal (contraída)
     Card(
@@ -45,12 +61,23 @@ fun NotificationHistoryCard(
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            Text(
-                text = "Historial de Notificaciones (${notifications.size})",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Historial (${notifications.size})",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = storageSize,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            
             if (notifications.isEmpty()) {
                 Box(
                     modifier = Modifier
