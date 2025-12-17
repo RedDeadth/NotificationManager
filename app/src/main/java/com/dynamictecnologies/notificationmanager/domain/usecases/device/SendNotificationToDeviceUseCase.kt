@@ -31,8 +31,12 @@ class SendNotificationToDeviceUseCase(
      * Envía notificación a dispositivo vinculado
      */
     suspend operator fun invoke(notification: NotificationInfo): Result<Unit> {
+        android.util.Log.d("SendNotificationUseCase", "=== ENVIANDO NOTIFICACIÓN ===")
+        android.util.Log.d("SendNotificationUseCase", "Título: ${notification.title}")
+        
         // 1. Verificar rate limiting
         if (!rateLimiter.allowOperation()) {
+            android.util.Log.w("SendNotificationUseCase", "Rate limit excedido")
             return Result.failure(RateLimitExceededException(
                 "Too many notifications. Limit: $MAX_NOTIFICATIONS_PER_MINUTE per minute"
             ))
@@ -40,9 +44,15 @@ class SendNotificationToDeviceUseCase(
         
         // 2. Obtener topic del dispositivo vinculado
         val topic = pairingRepository.getMqttTopic()
-            ?: return Result.failure(NoDevicePairedException())
+        android.util.Log.d("SendNotificationUseCase", "Topic obtenido: $topic")
+        
+        if (topic == null) {
+            android.util.Log.e("SendNotificationUseCase", "ERROR: No hay dispositivo vinculado (topic es null)")
+            return Result.failure(NoDevicePairedException())
+        }
         
         // 3. Enviar directamente usando topic MQTT
+        android.util.Log.d("SendNotificationUseCase", "Enviando a topic: $topic")
         return mqttSender.sendNotificationToTopic(topic, notification)
     }
     

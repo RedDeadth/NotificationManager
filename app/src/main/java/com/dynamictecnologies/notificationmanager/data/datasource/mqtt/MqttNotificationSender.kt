@@ -65,16 +65,39 @@ class MqttNotificationSender(
         topic: String,
         notification: NotificationInfo
     ): Result<Unit> {
+        android.util.Log.d(TAG, "=== ENVIANDO NOTIFICACIÓN A ESP32 ===")
+        android.util.Log.d(TAG, "Topic: $topic")
+        android.util.Log.d(TAG, "Título: ${notification.title}")
+        android.util.Log.d(TAG, "App: ${notification.appName}")
+        
         return try {
-            if (!connectionManager.isConnected()) {
-                return Result.failure(Exception("MQTT no conectado"))
+            val isConnected = connectionManager.isConnected()
+            android.util.Log.d(TAG, "MQTT conectado: $isConnected")
+            
+            if (!isConnected) {
+                android.util.Log.e(TAG, "ERROR: MQTT no conectado - intentando conectar...")
+                // Intentar reconectar
+                val connectResult = connectionManager.connect()
+                if (connectResult.isFailure) {
+                    android.util.Log.e(TAG, "Falló reconexión: ${connectResult.exceptionOrNull()?.message}")
+                    return Result.failure(Exception("MQTT no conectado"))
+                }
+                android.util.Log.d(TAG, "Reconexión exitosa")
             }
             
             val payload = buildNotificationPayload(notification)
+            android.util.Log.d(TAG, "Payload: $payload")
             
             // Retornar el resultado de publish
-            connectionManager.publish(topic, payload, qos = 1)
+            val result = connectionManager.publish(topic, payload, qos = 1)
+            if (result.isSuccess) {
+                android.util.Log.d(TAG, "✓ Notificación enviada exitosamente a $topic")
+            } else {
+                android.util.Log.e(TAG, "✗ Error publicando: ${result.exceptionOrNull()?.message}")
+            }
+            result
         } catch (e: Exception) {
+            android.util.Log.e(TAG, "✗ Excepción: ${e.message}", e)
             Result.failure(e)
         }
     }
