@@ -42,8 +42,9 @@ class ServiceActionReceiver : BroadcastReceiver() {
     private fun handleStopService(context: Context) {
         Log.d(TAG, "Usuario presionó DETENER")
         
-        // Cambiar estado a STOPPED
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.STOPPED)
+        // IMPORTANTE: Cambiar estado a STOPPED de forma SÍNCRONA
+        // para evitar race condition con auto-restart en onDestroy()
+        ServiceStateManager.setStateSync(context, ServiceStateManager.ServiceState.STOPPED)
         
         // Detener todos los servicios
         try {

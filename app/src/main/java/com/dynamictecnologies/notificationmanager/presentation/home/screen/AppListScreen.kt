@@ -65,6 +65,16 @@ fun AppListScreen(
         }
     }
     
+    // Iniciar escaneo automáticamente cuando se abre el diálogo
+    LaunchedEffect(showBluetoothDialog) {
+        if (showBluetoothDialog && !isScanning) {
+            // Pequeño delay para que el diálogo se muestre primero
+            kotlinx.coroutines.delay(300)
+            devicePairingViewModel.startBluetoothScan()
+        }
+    }
+
+    
     // Manejar resultados de pairing
     LaunchedEffect(pairingState) {
         when (pairingState) {

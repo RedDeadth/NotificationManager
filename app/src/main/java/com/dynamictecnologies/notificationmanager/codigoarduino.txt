@@ -5,6 +5,8 @@
 #include <LiquidCrystal_I2C.h>
 #include <ArduinoJson.h>
 #include <Preferences.h>
+#include <BluetoothSerial.h>  // Para que Android pueda descubrir el ESP32
+
 
 // Credenciales WiFi
 #define WIFI_SSID "LOBO INFINITOS 2.4G"
@@ -53,6 +55,9 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 // Cliente WiFi y MQTT
 WiFiClientSecure espClient;
 PubSubClient mqttClient(espClient);
+
+// Bluetooth Serial para descubrimiento desde Android
+BluetoothSerial SerialBT;
 
 // Variables globales
 unsigned long lastLcdUpdate = 0;
@@ -428,6 +433,22 @@ void setup() {
   
   showOnLCD("Iniciando...", "ESP32 MQTT");
   delay(1000);
+
+  // Inicializar Bluetooth para que Android pueda descubrir el dispositivo
+  // IMPORTANTE: El nombre DEBE empezar con "ESP32" para que el scanner lo detecte
+  String btName = "ESP32_" + String((uint32_t)(ESP.getEfuseMac() >> 32) ^ (uint32_t)ESP.getEfuseMac(), HEX).substring(0, 4);
+  btName.toUpperCase();
+  
+  if (SerialBT.begin(btName)) {
+    Serial.println("Bluetooth iniciado: " + btName);
+    showOnLCD("BT: " + btName, "Escaneame!");
+    delay(1000);
+  } else {
+    Serial.println("Error iniciando Bluetooth");
+    showOnLCD("Error BT", "Continuando...");
+    delay(500);
+  }
+
 
   // Inicializar Preferences
   preferences.begin("device", false);

@@ -548,42 +548,12 @@ class NotificationForegroundService : Service() {
         super.onDestroy()
         Log.w(TAG, "Servicio en primer plano destruido")
         
-        // Verificar estado actual
-        val currentState = ServiceStateManager.getCurrentState(this)
-        
-        // Si el estado es RUNNING, significa que murió inesperadamente (no por usuario)
-        if (currentState == ServiceStateManager.ServiceState.RUNNING) {
-            Log.w(TAG, "Servicio murió inesperadamente (camera, memory, etc)")
-            
-            // Solo mostrar notificación de STOPPED si no se ha mostrado ya
-            if (ServiceStateManager.canShowStoppedNotification(this)) {
-                ServiceNotificationManager(this).showStoppedNotification()
-                ServiceStateManager.markStoppedNotificationShown(this)
-                ServiceStateManager.setState(this, ServiceStateManager.ServiceState.STOPPED)
-                Log.d(TAG, "Notificación STOPPED mostrada con opciones Reiniciar/Entendido")
-            } else {
-                Log.d(TAG, "Notificación STOPPED ya fue mostrada en esta sesión")
-            }
-            
-            // Intentar reinicio automático (solo si no es DISABLED)
-            tryAutomaticRestart()
-        } else {
-            Log.d(TAG, "Servicio detenido intencionalmente (estado: $currentState)")
-            // Si estado es STOPPED o DISABLED, no hacer nada más
-        }
-        
-        // Detener heartbeat
+        // Detener heartbeat primero
         heartbeatJob?.cancel()
         
-        // Si es muerte inesperada, mantener flag para que watchdog la detecte
-        // Si es deshabilitado intencionalmente, limpiar flag
-        if (currentState == ServiceStateManager.ServiceState.DISABLED) {
-            val prefs = getSharedPreferences("service_state", Context.MODE_PRIVATE)
-            prefs.edit().putBoolean("service_should_be_running", false).apply()
-            Log.d(TAG, "Servicio detenido intencionalmente - flag limpiado")
-        } else {
-            Log.d(TAG, "Servicio detenido inesperadamente - flag mantenido para watchdog")
-        }
+        // Detener job de verificación periódica
+        periodicCheckJob?.cancel()
+        periodicCheckJob = null
         
         // Liberar wake lock
         try {
@@ -597,9 +567,37 @@ class NotificationForegroundService : Service() {
             Log.e(TAG, "Error liberando wake lock: ${e.message}")
         }
         
-        // Detener job de verificación periódica
-        periodicCheckJob?.cancel()
-        periodicCheckJob = null
+        // Verificar estado actual
+        val currentState = ServiceStateManager.getCurrentState(this)
+        
+        // Si el estado es STOPPED o DISABLED, el usuario detuvo intencionalmente
+        // NO intentar reiniciar automáticamente
+        if (currentState == ServiceStateManager.ServiceState.STOPPED || 
+            currentState == ServiceStateManager.ServiceState.DISABLED) {
+            Log.d(TAG, "Servicio detenido intencionalmente por usuario (estado: $currentState)")
+            
+            // Limpiar flag para que watchdog no lo detecte como muerte
+            val prefs = getSharedPreferences("service_state", Context.MODE_PRIVATE)
+            prefs.edit().putBoolean("service_should_be_running", false).apply()
+            
+            return // Salir sin intentar reiniciar
+        }
+        
+        // Si llegamos aquí, el servicio murió inesperadamente (camera, memory, etc)
+        Log.w(TAG, "Servicio murió inesperadamente (camera, memory, etc)")
+        
+        // Solo mostrar notificación de STOPPED si no se ha mostrado ya
+        if (ServiceStateManager.canShowStoppedNotification(this)) {
+            ServiceNotificationManager(this).showStoppedNotification()
+            ServiceStateManager.markStoppedNotificationShown(this)
+            ServiceStateManager.setState(this, ServiceStateManager.ServiceState.STOPPED)
+            Log.d(TAG, "Notificación STOPPED mostrada con opciones Reiniciar/Entendido")
+        } else {
+            Log.d(TAG, "Notificación STOPPED ya fue mostrada en esta sesión")
+        }
+        
+        // Intentar reinicio automático (solo para muertes inesperadas)
+        tryAutomaticRestart()
     }
     
     private fun tryAutomaticRestart() {

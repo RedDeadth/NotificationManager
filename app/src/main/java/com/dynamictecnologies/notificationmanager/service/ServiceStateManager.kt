@@ -54,6 +54,20 @@ object ServiceStateManager {
     }
     
     /**
+     * Establece el estado actual del servicio de forma SÍNCRONA.
+     * Usar cuando es crítico que el estado esté persistido antes de continuar
+     * (ej: antes de detener un servicio para evitar race conditions con auto-restart).
+     */
+    fun setStateSync(context: Context, state: ServiceState) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_CURRENT_STATE, state.name)
+            .putLong(KEY_LAST_STATE_CHANGE, System.currentTimeMillis())
+            .commit() // Síncrono en lugar de apply()
+    }
+
+    
+    /**
      * Verifica si se puede mostrar la notificación de "servicio detenido".
      * Solo se muestra una vez por sesión hasta que se vuelva a abrir la app.
      */
