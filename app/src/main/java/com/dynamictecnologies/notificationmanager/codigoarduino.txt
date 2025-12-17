@@ -448,8 +448,7 @@ void setup() {
     isPaired = preferences.getBool("paired", false);
     Serial.println("Token cargado: " + deviceToken);
     
-    // MIGRACIÓN: Si el token tiene 8 caracteres (formato viejo), regenerar a 4
-    if (deviceToken.length() != 4) {
+manual    if (deviceToken.length() != 4) {
       Serial.println("Token antiguo detectado, generando nuevo de 4 caracteres...");
       deviceToken = generateRandomToken();
       preferences.putString("token", deviceToken);

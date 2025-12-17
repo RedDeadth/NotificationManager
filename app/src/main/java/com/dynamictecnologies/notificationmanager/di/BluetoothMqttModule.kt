@@ -75,11 +75,22 @@ object BluetoothMqttModule {
     }
     
     // ========================================
-    // REPOSITORIES
+    // REPOSITORIES (SINGLETONS)
     // ========================================
     
+    @Volatile
+    private var devicePairingRepository: DevicePairingRepository? = null
+    
+    /**
+     * Provee singleton de DevicePairingRepository.
+     * IMPORTANTE: Debe ser singleton para que UI y servicio compartan los mismos datos.
+     */
     fun provideDevicePairingRepository(context: Context): DevicePairingRepository {
-        return DevicePairingRepositoryImpl(context)
+        return devicePairingRepository ?: synchronized(this) {
+            devicePairingRepository ?: DevicePairingRepositoryImpl(context.applicationContext).also {
+                devicePairingRepository = it
+            }
+        }
     }
     
     // ========================================
