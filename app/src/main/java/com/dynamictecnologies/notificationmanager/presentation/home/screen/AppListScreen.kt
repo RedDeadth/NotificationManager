@@ -57,23 +57,7 @@ fun AppListScreen(
     
     // Control de diálogos
     var showBluetoothDialog by remember { mutableStateOf(false) }
-    
-    // Mostrar diálogo automáticamente cuando inicia escaneo
-    LaunchedEffect(isScanning) {
-        if (isScanning && !showBluetoothDialog) {
-            showBluetoothDialog = true
-        }
-    }
-    
-    // Iniciar escaneo automáticamente cuando se abre el diálogo
-    LaunchedEffect(showBluetoothDialog) {
-        if (showBluetoothDialog && !isScanning) {
-            // Pequeño delay para que el diálogo se muestre primero
-            kotlinx.coroutines.delay(300)
-            devicePairingViewModel.startBluetoothScan()
-        }
-    }
-
+    var showDirectTokenDialog by remember { mutableStateOf(false) }  // Nuevo: para ingreso directo de token
     
     // Manejar resultados de pairing
     LaunchedEffect(pairingState) {
@@ -209,9 +193,9 @@ fun AppListScreen(
                                         // Desemparejar
                                         devicePairingViewModel.unpairDevice()
                                     } else {
-                                        // Verificar permisos y habilitar Bluetooth
-                                        // El callback iniciará el escaneo automáticamente
-                                        requestBluetoothPermissions()
+                                        // Abrir diálogo de ingreso de token directamente
+                                        // (Sin Bluetooth - el usuario lee el token del LCD del ESP32)
+                                        showDirectTokenDialog = true
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth(),
@@ -348,7 +332,7 @@ fun AppListScreen(
             )
         }
         
-        // Diálogo de ingreso de token
+        // Diálogo de ingreso de token (cuando viene de Bluetooth scan)
         if (showTokenDialog && selectedDevice != null) {
             TokenInputDialog(
                 deviceName = selectedDevice!!.name,
@@ -357,6 +341,20 @@ fun AppListScreen(
                 },
                 onDismiss = {
                     devicePairingViewModel.dismissTokenDialog()
+                }
+            )
+        }
+        
+        // Diálogo de ingreso de token DIRECTO (sin Bluetooth)
+        if (showDirectTokenDialog) {
+            TokenInputDialog(
+                deviceName = "ESP32 (Token del LCD)",
+                onTokenEntered = { token ->
+                    showDirectTokenDialog = false
+                    devicePairingViewModel.pairDeviceWithToken(token)
+                },
+                onDismiss = {
+                    showDirectTokenDialog = false
                 }
             )
         }

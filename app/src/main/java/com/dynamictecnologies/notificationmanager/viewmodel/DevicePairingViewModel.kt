@@ -124,6 +124,29 @@ class DevicePairingViewModel(
     }
     
     /**
+     * Vincula dispositivo solo con token (sin Bluetooth scan)
+     * Usado cuando el usuario ingresa el token manualmente desde el LCD del ESP32
+     */
+    fun pairDeviceWithToken(token: String) {
+        _pairingState.value = PairingState.Pairing
+        
+        viewModelScope.launch {
+            pairDeviceUseCase(
+                bluetoothName = "ESP32_Manual",  // Nombre genérico para dispositivo manual
+                bluetoothAddress = "00:00:00:00:00:00",  // Sin dirección Bluetooth
+                token = token
+            ).onSuccess {
+                _pairingState.value = PairingState.Success
+            }.onFailure { error ->
+                _pairingState.value = PairingState.Error(
+                    error.message ?: "Error vinculando dispositivo"
+                )
+            }
+        }
+    }
+    
+
+    /**
      * Desvincula dispositivo actual
      */
     fun unpairDevice() {
