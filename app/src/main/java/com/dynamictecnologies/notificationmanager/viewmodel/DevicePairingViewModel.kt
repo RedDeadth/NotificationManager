@@ -132,7 +132,7 @@ class DevicePairingViewModel(
         
         viewModelScope.launch {
             pairDeviceUseCase(
-                bluetoothName = "ESP32_Manual",  // Nombre genérico para dispositivo manual
+                bluetoothName = "ESP32_$token",  // Usa el token como identificador
                 bluetoothAddress = "00:00:00:00:00:00",  // Sin dirección Bluetooth
                 token = token
             ).onSuccess {
