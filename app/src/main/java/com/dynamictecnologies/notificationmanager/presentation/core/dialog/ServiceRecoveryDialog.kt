@@ -1,4 +1,4 @@
-package com.dynamictecnologies.notificationmanager.ui.dialog
+package com.dynamictecnologies.notificationmanager.presentation.core.dialog
 
 import android.content.Context
 import androidx.compose.foundation.layout.*
