@@ -63,7 +63,9 @@ class DevicePairingRepositoryImpl(
     }
     
     /**
-     * Carga el pairing guardado desde SharedPreferences
+     * Carga el pairing guardado desde SharedPreferences.
+     * Si el token guardado es inválido (ej: formato viejo de 8 chars),
+     * limpia los datos y retorna null.
      */
     private fun loadPairing(): DevicePairing? {
         val btName = prefs.getString(KEY_BT_NAME, null) ?: return null
@@ -74,13 +76,21 @@ class DevicePairingRepositoryImpl(
         
         if (pairedAt == 0L) return null
         
-        return DevicePairing(
-            bluetoothName = btName,
-            bluetoothAddress = btAddress,
-            token = token,
-            mqttTopic = mqttTopic,
-            pairedAt = pairedAt
-        )
+        return try {
+            DevicePairing(
+                bluetoothName = btName,
+                bluetoothAddress = btAddress,
+                token = token,
+                mqttTopic = mqttTopic,
+                pairedAt = pairedAt
+            )
+        } catch (e: IllegalArgumentException) {
+            // Token inválido (probablemente formato viejo de 8 chars)
+            // Limpiar datos viejos
+            android.util.Log.w("DevicePairingRepo", "Token inválido encontrado, limpiando: ${e.message}")
+            prefs.edit().clear().apply()
+            null
+        }
     }
     
     companion object {
