@@ -22,7 +22,7 @@
 // Intervalos de actualización
 #define STATUS_UPDATE_INTERVAL 5000
 #define MQTT_RECONNECT_INTERVAL 5000
-#define MIN_NOTIFICATION_DISPLAY_TIME 7000
+#define MIN_NOTIFICATION_DISPLAY_TIME 4000
 #define UNPAIR_BUTTON_HOLD_TIME 3000
 
 // Configuración de pines
@@ -49,6 +49,7 @@ String currentLcdLine1 = "";
 String currentLcdLine2 = "";
 unsigned long lastNotificationShownTime = 0;
 bool activeNotificationOnScreen = false;
+int notificationCount = 0;  // Contador de notificaciones de esta sesión
 
 // Configuración de LCD
 LiquidCrystal_I2C lcd(0x27, 16, 2);
@@ -295,8 +296,9 @@ void processNotificationQueue() {
   
   if (queueCount > 0) {
     Notification notification = notificationQueue[queueHead];
+    notificationCount++;  // Incrementar contador
     
-    Serial.println("Mostrando: " + notification.title);
+    Serial.println("Mostrando #" + String(notificationCount) + ": " + notification.title);
     showOnLCD(notification.title, notification.content);
     playNotificationSound();
     
@@ -304,6 +306,14 @@ void processNotificationQueue() {
     queueCount--;
     lastNotificationShownTime = millis();
     activeNotificationOnScreen = true;
+  } else if (!activeNotificationOnScreen && notificationCount > 0) {
+    // Mostrar contador de última notificación cuando no hay notificaciones en cola
+    if (isPaired) {
+      String line2 = "Ultimo: #" + String(notificationCount);
+      if (currentLcdLine2 != line2) {
+        showOnLCD(deviceId, line2);
+      }
+    }
   }
 }
 
