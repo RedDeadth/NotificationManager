@@ -452,27 +452,10 @@ void setup() {
   // Inicializar Preferences
   preferences.begin("device", false);
   
-  // Cargar o generar token
-  if (preferences.isKey("token")) {
-    deviceToken = preferences.getString("token", "");
-    isPaired = preferences.getBool("paired", false);
-    Serial.println("Token cargado: " + deviceToken);
-    
-manual    if (deviceToken.length() != 4) {
-      Serial.println("Token antiguo detectado, generando nuevo de 4 caracteres...");
-      deviceToken = generateRandomToken();
-      preferences.putString("token", deviceToken);
-      preferences.putBool("paired", false);
-      isPaired = false;
-      Serial.println("Nuevo token (4 chars): " + deviceToken);
-    }
-  } else {
-    deviceToken = generateRandomToken();
-    preferences.putString("token", deviceToken);
-    preferences.putBool("paired", false);
-    isPaired = false;
-    Serial.println("Nuevo token generado: " + deviceToken);
-  }
+  // SIEMPRE generar token nuevo en cada reinicio
+  deviceToken = generateRandomToken();
+  isPaired = false;
+  Serial.println("Nuevo token generado: " + deviceToken);
   
   mqttTopic = "n/" + deviceToken;
   Serial.println("MQTT Topic: " + mqttTopic);
