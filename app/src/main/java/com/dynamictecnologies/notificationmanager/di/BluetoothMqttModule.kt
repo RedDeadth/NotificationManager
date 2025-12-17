@@ -37,15 +37,37 @@ object BluetoothMqttModule {
     }
     
     // ========================================
-    // MQTT COMPONENTS
+    // MQTT COMPONENTS (SINGLETONS)
     // ========================================
     
+    @Volatile
+    private var mqttConnectionManager: MqttConnectionManager? = null
+    
+    @Volatile
+    private var mqttNotificationSender: MqttNotificationSender? = null
+    
+    /**
+     * Singleton de MqttConnectionManager.
+     * IMPORTANTE: Debe ser singleton para mantener una sola conexión MQTT.
+     */
     fun provideMqttConnectionManager(context: Context): MqttConnectionManager {
-        return MqttConnectionManager(context)
+        return mqttConnectionManager ?: synchronized(this) {
+            mqttConnectionManager ?: MqttConnectionManager(context.applicationContext).also {
+                mqttConnectionManager = it
+            }
+        }
     }
     
+    /**
+     * Singleton de MqttNotificationSender.
+     * IMPORTANTE: Usa el mismo MqttConnectionManager singleton.
+     */
     fun provideMqttNotificationSender(connectionManager: MqttConnectionManager): MqttNotificationSender {
-        return MqttNotificationSender(connectionManager)
+        return mqttNotificationSender ?: synchronized(this) {
+            mqttNotificationSender ?: MqttNotificationSender(connectionManager).also {
+                mqttNotificationSender = it
+            }
+        }
     }
     
     fun provideMqttDeviceScanner(connectionManager: MqttConnectionManager): MqttDeviceScanner {
