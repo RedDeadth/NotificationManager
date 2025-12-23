@@ -37,18 +37,9 @@ import androidx.work.Constraints
 import java.util.concurrent.TimeUnit
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.database.FirebaseDatabase
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.Button
-import androidx.compose.material3.AlertDialog
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import android.Manifest
 import android.content.pm.PackageManager
@@ -93,10 +84,6 @@ class MainActivity : ComponentActivity() {
     // Nuevo ViewModel para pairing Bluetooth
     private val devicePairingViewModel: com.dynamictecnologies.notificationmanager.viewmodel.DevicePairingViewModel by viewModels {
         com.dynamictecnologies.notificationmanager.di.BluetoothMqttModule.provideDevicePairingViewModelFactory(applicationContext)
-    }
-
-    private val shareViewModel: ShareViewModel by viewModels {
-        ShareViewModelFactory()
     }
     
     // Permission launcher para POST_NOTIFICATIONS (Android 13+)
@@ -286,7 +273,6 @@ class MainActivity : ComponentActivity() {
                         authViewModel = authViewModel,
                         appListViewModel = appListViewModel,
                         userViewModel = userViewModel,
-                        shareViewModel = shareViewModel,
                         devicePairingViewModel = devicePairingViewModel,
                         requestBluetoothPermissions = { requestBluetoothPermissions() }
                     )

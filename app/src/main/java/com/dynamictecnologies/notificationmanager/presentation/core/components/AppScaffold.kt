@@ -32,7 +32,6 @@ fun AppScaffold(
     val currentScreen = when (currentRoute) {
         AppRoutes.MainScreen.Home.route -> AppScreen.HOME
         AppRoutes.MainScreen.Profile.route -> AppScreen.PROFILE
-        AppRoutes.MainScreen.Share.route -> AppScreen.SHARE
         else -> AppScreen.HOME
     }
     
@@ -51,7 +50,6 @@ fun AppScaffold(
                     val route = when (screen) {
                         AppScreen.HOME -> AppRoutes.MainScreen.Home.route
                         AppScreen.PROFILE -> AppRoutes.MainScreen.Profile.route
-                        AppScreen.SHARE -> AppRoutes.MainScreen.Share.route
                     }
                     
                     // Navegar a la ruta seleccionada

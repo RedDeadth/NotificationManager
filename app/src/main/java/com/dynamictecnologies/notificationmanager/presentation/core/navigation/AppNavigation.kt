@@ -14,7 +14,6 @@ import com.dynamictecnologies.notificationmanager.presentation.auth.screen.Login
 import com.dynamictecnologies.notificationmanager.presentation.auth.screen.RegisterScreen
 import com.dynamictecnologies.notificationmanager.presentation.home.screen.AppListScreen
 import com.dynamictecnologies.notificationmanager.presentation.profile.screen.ProfileScreen
-import com.dynamictecnologies.notificationmanager.presentation.share.screen.ShareScreen
 import com.dynamictecnologies.notificationmanager.presentation.core.components.AppScaffold
 import com.dynamictecnologies.notificationmanager.presentation.core.navigation.NavigationAnimations
 import com.dynamictecnologies.notificationmanager.viewmodel.*
@@ -28,7 +27,6 @@ fun AppNavigation(
     authViewModel: AuthViewModel,
     appListViewModel: AppListViewModel,
     userViewModel: UserViewModel,
-    shareViewModel: ShareViewModel,
     devicePairingViewModel: com.dynamictecnologies.notificationmanager.viewmodel.DevicePairingViewModel,
     requestBluetoothPermissions: () -> Unit
 ) {
@@ -126,7 +124,7 @@ fun AppNavigation(
             AppScaffold(
                 navController = mainNavController,
                 onSettingsClick = { /* TODO: Implementar configuración */ },
-                onShareClick = { /* TODO: Implementar compartir */ }
+                onShareClick = { /* Compartir removido */ }
             ) { paddingModifier ->
                 // NavHost anidado para el contenido principal
                 MainNavGraph(
@@ -135,7 +133,6 @@ fun AppNavigation(
                     authViewModel = authViewModel,
                     appListViewModel = appListViewModel,
                     userViewModel = userViewModel,
-                    shareViewModel = shareViewModel,
                     devicePairingViewModel = devicePairingViewModel,
                     requestBluetoothPermissions = requestBluetoothPermissions,
                     modifier = paddingModifier
@@ -152,7 +149,6 @@ fun MainNavGraph(
     authViewModel: AuthViewModel,
     appListViewModel: AppListViewModel,
     userViewModel: UserViewModel,
-    shareViewModel: ShareViewModel,
     devicePairingViewModel: com.dynamictecnologies.notificationmanager.viewmodel.DevicePairingViewModel,
     requestBluetoothPermissions: () -> Unit,
     modifier: androidx.compose.ui.Modifier = androidx.compose.ui.Modifier
@@ -191,29 +187,12 @@ fun MainNavGraph(
                 onLogout = {
                     // Limpiar todos los datos antes de cerrar sesión
                     userViewModel.clearData()
-                    shareViewModel.clearData()
                     appListViewModel.clearData()
                     
                     authViewModel.signOut()
                     parentNavController.navigate(AppRoutes.Login.route) {
                         popUpTo(0) { inclusive = true }
                     }
-                }
-            )
-        }
-        
-        // Pantalla de compartir
-        composable(
-            route = AppRoutes.MainScreen.Share.route,
-            enterTransition = { NavigationAnimations.enterTransition() },
-            exitTransition = { NavigationAnimations.exitTransition() },
-            popEnterTransition = { NavigationAnimations.popEnterTransition() },
-            popExitTransition = { NavigationAnimations.popExitTransition() }
-        ) {
-            ShareScreen(
-                shareViewModel = shareViewModel,
-                onNavigateToProfile = {
-                    navController.navigate(AppRoutes.MainScreen.Profile.route)
                 }
             )
         }
