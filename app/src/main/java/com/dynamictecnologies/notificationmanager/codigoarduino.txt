@@ -103,20 +103,35 @@ const char* root_ca = \
 "-----END CERTIFICATE-----\n";
 
 /**
- * Genera token aleatorio de 4 caracteres (mayúsculas + números)
+ * Genera token único de 6 caracteres:
+ * - Primeros 3: derivados del ID único del ESP32 (garantiza unicidad del dispositivo)
+ * - Últimos 3: aleatorios (variabilidad por sesión/reinicio)
+ * Formato: XXX-YYY donde XXX=deviceID, YYY=aleatorio
  */
-String generateRandomToken() {
+String generateUniqueToken() {
   const char chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   String token = "";
   
-  // Mejor seed usando múltiples fuentes de entropía
+  // --- Primeros 3 caracteres: del ID único del ESP32 ---
+  uint64_t chipId = ESP.getEfuseMac();
+  // Usar XOR de las dos mitades del MAC para mejor distribución
+  uint32_t deviceHash = (uint32_t)(chipId >> 32) ^ (uint32_t)chipId;
+  
+  for (int i = 0; i < 3; i++) {
+    token += chars[deviceHash % 36];
+    deviceHash /= 36;
+  }
+  
+  // --- Últimos 3 caracteres: aleatorios ---
+  // Seed con múltiples fuentes de entropía
   uint32_t seed = ESP.getEfuseMac() ^ millis() ^ micros();
   seed ^= analogRead(0);  // Ruido analógico para más aleatoriedad
   randomSeed(seed);
   
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 3; i++) {
     token += chars[random(0, 36)];
   }
+  
   return token;
 }
 
@@ -408,8 +423,8 @@ void handleUnpairButton() {
       
       mqttClient.unsubscribe(mqttTopic.c_str());
       
-      // Generar nuevo token
-      deviceToken = generateRandomToken();
+      // Generar nuevo token único
+      deviceToken = generateUniqueToken();
       mqttTopic = "n/" + deviceToken;
       isPaired = false;
       
@@ -452,10 +467,12 @@ void setup() {
   // Inicializar Preferences
   preferences.begin("device", false);
   
-  // SIEMPRE generar token nuevo en cada reinicio
-  deviceToken = generateRandomToken();
+  // SIEMPRE generar token único en cada reinicio
+  // Token de 6 caracteres: 3 del deviceID + 3 aleatorios
+  deviceToken = generateUniqueToken();
   isPaired = false;
-  Serial.println("Nuevo token generado: " + deviceToken);
+  Serial.println("Token unico generado: " + deviceToken);
+  Serial.println("Formato: [DeviceID-3chars][Random-3chars]");
   
   mqttTopic = "n/" + deviceToken;
   Serial.println("MQTT Topic: " + mqttTopic);
