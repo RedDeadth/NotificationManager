@@ -1,6 +1,7 @@
 package com.dynamictecnologies.notificationmanager.viewmodel
 
 import android.content.Intent
+import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
 import com.dynamictecnologies.notificationmanager.data.exceptions.AuthErrorCode
 import com.dynamictecnologies.notificationmanager.data.exceptions.AuthException
@@ -125,6 +126,7 @@ class AuthViewModelTest {
     
     private fun createViewModel() {
         viewModel = AuthViewModel(
+            savedStateHandle = SavedStateHandle(),
             authRepository = authRepository,
             signInWithEmailUseCase = signInWithEmailUseCase,
             registerUserWithUsernameUseCase = registerUserWithUsernameUseCase,

@@ -19,10 +19,16 @@ class UnpairDeviceUseCase(
     
     /**
      * Desvincula el dispositivo ESP32 actual.
+     * 
+     * @return Result<Unit> Success si se desvincula correctamente, Failure si alguna operación falla
      */
     suspend operator fun invoke(): Result<Unit> {
         // Desconectar MQTT primero
-        mqttConnectionManager.disconnect()
+        val disconnectResult = mqttConnectionManager.disconnect()
+        if (disconnectResult.isFailure) {
+            // Continuar con el unpair aunque falle la desconexión, pero logear
+            android.util.Log.w("UnpairDeviceUseCase", "MQTT disconnect failed, continuing with unpair: ${disconnectResult.exceptionOrNull()?.message}")
+        }
         
         // Limpiar pairing guardado
         return pairingRepository.clearPairing()

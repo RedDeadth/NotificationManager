@@ -21,6 +21,7 @@ import com.dynamictecnologies.notificationmanager.util.notification.ServiceCrash
 import kotlinx.coroutines.*
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Servicio de escucha de notificaciones refactorizado siguiendo principios SOLID.
@@ -75,7 +76,15 @@ class NotificationListenerService : NotificationListenerService() {
     private lateinit var sendNotificationUseCase: com.dynamictecnologies.notificationmanager.domain.usecases.device.SendNotificationToDeviceUseCase
     private lateinit var devicePairingRepository: com.dynamictecnologies.notificationmanager.domain.repositories.DevicePairingRepository
     
-    private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    // Estado de inicialización - true si componentes fallaron al inicializar
+    private val isDegraded = AtomicBoolean(false)
+    
+    // Exception handler para capturar errores en coroutines
+    private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        Log.e(TAG, "Error no manejado en coroutine del servicio: ${throwable.message}")
+    }
+    
+    private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob() + exceptionHandler)
     
     // OEM-specific components (created locally)
     private lateinit var deviceDetector: DeviceManufacturerDetector
@@ -168,10 +177,28 @@ class NotificationListenerService : NotificationListenerService() {
             Log.d(TAG, "Componentes inicializados correctamente")
         } catch (e: Exception) {
             Log.e(TAG, "Error inicializando componentes: ${e.message}", e)
+            // Marcar servicio como degradado para evitar NPEs posteriores
+            isDegraded.set(true)
+            
+            // Notificar al usuario del estado degradado
+            try {
+                crashNotifier = ServiceCrashNotifier(applicationContext)
+                crashNotifier.showCrashNotification(
+                    com.dynamictecnologies.notificationmanager.util.notification.ServiceStopReason.SystemKilled
+                )
+            } catch (notifyError: Exception) {
+                Log.e(TAG, "No se pudo notificar estado degradado: ${notifyError.message}")
+            }
         }
     }
     
     override fun onNotificationPosted(sbn: StatusBarNotification) {
+        // Verificar estado degradado antes de procesar
+        if (isDegraded.get()) {
+            Log.w(TAG, "Servicio en estado degradado - ignorando notificación")
+            return
+        }
+        
         if (!shouldProcessNotification(sbn)) return
         
         notificationCounter++

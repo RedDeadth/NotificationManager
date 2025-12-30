@@ -22,11 +22,31 @@ object ServiceStateManager {
     private const val KEY_STOPPED_SHOWN = "stopped_notification_shown"
     private const val KEY_STOPPED_COUNT = "stopped_notification_count"
     private const val KEY_LAST_STATE_CHANGE = "last_state_change_time"
+    private const val KEY_DEGRADED_REASON = "degraded_reason"
     
+    /**
+     * Estados del semáforo de servicio:
+     * - RUNNING (VERDE): Servicio activo, internet OK, permisos OK
+     * - DEGRADED (AMARILLO): Servicio activo pero con problemas (permisos revocados, sin internet)
+     * - STOPPED (ROJO): Servicio detenido inesperadamente
+     * - DISABLED (GRIS): Usuario eligió "Entendido", no molestar
+     */
     enum class ServiceState {
-        RUNNING,    // Servicio activo
-        STOPPED,    // Servicio detenido
+        RUNNING,    // 🟢 Operativo completo
+        DEGRADED,   // 🟡 Advertencia: permisos o conectividad degradada
+        STOPPED,    // 🔴 Servicio detenido
         DISABLED    // Usuario eligió "Entendido"
+    }
+    
+    /**
+     * Razones de estado DEGRADED
+     */
+    enum class DegradedReason {
+        NONE,
+        PERMISSION_REVOKED,
+        NO_INTERNET,
+        MQTT_DISCONNECTED,
+        INITIALIZATION_FAILED
     }
     
     /**
@@ -141,5 +161,43 @@ object ServiceStateManager {
         } else {
             0
         }
+    }
+    
+    /**
+     * Establece el estado DEGRADED (amarillo) con razón específica.
+     * Usar cuando el servicio sigue corriendo pero tiene problemas.
+     */
+    fun setDegradedState(context: Context, reason: DegradedReason) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_CURRENT_STATE, ServiceState.DEGRADED.name)
+            .putString(KEY_DEGRADED_REASON, reason.name)
+            .putLong(KEY_LAST_STATE_CHANGE, System.currentTimeMillis())
+            .apply()
+    }
+    
+    /**
+     * Obtiene la razón del estado DEGRADED actual.
+     */
+    fun getDegradedReason(context: Context): DegradedReason {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val reasonName = prefs.getString(KEY_DEGRADED_REASON, DegradedReason.NONE.name)
+        return try {
+            DegradedReason.valueOf(reasonName ?: DegradedReason.NONE.name)
+        } catch (e: IllegalArgumentException) {
+            DegradedReason.NONE
+        }
+    }
+    
+    /**
+     * Limpia la razón de DEGRADED y vuelve a RUNNING.
+     */
+    fun clearDegraded(context: Context) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_CURRENT_STATE, ServiceState.RUNNING.name)
+            .putString(KEY_DEGRADED_REASON, DegradedReason.NONE.name)
+            .putLong(KEY_LAST_STATE_CHANGE, System.currentTimeMillis())
+            .apply()
     }
 }

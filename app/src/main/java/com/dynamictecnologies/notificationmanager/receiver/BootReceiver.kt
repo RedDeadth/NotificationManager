@@ -47,7 +47,11 @@ class BootReceiver : BroadcastReceiver() {
             intent.action == "com.htc.intent.action.QUICKBOOT_POWERON" ||
             intent.action == "android.intent.action.MY_PACKAGE_REPLACED") {
             
-            // Usar scope con SupervisorJob en lugar de GlobalScope (mejor práctica)
+            // Usar goAsync() para operaciones de larga duración en BroadcastReceiver
+            // Esto evita memory leaks y permite que el receiver se limpie correctamente
+            val pendingResult = goAsync()
+            
+            // Scope limitado que se cancela al terminar
             val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
             scope.launch {
                 try {
@@ -83,6 +87,9 @@ class BootReceiver : BroadcastReceiver() {
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error al iniciar servicio tras arranque: ${e.message}")
+                } finally {
+                    // CRÍTICO: Siempre finalizar el PendingResult para liberar recursos
+                    pendingResult.finish()
                 }
             }
         }

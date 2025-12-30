@@ -17,6 +17,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.dynamictecnologies.notificationmanager.MainActivity
 import com.dynamictecnologies.notificationmanager.R
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -31,7 +32,12 @@ class NotificationForegroundService : Service() {
     private val CHANNEL_ID = "notification_manager_service"
     private val NOTIFICATION_ID = 1
     
-    private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    // Exception handler para capturar errores en coroutines
+    private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        android.util.Log.e("NotificationFgService", "Error no manejado en coroutine: ${throwable.message}")
+    }
+    
+    private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob() + exceptionHandler)
     private var wakeLock: PowerManager.WakeLock? = null
     private val WATCHDOG_INTERVAL = 15 * 60 * 1000L // Verificar cada 15 minutos
     
@@ -39,10 +45,8 @@ class NotificationForegroundService : Service() {
     private var heartbeatJob: Job? = null
     private val HEARTBEAT_INTERVAL = 5 * 60 * 1000L // Actualizar cada 5 minutos
     
-    // Exponential backoff para reintentos (en minutos)
-    private val RETRY_INTERVALS = listOf(2, 5, 15, 30, 60)
-    private var currentRetryAttempt = 0
-    private var lastRetryTime = 0L
+    // Watchdog delegado para vigilancia del servicio
+    private var serviceWatchdog: ServiceWatchdog? = null
     
     private var periodicCheckJob: Job? = null
     
@@ -97,6 +101,16 @@ class NotificationForegroundService : Service() {
         
         // Iniciar temporizador para verificaciones programadas
         startPeriodicChecks()
+        
+        // Inicializar y arrancar el watchdog delegado
+        serviceWatchdog = ServiceWatchdog(this, serviceScope, CHANNEL_ID).apply {
+            setRestartCallback(object : ServiceWatchdog.RestartCallback {
+                override fun onRestartNeeded() {
+                    tryToRestartNotificationListenerService()
+                }
+            })
+            start()
+        }
         
         // Marcar que el servicio DEBERÍA estar corriendo (para watchdog)
         val prefs = getSharedPreferences("service_state", Context.MODE_PRIVATE)
@@ -158,245 +172,19 @@ class NotificationForegroundService : Service() {
     }
     
     private fun performForceReset() {
-        Log.w(TAG, "Realizando reinicio forzado del servicio de notificaciones")
-        
+        Log.w(TAG, "Delegando reinicio forzado al ServiceWatchdog")
         serviceScope.launch {
-            try {
-                // 1. Desactivar completamente el componente
-                val componentName = ComponentName(applicationContext, NotificationListenerService::class.java)
-                packageManager.setComponentEnabledSetting(
-                    componentName,
-                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                    PackageManager.DONT_KILL_APP
-                )
-                
-                // 2. Esperar para asegurar que el cambio se aplique
-                delay(1000)
-                
-                // 3. Habilitar nuevamente
-                packageManager.setComponentEnabledSetting(
-                    componentName,
-                    PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-                    PackageManager.DONT_KILL_APP
-                )
-                
-                // 4. Esperar otro poco
-                delay(1000)
-                
-                // 5. Intentar iniciar el servicio directamente
-                val listenerIntent = Intent(applicationContext, NotificationListenerService::class.java)
-                try {
-                    applicationContext.startService(listenerIntent)
-                } catch (e: Exception) {
-                    Log.e(TAG, "No se pudo iniciar el servicio directamente: ${e.message}")
-                }
-                
-                // 6. Actualizar la notificación para informar al usuario
-                val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                val notification = createStatusNotification("Servicio de notificaciones reiniciado")
-                notificationManager.notify(NOTIFICATION_ID_STATUS, notification)
-                
-                // 7. Registrar el reinicio forzado
-                val prefs = getSharedPreferences("notification_listener_prefs", Context.MODE_PRIVATE)
-                prefs.edit().apply {
-                    putLong("force_reset_time", System.currentTimeMillis())
-                    putInt("force_reset_count", prefs.getInt("force_reset_count", 0) + 1)
-                    apply()
-                }
-                
-                // Resetear el contador de reintentos
-                currentRetryAttempt = 0
-                
-                Log.d(TAG, "Reinicio forzado completado")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error durante el reinicio forzado: ${e.message}")
-            }
+            serviceWatchdog?.performForceReset()
         }
     }
     
-    private fun startWatchdogTimer() {
-        serviceScope.launch {
-            while (isActive) {
-                try {
-                    // Verificar si el NotificationListenerService está habilitado
-                    val isListenerEnabled = NotificationListenerService.isNotificationListenerEnabled(this@NotificationForegroundService)
-                    
-                    Log.d(TAG, "Watchdog: NotificationListenerService habilitado = $isListenerEnabled")
-                    
-                    if (!isListenerEnabled) {
-                        Log.w(TAG, "Watchdog: NotificationListenerService no habilitado, intentando reiniciar...")
-                        tryToRestartNotificationListenerService()
-                    } else {
-                        // Verificar cuándo fue la última vez que se recibió una notificación
-                        val prefs = getSharedPreferences("notification_listener_prefs", Context.MODE_PRIVATE)
-                        val lastNotificationTime = prefs.getLong("last_notification_received", 0)
-                        val lastConnectionTime = prefs.getLong("last_connection_time", 0)
-                        val currentTime = System.currentTimeMillis()
-                        
-                        // Si el servicio está habilitado pero no ha recibido notificaciones por un tiempo
-                        if (lastNotificationTime > 0) {
-                            val timeSinceLastNotif = currentTime - lastNotificationTime
-                            
-                            // Reducido de 2 horas a 1 hora para ser más agresivos
-                            if (timeSinceLastNotif > 1 * 60 * 60 * 1000) { // 1 hora
-                                val hoursSinceLastNotif = timeSinceLastNotif / (1000 * 60 * 60)
-                                Log.w(TAG, "Watchdog: No se han recibido notificaciones en $hoursSinceLastNotif horas")
-                                
-                                // Verificar si debemos intentar otro reinicio con backoff exponencial
-                                if (shouldRetryNow()) {
-                                    Log.w(TAG, "Watchdog: Intento de reconexión progresivo #$currentRetryAttempt")
-                                    tryToRestartNotificationListenerService()
-                                    
-                                    // Actualizar la notificación para informar al usuario
-                                    val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                                    val notification = createStatusNotification("Reconectando el servicio de notificaciones")
-                                    notificationManager.notify(NOTIFICATION_ID_STATUS, notification)
-                                    
-                                    lastRetryTime = currentTime
-                                    currentRetryAttempt++
-                                    
-                                    // Si llevamos más de 12 horas sin servicio, forzar un reinicio completo
-                                    if (timeSinceLastNotif > MAX_TIME_WITHOUT_SERVICE) {
-                                        Log.w(TAG, "Crisis detectada: Sin notificaciones por más de 12 horas. Reinicio forzado completo...")
-                                        performDeepReset()
-                                    }
-                                }
-                            }
-                        } else if (lastConnectionTime > 0) {
-                            // Si nunca ha recibido notificaciones pero está conectado hace tiempo
-                            val timeSinceConnection = currentTime - lastConnectionTime
-                            // Reducido de 4 horas a 2 horas
-                            if (timeSinceConnection > 2 * 60 * 60 * 1000L) { // 2 horas
-                                Log.w(TAG, "Watchdog: Conexión antigua (${timeSinceConnection/3600000}h) " +
-                                          "sin notificaciones, intentando reiniciar...")
-                                tryToRestartNotificationListenerService()
-                            }
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Watchdog: Error verificando estado del servicio: ${e.message}")
-                }
-                
-                delay(calculateNextWatchdogInterval())
-            }
-        }
-        
-        // Programar verificaciones periódicas independientes del watchdog
-        schedulePeriodicChecks()
-    }
-    
-    private fun schedulePeriodicChecks() {
-        serviceScope.launch {
-            while (isActive) {
-                try {
-                    // Verificar cada 3 horas independientemente del watchdog
-                    delay(3 * 60 * 60 * 1000L)
-                    
-                    val prefs = getSharedPreferences("notification_listener_prefs", Context.MODE_PRIVATE)
-                    val lastNotificationTime = prefs.getLong("last_notification_received", 0)
-                    val currentTime = System.currentTimeMillis()
-                    
-                    if (lastNotificationTime > 0 && (currentTime - lastNotificationTime > 6 * 60 * 60 * 1000L)) {
-                        // Si han pasado más de 6 horas sin notificaciones, hacer un reinicio forzado
-                        Log.w(TAG, "Verificación periódica: 6+ horas sin notificaciones. Realizando reinicio forzado.")
-                        performForceReset()
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error en verificación periódica: ${e.message}")
-                }
-            }
-        }
-    }
-    
-    // Nuevo método para reinicio más profundo en casos extremos
-    private fun performDeepReset() {
-        Log.w(TAG, "Realizando REINICIO PROFUNDO del servicio de notificaciones")
-        
-        serviceScope.launch {
-            try {
-                // 1. Forzar la detención del servicio de notificaciones
-                val componentName = ComponentName(applicationContext, NotificationListenerService::class.java)
-                packageManager.setComponentEnabledSetting(
-                    componentName,
-                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                    PackageManager.DONT_KILL_APP
-                )
-                
-                // 2. Esperar a que el sistema aplique los cambios
-                delay(2000)
-                
-                // 3. Limpiar los datos de la aplicación relacionados con el servicio
-                val prefs = getSharedPreferences("notification_listener_prefs", Context.MODE_PRIVATE)
-                prefs.edit().apply {
-                    // Mantener los contadores para diagnóstico pero resetear timestamps
-                    putLong("last_connection_time", 0)
-                    putLong("last_notification_received", 0)
-                    putLong("deep_reset_time", System.currentTimeMillis())
-                    putInt("deep_reset_count", prefs.getInt("deep_reset_count", 0) + 1)
-                    apply()
-                }
-                
-                // 4. Reiniciar el componente
-                delay(1000)
-                packageManager.setComponentEnabledSetting(
-                    componentName,
-                    PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-                    PackageManager.DONT_KILL_APP
-                )
-                
-                // 5. Esperar otro poco
-                delay(2000)
-                
-                // 6. Intentar iniciar todo de nuevo
-                val listenerIntent = Intent(applicationContext, NotificationListenerService::class.java)
-                try {
-                    applicationContext.startService(listenerIntent)
-                } catch (e: Exception) {
-                    Log.e(TAG, "No se pudo iniciar el servicio directamente: ${e.message}")
-                }
-                
-                // 7. Actualizar la notificación para informar al usuario
-                val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                val notification = createStatusNotification("Reinicio completo del servicio de notificaciones")
-                notificationManager.notify(NOTIFICATION_ID_STATUS, notification)
-                
-                // Resetear el contador de reintentos
-                currentRetryAttempt = 0
-                
-                Log.d(TAG, "Reinicio profundo completado")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error durante el reinicio profundo: ${e.message}")
-            }
-        }
-    }
-    
-    private fun shouldRetryNow(): Boolean {
-        if (lastRetryTime == 0L) return true
-        
-        val now = System.currentTimeMillis()
-        val minutesSinceLastRetry = (now - lastRetryTime) / (1000 * 60)
-        
-        // Usar el intervalo correspondiente o el último si hemos superado la lista
-        val requiredMinutes = if (currentRetryAttempt < RETRY_INTERVALS.size) {
-            RETRY_INTERVALS[currentRetryAttempt]
-        } else {
-            RETRY_INTERVALS.last()
-        }
-        
-        return minutesSinceLastRetry >= requiredMinutes
-    }
-    
-    private fun calculateNextWatchdogInterval(): Long {
-        // Usar el intervalo de la lista o el valor base si no hay más intentos
-        val nextMinutes = if (currentRetryAttempt < RETRY_INTERVALS.size) {
-            RETRY_INTERVALS[currentRetryAttempt].toLong()
-        } else {
-            15L // Volvemos al intervalo base de 15 minutos
-        }
-        
-        // Convertir a milisegundos
-        return nextMinutes * 60 * 1000
-    }
+    // NOTA: Los siguientes métodos fueron movidos a ServiceWatchdog:
+    // - startWatchdogTimer()
+    // - schedulePeriodicChecks()
+    // - performDeepReset()
+    // - shouldRetryNow()
+    // - calculateNextWatchdogInterval()
+    // El ServiceWatchdog ahora encapsula toda la lógica de vigilancia y reinicio.
     
     private fun createStatusNotification(message: String): Notification {
         val intent = Intent(this, MainActivity::class.java)
@@ -551,6 +339,10 @@ class NotificationForegroundService : Service() {
         // Detener heartbeat primero
         heartbeatJob?.cancel()
         
+        // Detener el watchdog delegado
+        serviceWatchdog?.stop()
+        serviceWatchdog = null
+        
         // Detener job de verificación periódica
         periodicCheckJob?.cancel()
         periodicCheckJob = null
@@ -669,7 +461,10 @@ class NotificationForegroundService : Service() {
                 performForceReset()
             } else if (lastConnectionTime > 0 && (currentTime - lastConnectionTime > 6 * 60 * 60 * 1000)) {
                 Log.w(TAG, "Verificación programada: No hay conexión en más de 6 horas")
-                performDeepReset()
+                // Delegar al watchdog para reinicio profundo
+                serviceScope.launch {
+                    serviceWatchdog?.performDeepReset()
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error en verificación programada: ${e.message}")

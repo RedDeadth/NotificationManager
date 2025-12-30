@@ -27,8 +27,10 @@ interface MqttRepository {
     
     /**
      * Desconecta del broker MQTT y limpia recursos.
+     * 
+     * @return Result<Unit> - Success si desconecta correctamente, Failure si falla
      */
-    suspend fun disconnect()
+    suspend fun disconnect(): Result<Unit>
     
     /**
      * Verifica si actualmente está conectado al broker.

@@ -1,14 +1,16 @@
 package com.dynamictecnologies.notificationmanager.data.datasource.mqtt
 
 import android.content.Context
+import android.provider.Settings
+import android.util.Log
 import com.dynamictecnologies.notificationmanager.BuildConfig
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.eclipse.paho.client.mqttv3.*
-import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence
-import java.util.*
+import org.eclipse.paho.client.mqttv3.persist.MqttDefaultFilePersistence
+import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.net.ssl.SSLSocketFactory
 
@@ -16,6 +18,11 @@ import javax.net.ssl.SSLSocketFactory
  * Manager para gestión de conexión MQTT.
  * 
  * Responsabilidad única: Conectar/desconectar del broker MQTT.
+ * 
+ * Características:
+ * - Sesión persistente (cleanSession=false) para no perder mensajes offline
+ * - ClientId estático basado en Android ID para reconexiones consistentes
+ * - Estado de sincronización para indicar recuperación de mensajes
  * 
  * - Clean Architecture: Componente de data layer sin lógica de negocio
  * - Security: Credenciales desde BuildConfig (configuradas en local.properties)
@@ -28,18 +35,35 @@ class MqttConnectionManager(
 ) {
     companion object {
         private const val TAG = "MqttConnectionManager"
+        private const val CLIENT_ID_PREFIX = "NotifMgr_"
     }
     
-    private val clientId = "NotificationManager_" + UUID.randomUUID().toString()
+    // ClientId persistente basado en Android ID - NO cambia entre reinicios
+    private val clientId: String by lazy {
+        val androidId = Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.ANDROID_ID
+        ) ?: "unknown"
+        CLIENT_ID_PREFIX + androidId.take(12)  // Limitar longitud
+    }
+    
     private var mqttClient: MqttClient? = null
     
     private val _connectionStatus = MutableStateFlow(false)
     val connectionStatus: StateFlow<Boolean> = _connectionStatus.asStateFlow()
     
+    // Expone último error de conexión para visibilidad en UI
+    private val _lastConnectionError = MutableStateFlow<String?>(null)
+    val lastConnectionError: StateFlow<String?> = _lastConnectionError.asStateFlow()
+    
+    // Estado de sincronización - true cuando está recuperando mensajes del broker
+    private val _isSyncing = MutableStateFlow(false)
+    val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
+    
     private val isConnecting = AtomicBoolean(false)
     
     /**
-     * Inicializa el cliente MQTT.
+     * Inicializa el cliente MQTT con persistencia en archivo.
      */
     init {
         initializeClient()
@@ -48,10 +72,18 @@ class MqttConnectionManager(
     private fun initializeClient() {
         try {
             if (mqttClient == null) {
-                val persistence = MemoryPersistence()
+                // Usar persistencia en archivo para sesiones persistentes
+                val persistenceDir = File(context.filesDir, "mqtt_persistence")
+                if (!persistenceDir.exists()) {
+                    persistenceDir.mkdirs()
+                }
+                val persistence = MqttDefaultFilePersistence(persistenceDir.absolutePath)
                 mqttClient = MqttClient(brokerUrl, clientId, persistence)
+                Log.d(TAG, "MQTT Client inicializado con clientId: $clientId")
             }
         } catch (e: Exception) {
+            Log.e(TAG, "Error initializing MQTT client: ${e.message}", e)
+            _connectionStatus.value = false
             mqttClient = null
         }
     }
@@ -83,7 +115,8 @@ class MqttConnectionManager(
         return try {
             
             val options = MqttConnectOptions().apply {
-                isCleanSession = true
+                // Sesión persistente para no perder mensajes offline
+                isCleanSession = false
                 connectionTimeout = 60
                 keepAliveInterval = 120
                 isAutomaticReconnect = false
@@ -98,16 +131,23 @@ class MqttConnectionManager(
                     mqttClient?.disconnect()
                     delay(1000) // Non-blocking delay
                 } catch (e: Exception) {
+                    Log.w(TAG, "Error during pre-connect disconnect: ${e.message}", e)
+                    _connectionStatus.value = false
                 }
             }
             
+            // Indicar que está sincronizando (recuperando mensajes del broker)
+            _isSyncing.value = true
+            
             mqttClient?.connect(options)
             _connectionStatus.value = true
+            _lastConnectionError.value = null // Limpiar error previo en éxito
             isConnecting.set(false)
             
             Result.success(Unit)
         } catch (e: Exception) {
             _connectionStatus.value = false
+            _lastConnectionError.value = e.message ?: "Error de conexión MQTT desconocido"
             isConnecting.set(false)
             Result.failure(e)
         }
@@ -115,14 +155,21 @@ class MqttConnectionManager(
     
     /**
      * Desconecta del broker MQTT.
+     * 
+     * @return Result<Unit> Success si desconecta correctamente, Failure con excepción si falla
      */
-    suspend fun disconnect() {
-        try {
+    suspend fun disconnect(): Result<Unit> {
+        return try {
             if (mqttClient?.isConnected == true) {
                 mqttClient?.disconnect()
+                Log.d(TAG, "MQTT disconnected successfully")
             }
             _connectionStatus.value = false
+            Result.success(Unit)
         } catch (e: Exception) {
+            Log.e(TAG, "Error disconnecting from MQTT: ${e.message}", e)
+            _connectionStatus.value = false
+            Result.failure(e)
         }
     }
     
@@ -158,14 +205,25 @@ class MqttConnectionManager(
     }
     
     /**
-     * Suscribe a un topic.
+     * Suscribe a un topic con QoS especificado.
+     * Usa QoS 1 por defecto para garantizar entrega.
      */
     fun subscribe(topic: String, qos: Int = 1) {
         try {
             mqttClient?.subscribe(topic, qos)
+            Log.d(TAG, "Suscrito a topic: $topic con QoS $qos")
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Error subscribing to topic $topic: ${e.message}", e)
         }
+    }
+    
+    /**
+     * Indica que la sincronización inicial de mensajes terminó.
+     * Llamar después de procesar todos los mensajes pendientes del broker.
+     */
+    fun finishSyncing() {
+        _isSyncing.value = false
+        Log.d(TAG, "Sincronización de mensajes completada")
     }
     
     /**

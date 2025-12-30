@@ -1,6 +1,7 @@
 package com.dynamictecnologies.notificationmanager.data.datasource.mqtt
 
 import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
+import com.dynamictecnologies.notificationmanager.domain.repositories.NotificationSender
 import org.json.JSONObject
 
 /**
@@ -8,12 +9,15 @@ import org.json.JSONObject
  * 
  * Responsabilidad única: Enviar notificaciones a dispositivos ESP32.
  * 
+ * Implementa NotificationSender para inversión de dependencias.
  */
 class MqttNotificationSender(
     private val connectionManager: MqttConnectionManager
-) {
+) : NotificationSender {
     companion object {
         private const val TAG = "MqttNotificationSender"
+        // Límite de buffer ESP32 típico (256 bytes con margen de seguridad)
+        private const val MAX_PAYLOAD_SIZE = 240
     }
     
     private var currentUserId: String? = null
@@ -22,7 +26,7 @@ class MqttNotificationSender(
     /**
      * Establece el usuario actual.
      */
-    fun setCurrentUser(userId: String, username: String?) {
+    override fun setCurrentUser(userId: String, username: String?) {
         this.currentUserId = userId
         this.currentUsername = username
     }
@@ -34,7 +38,7 @@ class MqttNotificationSender(
      * @param notification Notificación a enviar
      * @return Result<Unit> Success si se envía correctamente
      */
-    suspend fun sendNotification(
+    override suspend fun sendNotification(
         deviceId: String,
         notification: NotificationInfo
     ): Result<Unit> {
@@ -61,7 +65,7 @@ class MqttNotificationSender(
      * @param notification Notificación a enviar
      * @return Result<Unit> Success si se envía correctamente
      */
-    suspend fun sendNotificationToTopic(
+    override suspend fun sendNotificationToTopic(
         topic: String,
         notification: NotificationInfo
     ): Result<Unit> {
@@ -105,7 +109,7 @@ class MqttNotificationSender(
     /**
      * Envía una notificación general.
      */
-    suspend fun sendGeneralNotification(title: String, content: String): Result<Unit> {
+    override suspend fun sendGeneralNotification(title: String, content: String): Result<Unit> {
         return try {
             if (!connectionManager.isConnected()) {
                 return Result.failure(Exception("MQTT no conectado"))
@@ -127,16 +131,34 @@ class MqttNotificationSender(
     
     /**
      * Construye el payload JSON de la notificación.
+     * 
+     * SEGURIDAD:
+     * - NO incluye userId ni username para evitar leakage de datos sensibles
+     * - Limita payload a MAX_PAYLOAD_SIZE bytes para evitar buffer overflow en ESP32
      */
     private fun buildNotificationPayload(notification: NotificationInfo): String {
+        // Calcular espacio disponible para contenido dinámico
+        // JSON base: {"title":"","content":"","appName":"","timestamp":0000000000000,"id":0}
+        // ~70 bytes de overhead JSON
+        val jsonOverhead = 70
+        val maxContentSize = MAX_PAYLOAD_SIZE - jsonOverhead
+        
+        // Truncar campos para respetar límite
+        val titleMaxLen = minOf(50, maxContentSize / 3)
+        val contentMaxLen = minOf(120, maxContentSize / 2)
+        val appNameMaxLen = minOf(30, maxContentSize / 4)
+        
+        val truncatedTitle = notification.title.take(titleMaxLen)
+        val truncatedContent = notification.content.take(contentMaxLen)
+        val truncatedAppName = notification.appName.take(appNameMaxLen)
+        
         return JSONObject().apply {
-            put("title", notification.title)
-            put("content", notification.content)
-            put("appName", notification.appName)
+            put("title", truncatedTitle)
+            put("content", truncatedContent)
+            put("appName", truncatedAppName)
             put("timestamp", notification.timestamp.time)
             put("id", notification.id)
-            currentUserId?.let { put("userId", it) }
-            currentUsername?.let { put("username", it) }
+            // SEGURIDAD: userId y username REMOVIDOS - no necesarios para ESP32
         }.toString()
     }
 }

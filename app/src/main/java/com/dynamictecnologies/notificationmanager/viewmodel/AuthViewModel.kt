@@ -1,8 +1,12 @@
 package com.dynamictecnologies.notificationmanager.viewmodel
 
 import android.content.Intent
+import android.os.Parcelable
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
+import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewModelScope
 import com.dynamictecnologies.notificationmanager.data.constants.AuthStrings
 import com.dynamictecnologies.notificationmanager.data.exceptions.AuthException
@@ -25,8 +29,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.parcelize.Parcelize
 
 class AuthViewModel(
+    private val savedStateHandle: SavedStateHandle,
     private val authRepository: AuthRepository,
     private val signInWithEmailUseCase: SignInWithEmailUseCase,
     private val registerUserWithUsernameUseCase: RegisterUserWithUsernameUseCase,
@@ -40,14 +46,24 @@ class AuthViewModel(
     private val usernameValidator: com.dynamictecnologies.notificationmanager.data.validator.UsernameValidator
 ) : ViewModel() {
 
+    companion object {
+        private const val KEY_LOGIN_FORM = "login_form_state"
+        private const val KEY_REGISTER_FORM = "register_form_state"
+    }
+
     private val _authState = MutableStateFlow(AuthState())
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
-    private val _registerFormState = MutableStateFlow(RegisterFormState())
-    val registerFormState: StateFlow<RegisterFormState> = _registerFormState.asStateFlow()
+    // Estados de formulario persistidos en SavedStateHandle para sobrevivir Process Death
+    val registerFormState: StateFlow<RegisterFormState> = savedStateHandle.getStateFlow(
+        key = KEY_REGISTER_FORM,
+        initialValue = RegisterFormState()
+    )
 
-    private val _loginFormState = MutableStateFlow(LoginFormState())
-    val loginFormState: StateFlow<LoginFormState> = _loginFormState.asStateFlow()
+    val loginFormState: StateFlow<LoginFormState> = savedStateHandle.getStateFlow(
+        key = KEY_LOGIN_FORM,
+        initialValue = LoginFormState()
+    )
 
     private var registerEmailValidationJob: Job? = null
     private var registerPasswordValidationJob: Job? = null
@@ -265,14 +281,16 @@ class AuthViewModel(
         val isSessionValid: Boolean = false
     )
 
+    @Parcelize
     data class LoginFormState(
         val email: String = "",
         val password: String = "",
         val emailError: String? = null,
         val passwordError: String? = null,
         val isFormValid: Boolean = false
-    )
+    ) : Parcelable
 
+    @Parcelize
     data class RegisterFormState(
         val email: String = "",
         val password: String = "",
@@ -283,10 +301,10 @@ class AuthViewModel(
         val confirmPasswordError: String? = null,
         val usernameError: String? = null,
         val isFormValid: Boolean = false
-    )
+    ) : Parcelable
 
     fun updateRegisterEmail(email: String) {
-        _registerFormState.value = _registerFormState.value.copy(email = email)
+        savedStateHandle[KEY_REGISTER_FORM] = registerFormState.value.copy(email = email)
         
         registerEmailValidationJob?.cancel()
         registerEmailValidationJob = viewModelScope.launch {
@@ -297,13 +315,13 @@ class AuthViewModel(
                     authValidator.getErrorMessage(result.error, result.details)
                 else -> null
             }
-            _registerFormState.value = _registerFormState.value.copy(emailError = error)
+            savedStateHandle[KEY_REGISTER_FORM] = registerFormState.value.copy(emailError = error)
             updateFormValidity()
         }
     }
 
     fun updateRegisterPassword(password: String) {
-        _registerFormState.value = _registerFormState.value.copy(password = password)
+        savedStateHandle[KEY_REGISTER_FORM] = registerFormState.value.copy(password = password)
         
         registerPasswordValidationJob?.cancel()
         registerPasswordValidationJob = viewModelScope.launch {
@@ -314,31 +332,31 @@ class AuthViewModel(
                     authValidator.getErrorMessage(result.error, result.details)
                 else -> null
             }
-            _registerFormState.value = _registerFormState.value.copy(passwordError = error)
+            savedStateHandle[KEY_REGISTER_FORM] = registerFormState.value.copy(passwordError = error)
             updateFormValidity()
         }
     }
 
     fun updateRegisterConfirmPassword(confirmPassword: String) {
-        _registerFormState.value = _registerFormState.value.copy(confirmPassword = confirmPassword)
+        savedStateHandle[KEY_REGISTER_FORM] = registerFormState.value.copy(confirmPassword = confirmPassword)
         
         registerConfirmPasswordValidationJob?.cancel()
         registerConfirmPasswordValidationJob = viewModelScope.launch {
             delay(300)
             
-            val state = _registerFormState.value
+            val state = registerFormState.value
             val error = when(val result = authValidator.validatePasswordMatch(state.password, confirmPassword)) {
                 is com.dynamictecnologies.notificationmanager.data.validator.AuthValidator.ValidationResult.Invalid -> 
                     authValidator.getErrorMessage(result.error, result.details)
                 else -> null
             }
-            _registerFormState.value = state.copy(confirmPasswordError = error)
+            savedStateHandle[KEY_REGISTER_FORM] = state.copy(confirmPasswordError = error)
             updateFormValidity()
         }
     }
 
     fun updateRegisterUsername(username: String) {
-        _registerFormState.value = _registerFormState.value.copy(username = username)
+        savedStateHandle[KEY_REGISTER_FORM] = registerFormState.value.copy(username = username)
         
         registerUsernameValidationJob?.cancel()
         registerUsernameValidationJob = viewModelScope.launch {
@@ -349,13 +367,13 @@ class AuthViewModel(
                     usernameValidator.getErrorMessage(result.error)
                 else -> null
             }
-            _registerFormState.value = _registerFormState.value.copy(usernameError = error)
+            savedStateHandle[KEY_REGISTER_FORM] = registerFormState.value.copy(usernameError = error)
             updateFormValidity()
         }
     }
 
     private fun updateFormValidity() {
-        val state = _registerFormState.value
+        val state = registerFormState.value
         val isValid = state.email.isNotBlank() &&
                       state.password.isNotBlank() &&
                       state.confirmPassword.isNotBlank() &&
@@ -365,15 +383,15 @@ class AuthViewModel(
                       state.confirmPasswordError == null &&
                       state.usernameError == null
         
-        _registerFormState.value = state.copy(isFormValid = isValid)
+        savedStateHandle[KEY_REGISTER_FORM] = state.copy(isFormValid = isValid)
     }
 
     fun clearRegisterForm() {
-        _registerFormState.value = RegisterFormState()
+        savedStateHandle[KEY_REGISTER_FORM] = RegisterFormState()
     }
 
     fun updateLoginEmail(email: String) {
-        _loginFormState.value = _loginFormState.value.copy(email = email)
+        savedStateHandle[KEY_LOGIN_FORM] = loginFormState.value.copy(email = email)
         
         loginEmailValidationJob?.cancel()
         loginEmailValidationJob = viewModelScope.launch {
@@ -384,13 +402,13 @@ class AuthViewModel(
                     authValidator.getErrorMessage(result.error, result.details)
                 else -> null
             }
-            _loginFormState.value = _loginFormState.value.copy(emailError = error)
+            savedStateHandle[KEY_LOGIN_FORM] = loginFormState.value.copy(emailError = error)
             updateLoginFormValidity()
         }
     }
 
     fun updateLoginPassword(password: String) {
-        _loginFormState.value = _loginFormState.value.copy(password = password)
+        savedStateHandle[KEY_LOGIN_FORM] = loginFormState.value.copy(password = password)
         
         loginPasswordValidationJob?.cancel()
         loginPasswordValidationJob = viewModelScope.launch {
@@ -400,22 +418,22 @@ class AuthViewModel(
                 AuthStrings.ValidationErrors.EMPTY_PASSWORD 
             else null
             
-            _loginFormState.value = _loginFormState.value.copy(passwordError = error)
+            savedStateHandle[KEY_LOGIN_FORM] = loginFormState.value.copy(passwordError = error)
             updateLoginFormValidity()
         }
     }
 
     private fun updateLoginFormValidity() {
-        val state = _loginFormState.value
+        val state = loginFormState.value
         val isValid = state.email.isNotBlank() &&
                       state.password.isNotBlank() &&
                       state.emailError == null &&
                       state.passwordError == null
-        _loginFormState.value = state.copy(isFormValid = isValid)
+        savedStateHandle[KEY_LOGIN_FORM] = state.copy(isFormValid = isValid)
     }
 
     fun clearLoginForm() {
-        _loginFormState.value = LoginFormState()
+        savedStateHandle[KEY_LOGIN_FORM] = LoginFormState()
     }
 
     class Factory(
@@ -431,10 +449,12 @@ class AuthViewModel(
         private val authValidator: com.dynamictecnologies.notificationmanager.data.validator.AuthValidator,
         private val usernameValidator: com.dynamictecnologies.notificationmanager.data.validator.UsernameValidator
     ) : ViewModelProvider.Factory {
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        @Suppress("UNCHECKED_CAST")
+        override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
             if (modelClass.isAssignableFrom(AuthViewModel::class.java)) {
-                @Suppress("UNCHECKED_CAST")
+                val savedStateHandle = extras.createSavedStateHandle()
                 return AuthViewModel(
+                    savedStateHandle,
                     authRepository,
                     signInWithEmailUseCase,
                     registerUserWithUsernameUseCase,

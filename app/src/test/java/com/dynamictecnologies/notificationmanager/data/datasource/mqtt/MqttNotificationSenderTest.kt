@@ -1,13 +1,16 @@
 package com.dynamictecnologies.notificationmanager.data.datasource.mqtt
 
+import android.util.Log
 import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
 import io.mockk.*
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 import java.util.Date
 
 /**
@@ -19,6 +22,8 @@ import java.util.Date
  * - Construcción de payloads JSON
  * - Gestión de usuario actual
  */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [28])
 class MqttNotificationSenderTest {
 
     private lateinit var mockConnectionManager: MqttConnectionManager
@@ -26,6 +31,13 @@ class MqttNotificationSenderTest {
 
     @Before
     fun setup() {
+        // Mock estático de Log para evitar NPE
+        mockkStatic(Log::class)
+        every { Log.d(any(), any()) } returns 0
+        every { Log.e(any(), any()) } returns 0
+        every { Log.e(any(), any(), any()) } returns 0
+        every { Log.w(any(), any<String>()) } returns 0
+        
         // Use relaxed mock to handle any additional method calls
         mockConnectionManager = mockk(relaxed = true)
         
@@ -76,12 +88,11 @@ class MqttNotificationSenderTest {
         )
     }
 
-    @Ignore("Requires mock refactoring for publish() with default params")
     @Test
     fun `sendNotification publishes to correct topic when connected`() = runTest {
         // Given
         every { mockConnectionManager.isConnected() } returns true
-        coEvery { mockConnectionManager.publish(any(), any(), any()) } coAnswers { Result.success(Unit) }
+        coEvery { mockConnectionManager.publish(any(), any(), any()) } returns Result.success(Unit)
         
         val deviceId = "device123"
         val notification = NotificationInfo(
@@ -95,11 +106,10 @@ class MqttNotificationSenderTest {
         // When
         val result = sender.sendNotification(deviceId, notification)
 
-        // Then - just verify success, don't verify detailed call args
+        // Then
         assertTrue("Result should be success: ${result.exceptionOrNull()?.message}", result.isSuccess)
     }
 
-    @Ignore("Requires mock refactoring for publish() with default params")
     @Test
     fun `sendNotification includes user info in payload when set`() = runTest {
         // Given
@@ -140,33 +150,30 @@ class MqttNotificationSenderTest {
         assertTrue("Result should be failure", result.isFailure)
     }
 
-    @Ignore("Requires mock refactoring for publish() with default params")
     @Test
     fun `sendGeneralNotification publishes to general topic when connected`() = runTest {
         // Given
         every { mockConnectionManager.isConnected() } returns true
-        coEvery { mockConnectionManager.publish(any(), any()) } coAnswers { Result.success(Unit) }
-        coEvery { mockConnectionManager.publish(any(), any(), any()) } coAnswers { Result.success(Unit) }
+        coEvery { mockConnectionManager.publish(any(), any(), any()) } returns Result.success(Unit)
 
         // When
         val result = sender.sendGeneralNotification("Test Title", "Test Content")
 
-        // Then - just verify success
+        // Then
         assertTrue("Result should be success: ${result.exceptionOrNull()?.message}", result.isSuccess)
     }
 
-    @Ignore("Requires mock refactoring for publish() with default params")
     @Test
     fun `sendGeneralNotification includes timestamp in payload`() = runTest {
         // Given
         every { mockConnectionManager.isConnected() } returns true
-        coEvery { mockConnectionManager.publish(any(), any()) } coAnswers { Result.success(Unit) }
-        coEvery { mockConnectionManager.publish(any(), any(), any()) } coAnswers { Result.success(Unit) }
+        coEvery { mockConnectionManager.publish(any(), any(), any()) } returns Result.success(Unit)
 
         // When
         val result = sender.sendGeneralNotification("Title", "Content")
 
-        // Then - just verify success
+        // Then
         assertTrue("Result should be success: ${result.exceptionOrNull()?.message}", result.isSuccess)
     }
 }
+

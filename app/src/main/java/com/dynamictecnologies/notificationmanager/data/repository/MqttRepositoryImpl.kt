@@ -29,8 +29,8 @@ class MqttRepositoryImpl(
         return connectionManager.connect()
     }
     
-    override suspend fun disconnect() {
-        connectionManager.disconnect()
+    override suspend fun disconnect(): Result<Unit> {
+        return connectionManager.disconnect()
     }
     
     override fun isConnected(): Boolean {

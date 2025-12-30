@@ -14,8 +14,10 @@ class DisconnectFromMqttUseCase(
 ) {
     /**
      * Desconecta del broker MQTT.
+     * 
+     * @return Result<Unit> Success si desconecta correctamente, Failure si falla
      */
-    suspend operator fun invoke() {
-        mqttRepository.disconnect()
+    suspend operator fun invoke(): Result<Unit> {
+        return mqttRepository.disconnect()
     }
 }

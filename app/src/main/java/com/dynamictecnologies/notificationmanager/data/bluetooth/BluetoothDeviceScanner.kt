@@ -44,6 +44,10 @@ class BluetoothDeviceScanner(private val context: Context) {
     private val _isScanning = MutableStateFlow(false)
     val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
     
+    // Estado de error por permiso revocado
+    private val _permissionError = MutableStateFlow<String?>(null)
+    val permissionError: StateFlow<String?> = _permissionError.asStateFlow()
+    
     private var isReceiverRegistered = false
     private var scanStartTime: Long = 0
     
@@ -51,25 +55,34 @@ class BluetoothDeviceScanner(private val context: Context) {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
                 BluetoothDevice.ACTION_FOUND -> {
+                    // Verificación defensiva: permisos pueden revocarse durante escaneo
+                    if (!hasBluetoothPermissions()) {
+                        Log.w(TAG, "Permiso Bluetooth revocado durante escaneo - deteniendo")
+                        _permissionError.value = "Permiso Bluetooth revocado. Por favor, otórguelo nuevamente."
+                        stopScanSafely()
+                        return
+                    }
+                    
                     val device: BluetoothDevice? = 
                         intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
                     val rssi = intent.getShortExtra(BluetoothDevice.EXTRA_RSSI, Short.MIN_VALUE).toInt()
                     
                     device?.let {
                         try {
-                            if (hasBluetoothPermissions()) {
-                                val deviceName = it.name
-                                if (deviceName?.startsWith("ESP32") == true) {
-                                    addDevice(ScannedDevice(
-                                        name = deviceName,
-                                        address = it.address,
-                                        rssi = rssi
-                                    ))
-                                    Log.d(TAG, "Dispositivo ESP32 encontrado: $deviceName (RSSI: $rssi)")
-                                }
+                            val deviceName = it.name
+                            if (deviceName?.startsWith("ESP32") == true) {
+                                addDevice(ScannedDevice(
+                                    name = deviceName,
+                                    address = it.address,
+                                    rssi = rssi
+                                ))
+                                Log.d(TAG, "Dispositivo ESP32 encontrado: $deviceName (RSSI: $rssi)")
                             }
                         } catch (e: SecurityException) {
-                            Log.e(TAG, "Error de permisos al obtener nombre del dispositivo", e)
+                            // Permiso revocado durante operación
+                            Log.w(TAG, "Permiso revocado al acceder dispositivo Bluetooth")
+                            _permissionError.value = "Permiso Bluetooth requerido para escanear dispositivos."
+                            stopScanSafely()
                         }
                     }
                 }
@@ -146,17 +159,41 @@ class BluetoothDeviceScanner(private val context: Context) {
      * Detiene el escaneo actual
      */
     fun stopScan() {
+        stopScanSafely()
+    }
+    
+    /**
+     * Detiene el escaneo de forma segura, manejando posible revocación de permisos.
+     */
+    private fun stopScanSafely() {
         try {
-            bluetoothAdapter?.cancelDiscovery()
-            if (isReceiverRegistered) {
-                context.unregisterReceiver(receiver)
+            // Solo intentar cancelar discovery si tenemos permisos
+            if (hasBluetoothPermissions()) {
+                bluetoothAdapter?.cancelDiscovery()
+            }
+        } catch (e: SecurityException) {
+            Log.w(TAG, "Permiso revocado al detener escaneo (no es crítico)")
+        } finally {
+            // Siempre limpiar el receiver aunque falle cancelDiscovery
+            try {
+                if (isReceiverRegistered) {
+                    context.unregisterReceiver(receiver)
+                    isReceiverRegistered = false
+                }
+            } catch (e: IllegalArgumentException) {
+                // Receiver ya no registrado
                 isReceiverRegistered = false
             }
             _isScanning.value = false
             Log.d(TAG, "Escaneo Bluetooth detenido")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error deteniendo escaneo: ${e.message}")
         }
+    }
+    
+    /**
+     * Limpia el estado de error de permisos.
+     */
+    fun clearPermissionError() {
+        _permissionError.value = null
     }
     
     /**

@@ -67,14 +67,30 @@ class DisconnectFromMqttUseCaseTest {
     }
 
     @Test
-    fun `invoke calls repository disconnect`() = runTest {
+    fun `invoke calls repository disconnect and returns success`() = runTest {
         // Given
-        coEvery { mockRepository.disconnect() } just Runs
+        coEvery { mockRepository.disconnect() } returns Result.success(Unit)
 
         // When
-        useCase()
+        val result = useCase()
 
         // Then
+        assertTrue("Should return success", result.isSuccess)
+        coVerify(exactly = 1) { mockRepository.disconnect() }
+    }
+    
+    @Test
+    fun `invoke returns failure when repository fails`() = runTest {
+        // Given
+        val exception = Exception("Disconnect error")
+        coEvery { mockRepository.disconnect() } returns Result.failure(exception)
+
+        // When
+        val result = useCase()
+
+        // Then
+        assertTrue("Should return failure", result.isFailure)
+        assertEquals(exception, result.exceptionOrNull())
         coVerify(exactly = 1) { mockRepository.disconnect() }
     }
 }

@@ -31,9 +31,10 @@ sealed class AppRoutes(val route: String) {
 enum class AppScreen(
     val title: String,
     val icon: ImageVector,
-    val route: String
+    val route: String,
+    val canShare: Boolean = false
 ) {
-    HOME("Inicio", Icons.Default.Home, AppRoutes.MainScreen.Home.route),
+    HOME("Inicio", Icons.Default.Home, AppRoutes.MainScreen.Home.route, canShare = true),
     PROFILE("Perfil", Icons.Default.Person, AppRoutes.MainScreen.Profile.route)
 }
 

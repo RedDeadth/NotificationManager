@@ -1,6 +1,7 @@
 package com.dynamictecnologies.notificationmanager.data.datasource.mqtt
 
 import android.content.Context
+import android.util.Log
 import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
 import io.mockk.*
 import kotlinx.coroutines.test.runTest
@@ -8,7 +9,9 @@ import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
-import java.util.Date
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
  * Tests unitarios para MqttMessageHandler.
@@ -17,8 +20,10 @@ import java.util.Date
  * - Procesamiento de mensajes de descubrimiento
  * - Procesamiento de estado de dispositivos
  * - Parsing de payloads de notificación
- * - Manejo de errores
+ * - Manejo de errores (JSON malformado, topics inválidos)
  */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [28])
 class MqttMessageHandlerTest {
 
     private lateinit var context: Context
@@ -26,6 +31,12 @@ class MqttMessageHandlerTest {
 
     @Before
     fun setup() {
+        // Mock estático de Log para evitar NPE en tests unitarios
+        mockkStatic(Log::class)
+        every { Log.d(any(), any()) } returns 0
+        every { Log.e(any(), any()) } returns 0
+        every { Log.w(any(), any<String>()) } returns 0
+        
         context = mockk(relaxed = true)
         handler = MqttMessageHandler(context)
     }

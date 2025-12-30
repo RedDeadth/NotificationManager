@@ -34,18 +34,23 @@ class MqttReconnectionStrategy(
     private val isReconnecting = AtomicBoolean(false)
     
     /**
-     * Programa un intento de reconexión.
+     * Programa un intento de reconexión de forma thread-safe.
      * 
      * @param delayMillis Delay personalizado en milisegundos (opcional)
      */
+    @Synchronized
     fun scheduleReconnect(delayMillis: Long? = null) {
-        // Si ya está reconectando, no hacer nada
-        if (isReconnecting.getAndSet(true)) {
+        // Verificación atómica: si ya está reconectando, retornar
+        if (isReconnecting.get()) {
             return
         }
         
-        // Cancelar job previo si existe
+        // Marcar como reconectando ANTES de cualquier otra operación
+        isReconnecting.set(true)
+        
+        // Cancelar job previo si existe (ahora es seguro, nadie más puede entrar)
         reconnectJob?.cancel()
+        reconnectJob = null
         
         // Determinar el delay a usar
         val delay = delayMillis ?: getNextRetryInterval()
@@ -59,25 +64,35 @@ class MqttReconnectionStrategy(
                 val result = connectionManager.connect()
                 
                 if (result.isSuccess) {
-                    // Reconexión exitosa
+                    // Reconexión exitosa - resetear todo
                     resetAttempts()
                     
                     // Re-suscribirse a todos los topics
                     subscriptionManager.resubscribeAll()
                 } else {
-                    // Reconexión falló, incrementar contador e intentar nuevamente
+                    // Reconexión falló, incrementar contador
                     currentRetryAttempt.incrementAndGet()
+                    
+                    // Liberar flag ANTES de programar nuevo intento
                     isReconnecting.set(false)
+                    
+                    // Programar nuevo intento (llamada recursiva)
                     scheduleReconnect()
                 }
             } catch (e: Exception) {
                 // Error durante reconexión
                 currentRetryAttempt.incrementAndGet()
+                
+                // Liberar flag ANTES de programar nuevo intento
                 isReconnecting.set(false)
+                
+                // Programar nuevo intento
                 scheduleReconnect()
-            } finally {
-                isReconnecting.set(false)
             }
+            // NOTA: No hay finally que setee isReconnecting=false
+            // El flag se libera explícitamente en cada path:
+            // - Éxito: resetAttempts() lo hace
+            // - Fallo: se libera antes de scheduleReconnect()
         }
     }
     
