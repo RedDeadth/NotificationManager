@@ -125,9 +125,10 @@ object BluetoothMqttModule {
     
     fun providePairDeviceWithTokenUseCase(
         pairingRepository: DevicePairingRepository,
-        mqttConnectionManager: MqttConnectionManager
+        mqttConnectionManager: MqttConnectionManager,
+        notificationSender: MqttNotificationSender
     ): PairDeviceWithTokenUseCase {
-        return PairDeviceWithTokenUseCase(pairingRepository, mqttConnectionManager)
+        return PairDeviceWithTokenUseCase(pairingRepository, mqttConnectionManager, notificationSender)
     }
     
     fun provideSendNotificationToDeviceUseCase(
@@ -139,9 +140,10 @@ object BluetoothMqttModule {
     
     fun provideUnpairDeviceUseCase(
         pairingRepository: DevicePairingRepository,
-        mqttConnectionManager: MqttConnectionManager
+        mqttConnectionManager: MqttConnectionManager,
+        notificationSender: MqttNotificationSender
     ): UnpairDeviceUseCase {
-        return UnpairDeviceUseCase(pairingRepository, mqttConnectionManager)
+        return UnpairDeviceUseCase(pairingRepository, mqttConnectionManager, notificationSender)
     }
     
     // ========================================
@@ -152,11 +154,12 @@ object BluetoothMqttModule {
         val bluetoothScanner = provideBluetoothDeviceScanner(context)
         val mqttConnectionManager = provideMqttConnectionManager(context)
         val pairingRepository = provideDevicePairingRepository(context)
+        val notificationSender = provideMqttNotificationSender(mqttConnectionManager)
         
         return com.dynamictecnologies.notificationmanager.viewmodel.DevicePairingViewModelFactory(
             scanBluetoothDevicesUseCase = provideScanBluetoothDevicesUseCase(bluetoothScanner),
-            pairDeviceUseCase = providePairDeviceWithTokenUseCase(pairingRepository, mqttConnectionManager),
-            unpairDeviceUseCase = provideUnpairDeviceUseCase(pairingRepository, mqttConnectionManager),
+            pairDeviceUseCase = providePairDeviceWithTokenUseCase(pairingRepository, mqttConnectionManager, notificationSender),
+            unpairDeviceUseCase = provideUnpairDeviceUseCase(pairingRepository, mqttConnectionManager, notificationSender),
             pairingRepository = pairingRepository
         )
     }

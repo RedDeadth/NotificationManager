@@ -9,6 +9,7 @@ import com.dynamictecnologies.notificationmanager.data.bluetooth.BluetoothDevice
 import com.dynamictecnologies.notificationmanager.domain.entities.DevicePairing
 import com.dynamictecnologies.notificationmanager.domain.repositories.DevicePairingRepository
 import com.dynamictecnologies.notificationmanager.domain.usecases.device.*
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -28,7 +29,8 @@ class DevicePairingViewModel(
     private val scanBluetoothDevicesUseCase: ScanBluetoothDevicesUseCase,
     private val pairDeviceUseCase: PairDeviceWithTokenUseCase,
     private val unpairDeviceUseCase: UnpairDeviceUseCase,
-    private val pairingRepository: DevicePairingRepository
+    private val pairingRepository: DevicePairingRepository,
+    private val firebaseAuth: FirebaseAuth = FirebaseAuth.getInstance()
 ) : ViewModel() {
     
     // Estados UI
@@ -130,11 +132,20 @@ class DevicePairingViewModel(
     fun pairDeviceWithToken(token: String) {
         _pairingState.value = PairingState.Pairing
         
+        // Obtener username de Firebase Auth
+        val currentUser = firebaseAuth.currentUser
+        val username = when {
+            !currentUser?.displayName.isNullOrBlank() -> currentUser?.displayName?.take(16) ?: "Usuario"
+            !currentUser?.email.isNullOrBlank() -> currentUser?.email?.substringBefore("@")?.take(16) ?: "Usuario"
+            else -> "Usuario"
+        }
+        
         viewModelScope.launch {
             pairDeviceUseCase(
                 bluetoothName = "ESP32_$token",  // Usa el token como identificador
                 bluetoothAddress = "00:00:00:00:00:00",  // Sin dirección Bluetooth
-                token = token
+                token = token,
+                username = username
             ).onSuccess {
                 _pairingState.value = PairingState.Success
             }.onFailure { error ->
@@ -152,8 +163,16 @@ class DevicePairingViewModel(
     fun unpairDevice() {
         _pairingState.value = PairingState.Pairing
         
+        // Obtener username de Firebase Auth para notificar al ESP32
+        val currentUser = firebaseAuth.currentUser
+        val username = when {
+            !currentUser?.displayName.isNullOrBlank() -> currentUser?.displayName?.take(16) ?: "Usuario"
+            !currentUser?.email.isNullOrBlank() -> currentUser?.email?.substringBefore("@")?.take(16) ?: "Usuario"
+            else -> "Usuario"
+        }
+        
         viewModelScope.launch {
-            unpairDeviceUseCase().onSuccess {
+            unpairDeviceUseCase(username).onSuccess {
                 _pairingState.value = PairingState.Success
             }.onFailure { error ->
                 _pairingState.value = PairingState.Error(

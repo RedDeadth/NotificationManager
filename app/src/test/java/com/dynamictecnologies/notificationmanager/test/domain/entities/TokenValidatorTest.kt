@@ -16,53 +16,53 @@ import org.junit.Test
 class TokenValidatorTest {
     
     @Test
-    fun `validate accepts valid 8-character alphanumeric token`() {
-        assertTrue(TokenValidator.validate("A3F9K2L7"))
-        assertTrue(TokenValidator.validate("12345678"))
-        assertTrue(TokenValidator.validate("ABCDEFGH"))
-        assertTrue(TokenValidator.validate("A1B2C3D4"))
+    fun `validate accepts valid 6-character alphanumeric token`() {
+        assertTrue(TokenValidator.validate("A3F9K2"))
+        assertTrue(TokenValidator.validate("123456"))
+        assertTrue(TokenValidator.validate("ABCDEF"))
+        assertTrue(TokenValidator.validate("A1B2C3"))
     }
     
     @Test
-    fun `validate rejects token shorter than 8 characters`() {
+    fun `validate rejects token shorter than 6 characters`() {
         assertFalse(TokenValidator.validate("SHORT"))
-        assertFalse(TokenValidator.validate("ABC123"))
-        assertFalse(TokenValidator.validate("1234567"))
+        assertFalse(TokenValidator.validate("ABC12"))
+        assertFalse(TokenValidator.validate("12345"))
         assertFalse(TokenValidator.validate(""))
     }
     
     @Test
-    fun `validate rejects token longer than 8 characters`() {
+    fun `validate rejects token longer than 6 characters`() {
         assertFalse(TokenValidator.validate("TOOLONGTOKEN"))
-        assertFalse(TokenValidator.validate("123456789"))
+        assertFalse(TokenValidator.validate("1234567"))
     }
     
     @Test
     fun `validate rejects token with lowercase letters`() {
-        assertFalse(TokenValidator.validate("a3f9k2l7"))
-        assertFalse(TokenValidator.validate("AbCdEfGh"))
-        assertFalse(TokenValidator.validate("test1234"))
+        assertFalse(TokenValidator.validate("a3f9k2"))
+        assertFalse(TokenValidator.validate("AbCdEf"))
+        assertFalse(TokenValidator.validate("test12"))
     }
     
     @Test
     fun `validate rejects token with special characters`() {
-        assertFalse(TokenValidator.validate("A3F@K2L7"))
-        assertFalse(TokenValidator.validate("TEST-123"))
-        assertFalse(TokenValidator.validate("TOKEN_01"))
-        assertFalse(TokenValidator.validate("TEST 123"))
+        assertFalse(TokenValidator.validate("A3F@K2"))
+        assertFalse(TokenValidator.validate("TEST-1"))
+        assertFalse(TokenValidator.validate("TOK_01"))
+        assertFalse(TokenValidator.validate("TES 12"))
     }
     
     @Test
     fun `formatAsTopic generates correct MQTT topic`() {
-        assertEquals("n/A3F9K2L7", TokenValidator.formatAsTopic("A3F9K2L7"))
-        assertEquals("n/12345678", TokenValidator.formatAsTopic("12345678"))
-        assertEquals("n/TESTTEST", TokenValidator.formatAsTopic("TESTTEST"))
+        assertEquals("n/A3F9K2", TokenValidator.formatAsTopic("A3F9K2"))
+        assertEquals("n/123456", TokenValidator.formatAsTopic("123456"))
+        assertEquals("n/TESTAB", TokenValidator.formatAsTopic("TESTAB"))
     }
     
     @Test
     fun `extractTokenFromTopic extracts token from valid topic`() {
-        assertEquals("A3F9K2L7", TokenValidator.extractTokenFromTopic("n/A3F9K2L7"))
-        assertEquals("12345678", TokenValidator.extractTokenFromTopic("n/12345678"))
+        assertEquals("A3F9K2", TokenValidator.extractTokenFromTopic("n/A3F9K2"))
+        assertEquals("123456", TokenValidator.extractTokenFromTopic("n/123456"))
     }
     
     @Test
@@ -74,7 +74,7 @@ class TokenValidatorTest {
     }
     
     @Test
-    fun `TOKEN_LENGTH constant is 8`() {
-        assertEquals(8, TokenValidator.TOKEN_LENGTH)
+    fun `TOKEN_LENGTH constant is 6`() {
+        assertEquals(6, TokenValidator.TOKEN_LENGTH)
     }
 }

@@ -14,7 +14,7 @@ import androidx.compose.ui.unit.dp
 import com.dynamictecnologies.notificationmanager.domain.entities.TokenValidator
 
 /**
- * Dialog para ingreso de token de 8 caracteres.
+ * Dialog para ingreso de token de 6 caracteres.
  * 
  * Características:
  * - Validación en tiempo real
@@ -51,7 +51,7 @@ fun TokenInputDialog(
                 )
                 
                 Text(
-                    text = "Ingrese el token de 8 caracteres mostrado en la pantalla LCD del dispositivo:",
+                    text = "Ingrese el token de 6 caracteres mostrado en la pantalla LCD del dispositivo:",
                     style = MaterialTheme.typography.bodyMedium
                 )
                 
@@ -66,7 +66,7 @@ fun TokenInputDialog(
                     },
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = {
-                        Text("Ej: A3F9K2L7")
+                        Text("Ej: A3F9K2")
                     },
                     supportingText = {
                         Text(

@@ -130,6 +130,84 @@ class MqttNotificationSender(
     }
     
     /**
+     * Envía notificación de conexión al ESP32 para que muestre el usuario conectado.
+     * 
+     * @param topic Topic MQTT del dispositivo (ej: "n/ABC123")
+     * @param username Nombre del usuario que se conectó
+     * @return Result<Unit> Success si se envía correctamente
+     */
+    suspend fun sendConnectionNotification(topic: String, username: String): Result<Unit> {
+        android.util.Log.d(TAG, "=== NOTIFICANDO CONEXIÓN A ESP32 ===")
+        android.util.Log.d(TAG, "Topic: $topic, Usuario: $username")
+        
+        return try {
+            val isConnected = connectionManager.isConnected()
+            if (!isConnected) {
+                android.util.Log.e(TAG, "MQTT no conectado para enviar notificación de conexión")
+                return Result.failure(Exception("MQTT no conectado"))
+            }
+            
+            val payload = JSONObject().apply {
+                put("type", "connection")
+                put("username", username.take(16)) // Limitar a 16 chars para LCD
+                put("timestamp", System.currentTimeMillis())
+            }.toString()
+            
+            android.util.Log.d(TAG, "Payload conexión: $payload")
+            
+            val result = connectionManager.publish(topic, payload, qos = 1)
+            if (result.isSuccess) {
+                android.util.Log.d(TAG, "✓ Notificación de conexión enviada a $topic")
+            } else {
+                android.util.Log.e(TAG, "✗ Error enviando notificación de conexión")
+            }
+            result
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "✗ Excepción: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+    
+    /**
+     * Envía notificación de desconexión al ESP32 para que muestre desvinculación.
+     * 
+     * @param topic Topic MQTT del dispositivo (ej: "n/ABC123")
+     * @param username Nombre del usuario que se desconectó
+     * @return Result<Unit> Success si se envía correctamente
+     */
+    suspend fun sendDisconnectNotification(topic: String, username: String): Result<Unit> {
+        android.util.Log.d(TAG, "=== NOTIFICANDO DESCONEXIÓN A ESP32 ===")
+        android.util.Log.d(TAG, "Topic: $topic, Usuario: $username")
+        
+        return try {
+            val isConnected = connectionManager.isConnected()
+            if (!isConnected) {
+                android.util.Log.e(TAG, "MQTT no conectado para enviar notificación de desconexión")
+                return Result.failure(Exception("MQTT no conectado"))
+            }
+            
+            val payload = JSONObject().apply {
+                put("type", "disconnect")
+                put("username", username.take(16))
+                put("timestamp", System.currentTimeMillis())
+            }.toString()
+            
+            android.util.Log.d(TAG, "Payload desconexión: $payload")
+            
+            val result = connectionManager.publish(topic, payload, qos = 1)
+            if (result.isSuccess) {
+                android.util.Log.d(TAG, "✓ Notificación de desconexión enviada a $topic")
+            } else {
+                android.util.Log.e(TAG, "✗ Error enviando notificación de desconexión")
+            }
+            result
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "✗ Excepción: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+    
+    /**
      * Construye el payload JSON de la notificación.
      * 
      * SEGURIDAD:

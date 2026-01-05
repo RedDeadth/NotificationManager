@@ -42,7 +42,7 @@ class SendNotificationToDeviceUseCaseTest {
     @Test
     fun `invoke with paired device should publish to correct topic`() = runTest {
         // Given
-        val topic = "n/A3F9K2L7"
+        val topic = "n/A3F9K2"
         val notification = NotificationInfo(
             appName = "Banco",
             title = "Transacción",
@@ -88,7 +88,7 @@ class SendNotificationToDeviceUseCaseTest {
     @Test
     fun `invoke should propagate MQTT publish errors`() = runTest {
         // Given
-        val topic = "n/TEST1234"
+        val topic = "n/TEST12"
         val notification = NotificationInfo(
             appName = "App",
             title = "Title",
@@ -111,7 +111,7 @@ class SendNotificationToDeviceUseCaseTest {
     @Test
     fun `invoke should handle notifications with empty content`() = runTest {
         // Given - aunque el ViewModel debería prevenir esto, el use case debe manejarlo
-        val topic = "n/TOKEN123"
+        val topic = "n/TOKEN1"
         val notification = NotificationInfo(
             appName = "App",
             title = "",

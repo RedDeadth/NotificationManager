@@ -44,7 +44,7 @@ class PairDeviceWithTokenUseCaseTest {
         // Given
         val deviceName = "ESP32_A3F9"
         val deviceAddress = "AA:BB:CC:DD:EE:FF"
-        val token = "A3F9K2L7"
+        val token = "A3F9K2"
         
         // Mock suspend functions explicitly - relaxed doesn't work well with Result<T>
         coEvery { pairingRepository.savePairing(any()) } returns Result.success(Unit)
@@ -61,8 +61,8 @@ class PairDeviceWithTokenUseCaseTest {
                 match {
                     it.bluetoothName == deviceName &&
                     it.bluetoothAddress == "AA:BB:CC:DD:EE:FF" &&
-                    it.token == "A3F9K2L7" &&
-                    it.mqttTopic == "n/A3F9K2L7"
+                    it.token == "A3F9K2" &&
+                    it.mqttTopic == "n/A3F9K2"
                 }
             )
         }
@@ -73,7 +73,7 @@ class PairDeviceWithTokenUseCaseTest {
     @Test
     fun `invoke with invalid token should fail with InvalidTokenException`() = runTest {
         // Given
-        val invalidToken = "SHORT"  // Menos de 8 caracteres
+        val invalidToken = "SHORT"  // Menos de 6 caracteres
         
         // When
         val result = useCase("ESP32_A3F9", "AA:BB:CC:DD:EE:FF", invalidToken)
@@ -89,7 +89,7 @@ class PairDeviceWithTokenUseCaseTest {
     @Test
     fun `invoke with lowercase token should normalize to uppercase`() = runTest {
         // Given
-        val lowercaseToken = "a3f9k2l7"
+        val lowercaseToken = "a3f9k2"
         
         coEvery { pairingRepository.savePairing(any()) } returns Result.success(Unit)
         coEvery { mqttConnectionManager.connect() } coAnswers { Result.success(Unit) }
@@ -102,7 +102,7 @@ class PairDeviceWithTokenUseCaseTest {
         
         coVerify {
             pairingRepository.savePairing(
-                match { it.token == "A3F9K2L7" }  // Uppercase
+                match { it.token == "A3F9K2" }  // Uppercase
             )
         }
     }
@@ -110,7 +110,7 @@ class PairDeviceWithTokenUseCaseTest {
     @Test
     fun `invoke should fail if repository save fails`() = runTest {
         // Given
-        val token = "A3F9K2L7"
+        val token = "A3F9K2"
         val error = Exception("Database error")
         
         coEvery { pairingRepository.savePairing(any()) } returns Result.failure(error)
@@ -129,7 +129,7 @@ class PairDeviceWithTokenUseCaseTest {
     @Test
     fun `invoke should fail if MQTT connection fails`() = runTest {
         // Given
-        val token = "A3F9K2L7"
+        val token = "A3F9K2"
         val mqttError = Exception("MQTT connection error")
         
         coEvery { pairingRepository.savePairing(any()) } returns Result.success(Unit)
@@ -146,7 +146,7 @@ class PairDeviceWithTokenUseCaseTest {
     @Test
     fun `invoke with special characters in token should fail`() = runTest {
         // Given
-        val invalidToken = "A3F@K2L7"  // Contiene @
+        val invalidToken = "A3F@K2"  // Contiene @
         
         // When
         val result = useCase("ESP32", "AA:BB:CC:DD:EE:FF", invalidToken)
@@ -159,7 +159,7 @@ class PairDeviceWithTokenUseCaseTest {
     @Test
     fun `invoke should generate correct MQTT topic format`() = runTest {
         // Given
-        val token = "TEST1234"
+        val token = "TEST12"
         
         coEvery { pairingRepository.savePairing(any()) } returns Result.success(Unit)
         coEvery { mqttConnectionManager.connect() } coAnswers { Result.success(Unit) }
@@ -170,7 +170,7 @@ class PairDeviceWithTokenUseCaseTest {
         // Then
         coVerify {
             pairingRepository.savePairing(
-                match { it.mqttTopic == "n/TEST1234" }
+                match { it.mqttTopic == "n/TEST12" }
             )
         }
     }

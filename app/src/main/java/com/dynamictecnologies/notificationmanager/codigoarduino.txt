@@ -51,6 +51,11 @@ unsigned long lastNotificationShownTime = 0;
 bool activeNotificationOnScreen = false;
 int notificationCount = 0;  // Contador de notificaciones de esta sesión
 
+// Variables para guardar última notificación y usuario conectado
+String lastNotificationTitle = "";
+String lastNotificationContent = "";
+String connectedUsername = "";  // Usuario conectado desde la app
+
 // Configuración de LCD
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
@@ -62,7 +67,7 @@ PubSubClient mqttClient(espClient);
 // Variables globales
 unsigned long lastLcdUpdate = 0;
 unsigned long lastStatusUpdate = 0;
-unsigned long lastMqttReconnectAttempt = 0;
+unsigned long lastMqttReconnectAttempt = 0xFFFFFFFF;  // Valor alto para forzar conexión inmediata al arrancar
 unsigned long buttonPressStartTime = 0;
 bool buttonWasPressed = false;
 
@@ -249,7 +254,7 @@ void playUnpairSound() {
 
 /**
  * Callback MQTT
- * Recibe notificaciones y filtra por appName (opcional)
+ * Recibe notificaciones y mensajes de conexión
  */
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Mensaje en [");
@@ -262,11 +267,58 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   }
   Serial.println(message);
   
-  // Parsear JSON: {"title":"...","content":"...","appName":"..."}
+  // Parsear JSON
   DynamicJsonDocument doc(512);
   DeserializationError error = deserializeJson(doc, message);
 
   if (!error) {
+    // Verificar si es un mensaje de conexión
+    String msgType = doc["type"].as<String>();
+    
+    if (msgType == "connection") {
+      // Mensaje de conexión desde la app Android
+      String username = doc["username"].as<String>();
+      Serial.println("Usuario conectado: " + username);
+      
+      // Guardar usuario conectado
+      connectedUsername = username;
+      
+      // Marcar como vinculado
+      isPaired = true;
+      preferences.putBool("paired", true);
+      
+      // Mostrar en LCD
+      showOnLCD(username, "conectado!");
+      playPairingSound();
+      
+      // Después de 3 segundos, mostrar última notificación o estado
+      delay(3000);
+      return;
+    }
+    
+    if (msgType == "disconnect") {
+      // Mensaje de desconexión desde la app Android
+      String username = doc["username"].as<String>();
+      Serial.println("Usuario desconectado: " + username);
+      
+      // Limpiar usuario conectado
+      connectedUsername = "";
+      
+      // Marcar como NO vinculado
+      isPaired = false;
+      preferences.putBool("paired", false);
+      
+      // Mostrar en LCD
+      showOnLCD(username.length() > 0 ? username : "Usuario", "desconectado");
+      playUnpairSound();
+      
+      // Después de 3 segundos, mostrar token para nueva vinculación
+      delay(3000);
+      showOnLCD("TOKEN:", deviceToken);
+      return;
+    }
+    
+    // Es una notificación normal
     String title = doc["title"].as<String>();
     String content = doc["content"].as<String>();
     String appName = doc["appName"].as<String>();
@@ -313,6 +365,10 @@ void processNotificationQueue() {
     Notification notification = notificationQueue[queueHead];
     notificationCount++;  // Incrementar contador
     
+    // Guardar última notificación
+    lastNotificationTitle = notification.title;
+    lastNotificationContent = notification.content;
+    
     Serial.println("Mostrando #" + String(notificationCount) + ": " + notification.title);
     showOnLCD(notification.title, notification.content);
     playNotificationSound();
@@ -322,11 +378,10 @@ void processNotificationQueue() {
     lastNotificationShownTime = millis();
     activeNotificationOnScreen = true;
   } else if (!activeNotificationOnScreen && notificationCount > 0) {
-    // Mostrar contador de última notificación cuando no hay notificaciones en cola
-    if (isPaired) {
-      String line2 = "Ultimo: #" + String(notificationCount);
-      if (currentLcdLine2 != line2) {
-        showOnLCD(deviceId, line2);
+    // Mostrar última notificación cuando no hay en cola
+    if (isPaired && lastNotificationTitle.length() > 0) {
+      if (currentLcdLine1 != lastNotificationTitle) {
+        showOnLCD(lastNotificationTitle, lastNotificationContent);
       }
     }
   }
@@ -394,6 +449,53 @@ boolean connectMQTT() {
     }
   }
   return true;
+}
+
+/**
+ * Fuerza conexión MQTT inmediata (sin verificar intervalo de tiempo)
+ * Usar solo en setup() para asegurar conexión al arrancar
+ */
+void forceConnectMQTT() {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("WiFi no conectado, no se puede conectar MQTT");
+    return;
+  }
+  
+  Serial.println("Intentando conexión MQTT inmediata...");
+  showOnLCD("Conectando MQTT", MQTT_SERVER);
+  
+  String clientId = "ESP32_" + String(random(0xffff), HEX);
+  
+  int attempts = 0;
+  while (!mqttClient.connected() && attempts < 5) {
+    attempts++;
+    Serial.print("Intento #");
+    Serial.println(attempts);
+    
+    if (mqttClient.connect(clientId.c_str(), MQTT_USERNAME, MQTT_PASSWORD)) {
+      Serial.println("MQTT Conectado!");
+      
+      // Suscribirse al topic con el token
+      mqttClient.subscribe(mqttTopic.c_str());
+      Serial.println("Suscrito a: " + mqttTopic);
+      
+      lastMqttReconnectAttempt = millis();  // Actualizar timestamp
+      
+      if (isPaired) {
+        showOnLCD(deviceId, "Vinculado");
+      } else {
+        showOnLCD("TOKEN:", deviceToken);
+      }
+      return;
+    } else {
+      Serial.print("MQTT Error: ");
+      Serial.println(mqttClient.state());
+      delay(1000);  // Esperar antes de reintentar
+    }
+  }
+  
+  Serial.println("No se pudo conectar MQTT después de 5 intentos");
+  showOnLCD("MQTT Error", "Reintenta manual");
 }
 
 /**
@@ -495,6 +597,10 @@ void setup() {
   if (!isPaired) {
     showOnLCD("TOKEN:", deviceToken);
   }
+  
+  // FORZAR conexión MQTT inmediata al arrancar
+  Serial.println("Forzando conexión MQTT inicial...");
+  forceConnectMQTT();
 }
 
 void loop() {

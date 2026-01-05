@@ -4,7 +4,7 @@ package com.dynamictecnologies.notificationmanager.domain.entities
  * Entidad de dominio que representa un dispositivo ESP32 vinculado.
  * 
  * Representa la vinculación más simple posible:
- * - Token de 4 caracteres generado por ESP32
+ * - Token de 6 caracteres generado por ESP32
  * - Topic MQTT derivado del token
  * - Sin userId, sin Firebase sync
  * 
@@ -16,8 +16,8 @@ package com.dynamictecnologies.notificationmanager.domain.entities
 data class DevicePairing(
     val bluetoothName: String,      // "ESP32_A3F9"
     val bluetoothAddress: String,   // "XX:XX:XX:XX:XX:XX"
-    val token: String,               // "A3F9" (4 caracteres)
-    val mqttTopic: String,          // "n/A3F9K2L7"
+    val token: String,               // "A3F9K2" (6 caracteres)
+    val mqttTopic: String,          // "n/A3F9K2"
     val pairedAt: Long               // Timestamp de vinculación
 ) {
     init {
@@ -36,7 +36,7 @@ data class DevicePairing(
         
         // Validación de token
         require(TokenValidator.validate(token)) { 
-            "Invalid token. Must be 4 uppercase alphanumeric characters" 
+            "Invalid token. Must be 6 uppercase alphanumeric characters" 
         }
         
         // Validación de topic MQTT
@@ -59,14 +59,14 @@ data class DevicePairing(
 /**
  * Validador de tokens de dispositivo.
  * 
- * Token format: 4 caracteres alfanuméricos uppercase
- * Ej: "A3F9"
+ * Token format: 6 caracteres alfanuméricos uppercase
+ * Ej: "A3F9K2"
  * 
  * - Stateless: Object sin estado
  */
 object TokenValidator {
-    const val TOKEN_LENGTH = 4
-    private val TOKEN_REGEX = "^[A-Z0-9]{4}$".toRegex()
+    const val TOKEN_LENGTH = 6
+    private val TOKEN_REGEX = "^[A-Z0-9]{6}$".toRegex()
     
     /**
      * Valida formato de token
@@ -97,7 +97,7 @@ object TokenValidator {
 /**
  * Excepción para token inválido
  */
-class InvalidTokenException(token: String) : Exception("Token inválido: $token. Debe ser 4 caracteres alfanuméricos.")
+class InvalidTokenException(token: String) : Exception("Token inválido: $token. Debe ser 6 caracteres alfanuméricos.")
 
 /**
  * Excepción para cuando no hay dispositivo vinculado
