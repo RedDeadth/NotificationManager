@@ -17,6 +17,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.dynamictecnologies.notificationmanager.MainActivity
 import com.dynamictecnologies.notificationmanager.R
+import com.dynamictecnologies.notificationmanager.util.BatteryOptimizationHelper
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -49,6 +50,10 @@ class NotificationForegroundService : Service() {
     private var serviceWatchdog: ServiceWatchdog? = null
     
     private var periodicCheckJob: Job? = null
+    
+    // Job para renovación periódica del WakeLock
+    private var wakeLockRenewalJob: Job? = null
+    private val WAKELOCK_RENEWAL_INTERVAL = 8 * 60 * 60 * 1000L // Renovar cada 8 horas
     
     companion object {
         private const val TAG = "NotificationFgService"
@@ -119,6 +124,12 @@ class NotificationForegroundService : Service() {
         // Iniciar heartbeat para watchdog externo
         startHeartbeat()
         
+        // Iniciar renovación periódica del WakeLock
+        startWakeLockRenewal()
+        
+        // Verificar exención de optimización de batería
+        checkBatteryOptimization()
+        
         Log.d(TAG, "Notificación RUNNING mostrada con botón DETENER")
     }
 
@@ -168,6 +179,73 @@ class NotificationForegroundService : Service() {
                 
                 delay(HEARTBEAT_INTERVAL)
             }
+        }
+    }
+    
+    /**
+     * Sistema de renovación periódica del WakeLock.
+     * Evita que el WakeLock expire después de 10 horas.
+     */
+    private fun startWakeLockRenewal() {
+        wakeLockRenewalJob = serviceScope.launch {
+            while (isActive) {
+                delay(WAKELOCK_RENEWAL_INTERVAL)
+                renewWakeLock()
+            }
+        }
+    }
+    
+    /**
+     * Renueva el WakeLock para evitar que expire.
+     */
+    private fun renewWakeLock() {
+        try {
+            // Liberar WakeLock actual si está held
+            wakeLock?.let {
+                if (it.isHeld) {
+                    it.release()
+                    Log.d(TAG, "WakeLock anterior liberado")
+                }
+            }
+            
+            // Adquirir nuevo WakeLock
+            val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+            wakeLock = powerManager.newWakeLock(
+                PowerManager.PARTIAL_WAKE_LOCK,
+                "NotificationManager::ServiceWakeLock"
+            )
+            wakeLock?.acquire(10 * 60 * 60 * 1000L) // 10 horas
+            Log.d(TAG, "🔋 WakeLock renovado exitosamente")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error renovando WakeLock: ${e.message}", e)
+        }
+    }
+    
+    /**
+     * Verifica si la app tiene exención de optimización de batería.
+     * Si no la tiene, solicita al usuario que la conceda.
+     */
+    private fun checkBatteryOptimization() {
+        if (!BatteryOptimizationHelper.isIgnoringBatteryOptimizations(this)) {
+            Log.w(TAG, "⚠️ App NO está exenta de optimización de batería - servicio puede detenerse en Doze mode")
+            
+            // Guardar que necesitamos solicitar exención (para mostrar en UI)
+            val prefs = getSharedPreferences("service_state", Context.MODE_PRIVATE)
+            prefs.edit().putBoolean("needs_battery_exemption", true).apply()
+            
+            // Intentar solicitar exención directamente
+            // NOTA: Esto abrirá un diálogo del sistema
+            serviceScope.launch(Dispatchers.Main) {
+                try {
+                    BatteryOptimizationHelper.requestIgnoreBatteryOptimizations(applicationContext)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error solicitando exención de batería: ${e.message}", e)
+                }
+            }
+        } else {
+            Log.d(TAG, "✅ App está exenta de optimización de batería")
+            val prefs = getSharedPreferences("service_state", Context.MODE_PRIVATE)
+            prefs.edit().putBoolean("needs_battery_exemption", false).apply()
         }
     }
     
@@ -346,6 +424,10 @@ class NotificationForegroundService : Service() {
         // Detener job de verificación periódica
         periodicCheckJob?.cancel()
         periodicCheckJob = null
+        
+        // Detener job de renovación de WakeLock
+        wakeLockRenewalJob?.cancel()
+        wakeLockRenewalJob = null
         
         // Liberar wake lock
         try {

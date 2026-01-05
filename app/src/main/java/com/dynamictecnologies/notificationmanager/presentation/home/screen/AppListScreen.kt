@@ -29,6 +29,7 @@ import com.dynamictecnologies.notificationmanager.presentation.home.components.N
 import com.dynamictecnologies.notificationmanager.presentation.home.components.DeviceSelectionDialog
 import com.dynamictecnologies.notificationmanager.presentation.home.components.TokenInputDialog
 import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
+import com.dynamictecnologies.notificationmanager.presentation.home.components.BatteryOptimizationCard
 
 @Composable
 fun AppListScreen(
@@ -176,7 +177,7 @@ fun AppListScreen(
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = if (currentPairing != null) 
-                                    currentPairing!!.bluetoothName 
+                                    "Código: ${currentPairing!!.token}" 
                                 else 
                                     "Sin conexión",
                                 style = MaterialTheme.typography.bodyLarge,
@@ -218,6 +219,9 @@ fun AppListScreen(
                 currentPairing?.let { pairing ->
 
                 }
+                
+                // Tarjeta de estado de optimización de batería
+                BatteryOptimizationCard()
                 
                 // Botón para reiniciar el servicio de notificaciones
                 Card(

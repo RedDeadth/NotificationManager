@@ -5,7 +5,9 @@ import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
 import androidx.core.content.ContextCompat
@@ -69,6 +71,65 @@ object PermissionHelper {
      */
     fun hasAllRequiredPermissions(context: Context): Boolean {
         return hasBluetoothPermissions(context) && hasPostNotificationsPermission(context)
+    }
+    
+    /**
+     * Verifica si la app está exenta de optimización de batería (Doze mode)
+     */
+    fun hasBatteryOptimizationExemption(context: Context): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+            powerManager.isIgnoringBatteryOptimizations(context.packageName)
+        } else {
+            true // No hay Doze mode antes de Android 6.0
+        }
+    }
+    
+    /**
+     * Solicita exención de optimización de batería al usuario
+     */
+    fun requestBatteryOptimizationExemption(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return true
+        }
+        
+        if (hasBatteryOptimizationExemption(context)) {
+            Log.d(TAG, "Ya tiene exención de optimización de batería")
+            return true
+        }
+        
+        return try {
+            val intent = Intent().apply {
+                action = Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+                data = Uri.parse("package:${context.packageName}")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+            Log.d(TAG, "Diálogo de exención de batería mostrado")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error solicitando exención de batería: ${e.message}", e)
+            // Fallback: abrir configuración de batería de la app
+            openBatterySettings(context)
+            false
+        }
+    }
+    
+    /**
+     * Abre la configuración de batería de la app
+     */
+    fun openBatterySettings(context: Context) {
+        try {
+            val intent = Intent().apply {
+                action = Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+                data = Uri.parse("package:${context.packageName}")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+            Log.d(TAG, "Abriendo configuración de batería de la app")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error abriendo configuración de batería: ${e.message}", e)
+        }
     }
     
     /**

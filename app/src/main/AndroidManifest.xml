@@ -18,6 +18,8 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- Agregar este permiso para Android 14+ -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- Permiso para solicitar exención de optimización de batería (Doze mode) -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     
     <!-- Permisos Bluetooth para Android 12+ (API 31+) -->
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
@@ -126,6 +128,16 @@
                 <action android:name="com.dynamictecnologies.ACTION_STOP" />
                 <action android:name="com.dynamictecnologies.ACTION_RESTART" />
                 <action android:name="com.dynamictecnologies.ACTION_ACKNOWLEDGE" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Receiver para detectar cambios de red y reconectar MQTT -->
+        <receiver
+            android:name=".receiver.NetworkStateReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
             </intent-filter>
         </receiver>
 

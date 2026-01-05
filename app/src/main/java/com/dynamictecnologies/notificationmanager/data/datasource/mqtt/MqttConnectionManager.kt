@@ -118,8 +118,10 @@ class MqttConnectionManager(
                 // Sesión persistente para no perder mensajes offline
                 isCleanSession = false
                 connectionTimeout = 60
-                keepAliveInterval = 120
-                isAutomaticReconnect = false
+                // Keep-alive de 10 minutos para sobrevivir ventanas Doze (cada ~9-15 min)
+                keepAliveInterval = 600
+                // Habilitar reconexión automática del cliente Paho
+                isAutomaticReconnect = true
                 userName = this@MqttConnectionManager.username
                 password = this@MqttConnectionManager.password.toCharArray()
                 socketFactory = SSLSocketFactory.getDefault()
