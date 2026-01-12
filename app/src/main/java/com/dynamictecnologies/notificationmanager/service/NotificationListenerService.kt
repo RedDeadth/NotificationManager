@@ -14,7 +14,6 @@ import com.dynamictecnologies.notificationmanager.data.db.NotificationDatabase
 import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
 import com.dynamictecnologies.notificationmanager.data.repository.NotificationRepository
 import com.dynamictecnologies.notificationmanager.di.BluetoothMqttModule
-import com.dynamictecnologies.notificationmanager.service.monitor.ServiceHealthMonitor
 import com.dynamictecnologies.notificationmanager.service.strategy.*
 import com.dynamictecnologies.notificationmanager.util.device.DeviceManufacturerDetector
 import com.dynamictecnologies.notificationmanager.util.notification.ServiceCrashNotifier
@@ -90,7 +89,6 @@ class NotificationListenerService : NotificationListenerService() {
     private lateinit var deviceDetector: DeviceManufacturerDetector
     private lateinit var serviceStrategy: BackgroundServiceStrategy
     private lateinit var crashNotifier: ServiceCrashNotifier
-    private lateinit var healthMonitor: ServiceHealthMonitor
     
     // Deduplication cache
     private val recentNotifications = ConcurrentHashMap<String, Long>()
@@ -112,9 +110,6 @@ class NotificationListenerService : NotificationListenerService() {
         initializeComponents()
         startForegroundService()
         startCacheCleaning()
-        
-        // Iniciar health monitoring con estrategia OEM
-        healthMonitor.startMonitoring()
         
         // Registrar inicio
         getPrefs().edit()
@@ -167,12 +162,6 @@ class NotificationListenerService : NotificationListenerService() {
             
             // Monitoring components
             crashNotifier = ServiceCrashNotifier(applicationContext)
-            healthMonitor = ServiceHealthMonitor(
-                context = applicationContext,
-                strategy = serviceStrategy,
-                crashNotifier = crashNotifier,
-                scope = serviceScope
-            )
             
             Log.d(TAG, "Componentes inicializados correctamente")
         } catch (e: Exception) {
@@ -219,6 +208,10 @@ class NotificationListenerService : NotificationListenerService() {
             .putLong("last_connection_time", System.currentTimeMillis())
             .apply()
         
+        // OBSERVER: Conexión exitosa → 🟢 Verde
+        ServiceStateManager.setState(applicationContext, ServiceStateManager.ServiceState.RUNNING)
+        ServiceNotificationManager(applicationContext).showRunningNotification()
+        
         // Descartar notificaciones de crash al conectar exitosamente
         crashNotifier.dismissAllNotifications()
     }
@@ -226,6 +219,12 @@ class NotificationListenerService : NotificationListenerService() {
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
         Log.w(TAG, "Listener desconectado")
+        
+        // OBSERVER: Desconexión inesperada → 🔴 Rojo
+        ServiceStateManager.setState(applicationContext, ServiceStateManager.ServiceState.STOPPED)
+        ServiceNotificationManager(applicationContext).showStoppedNotification(
+            ServiceNotificationManager.StopReason.UNEXPECTED
+        )
         
         // Intentar reconectar
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -237,7 +236,6 @@ class NotificationListenerService : NotificationListenerService() {
         super.onDestroy()
         Log.d(TAG, "Servicio destruido")
         
-        healthMonitor.stopMonitoring()
         serviceScope.cancel()
     }
     

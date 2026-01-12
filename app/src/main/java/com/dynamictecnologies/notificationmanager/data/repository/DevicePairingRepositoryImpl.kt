@@ -55,11 +55,26 @@ class DevicePairingRepositoryImpl(
     }
     
     override suspend fun getMqttTopic(): String? {
-        return _currentPairing.value?.mqttTopic
+        // Si el cache está vacío, intentar cargar de SharedPreferences
+        if (_currentPairing.value == null) {
+            _currentPairing.value = loadPairing()
+        }
+        return _currentPairing.value?.mqttTopic 
+            ?: prefs.getString(KEY_MQTT_TOPIC, null)
     }
     
     override suspend fun hasPairedDevice(): Boolean {
-        return _currentPairing.value != null
+        // Leer directo de SharedPreferences para evitar cache stale
+        // Esto es importante cuando el servicio se inicia antes de vincular
+        val token = prefs.getString(KEY_TOKEN, null)
+        val hasDevice = !token.isNullOrEmpty()
+        
+        // Si hay un dispositivo vinculado pero el cache está vacío, refrescarlo
+        if (hasDevice && _currentPairing.value == null) {
+            _currentPairing.value = loadPairing()
+        }
+        
+        return hasDevice
     }
     
     /**

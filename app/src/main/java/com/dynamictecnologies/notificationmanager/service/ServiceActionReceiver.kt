@@ -46,19 +46,20 @@ class ServiceActionReceiver : BroadcastReceiver() {
         // para evitar race condition con auto-restart en onDestroy()
         ServiceStateManager.setStateSync(context, ServiceStateManager.ServiceState.STOPPED)
         
-        // Detener todos los servicios
+        // Detener el servicio
         try {
             context.stopService(Intent(context, NotificationForegroundService::class.java))
-            context.stopService(Intent(context, BackgroundMonitoringService::class.java))
-            Log.d(TAG, "Servicios detenidos exitosamente")
+            Log.d(TAG, "Servicio detenido exitosamente")
         } catch (e: Exception) {
-            Log.e(TAG, "Error deteniendo servicios: ${e.message}")
+            Log.e(TAG, "Error deteniendo servicio: ${e.message}")
         }
         
-        // Ocultar todas las notificaciones (usuario quiso detener)
-        ServiceNotificationManager(context).hideAllNotifications()
+        // Mostrar notificación NARANJA (usuario detuvo intencionalmente)
+        ServiceNotificationManager(context).showStoppedNotification(
+            ServiceNotificationManager.StopReason.USER_STOP
+        )
         
-        Log.d(TAG, "Servicios detenidos por el usuario. No se molestarán más.")
+        Log.d(TAG, "Servicio detenido por el usuario. Notificación mostrada.")
     }
     
     /**
@@ -107,13 +108,12 @@ class ServiceActionReceiver : BroadcastReceiver() {
         // Cambiar estado a DISABLED
         ServiceStateManager.setState(context, ServiceStateManager.ServiceState.DISABLED)
         
-        // Detener TODOS los servicios
+        // Detener el servicio
         try {
             context.stopService(Intent(context, NotificationForegroundService::class.java))
-            context.stopService(Intent(context, BackgroundMonitoringService::class.java))
-            Log.d(TAG, "Servicios detenidos")
+            Log.d(TAG, "Servicio detenido")
         } catch (e: Exception) {
-            Log.e(TAG, "Error deteniendo servicios: ${e.message}")
+            Log.e(TAG, "Error deteniendo servicio: ${e.message}")
         }
         
         // Cancelar AlarmManager

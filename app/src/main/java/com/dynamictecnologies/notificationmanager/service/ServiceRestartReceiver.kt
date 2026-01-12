@@ -54,20 +54,5 @@ class ServiceRestartReceiver : BroadcastReceiver() {
         } catch (e: Exception) {
             Log.e(TAG, "Error reiniciando NotificationForegroundService: ${e.message}")
         }
-        
-        try {
-            // Reiniciar BackgroundMonitoringService
-            val backgroundIntent = Intent(context, BackgroundMonitoringService::class.java)
-            
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(backgroundIntent)
-            } else {
-                context.startService(backgroundIntent)
-            }
-            
-            Log.d(TAG, "BackgroundMonitoringService reiniciado")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error reiniciando BackgroundMonitoringService: ${e.message}")
-        }
     }
 }

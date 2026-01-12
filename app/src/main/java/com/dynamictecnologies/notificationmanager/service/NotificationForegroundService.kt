@@ -5,12 +5,17 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.database.ContentObserver
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
@@ -18,6 +23,9 @@ import androidx.core.app.NotificationCompat
 import com.dynamictecnologies.notificationmanager.MainActivity
 import com.dynamictecnologies.notificationmanager.R
 import com.dynamictecnologies.notificationmanager.util.BatteryOptimizationHelper
+import com.dynamictecnologies.notificationmanager.data.datasource.mqtt.MqttConnectionManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -40,16 +48,19 @@ class NotificationForegroundService : Service() {
     
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob() + exceptionHandler)
     private var wakeLock: PowerManager.WakeLock? = null
-    private val WATCHDOG_INTERVAL = 15 * 60 * 1000L // Verificar cada 15 minutos
     
-    // Heartbeat para watchdog externo
+    // Heartbeat para watchdog externo (WorkManager backup)
     private var heartbeatJob: Job? = null
     private val HEARTBEAT_INTERVAL = 5 * 60 * 1000L // Actualizar cada 5 minutos
     
-    // Watchdog delegado para vigilancia del servicio
-    private var serviceWatchdog: ServiceWatchdog? = null
+    // Observer para detectar cambios de permisos
+    private var permissionObserver: ContentObserver? = null
     
-    private var periodicCheckJob: Job? = null
+    // Receiver para detectar cambios de estado de energía (Power Save, Doze)
+    private var powerStateReceiver: BroadcastReceiver? = null
+    
+    // Receiver para detectar cambios de red (WiFi/Datos) - Patrón Observer
+    private var networkChangeReceiver: BroadcastReceiver? = null
     
     // Job para renovación periódica del WakeLock
     private var wakeLockRenewalJob: Job? = null
@@ -104,24 +115,18 @@ class NotificationForegroundService : Service() {
         // Iniciar servicio en primer plano con la notificación dinámica
         startForeground(ServiceNotificationManager.NOTIFICATION_ID_RUNNING, notification)
         
-        // Iniciar temporizador para verificaciones programadas
-        startPeriodicChecks()
+        // Registrar observer para cambios de permisos (OBSERVER PATTERN)
+        registerPermissionObserver()
         
-        // Inicializar y arrancar el watchdog delegado
-        serviceWatchdog = ServiceWatchdog(this, serviceScope, CHANNEL_ID).apply {
-            setRestartCallback(object : ServiceWatchdog.RestartCallback {
-                override fun onRestartNeeded() {
-                    tryToRestartNotificationListenerService()
-                }
-            })
-            start()
-        }
+        // Registrar receiver para cambios de estado de energía (Power Save, Doze)
+        registerPowerStateObserver()
         
-        // Marcar que el servicio DEBERÍA estar corriendo (para watchdog)
+        // Registrar receiver para cambios de red (WiFi/Datos) - Observer Pattern
+        registerNetworkObserver()
         val prefs = getSharedPreferences("service_state", Context.MODE_PRIVATE)
         prefs.edit().putBoolean("service_should_be_running", true).apply()
         
-        // Iniciar heartbeat para watchdog externo
+        // Iniciar heartbeat para watchdog externo (WorkManager backup)
         startHeartbeat()
         
         // Iniciar renovación periódica del WakeLock
@@ -131,6 +136,180 @@ class NotificationForegroundService : Service() {
         checkBatteryOptimization()
         
         Log.d(TAG, "Notificación RUNNING mostrada con botón DETENER")
+    }
+    
+    /**
+     * Registra un ContentObserver para detectar cambios en permisos de NotificationListener.
+     * Esto permite reaccionar INMEDIATAMENTE cuando el permiso es revocado (patrón Observer).
+     */
+    private fun registerPermissionObserver() {
+        permissionObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                Log.d(TAG, "Cambio detectado en permisos de NotificationListener")
+                checkPermissionState()
+            }
+        }
+        
+        try {
+            contentResolver.registerContentObserver(
+                Settings.Secure.getUriFor("enabled_notification_listeners"),
+                false,
+                permissionObserver!!
+            )
+            Log.d(TAG, "✅ ContentObserver registrado para permisos")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error registrando ContentObserver: ${e.message}")
+        }
+    }
+    
+    /**
+     * Verifica el estado actual de permisos y actualiza la notificación acordemente.
+     * Llamado por el ContentObserver cuando detecta cambios.
+     */
+    private fun checkPermissionState() {
+        val hasPermission = NotificationListenerService.isNotificationListenerEnabled(this)
+        
+        if (!hasPermission) {
+            Log.w(TAG, "⚠️ Permiso de NotificationListener revocado")
+            
+            // OBSERVER: Permiso revocado → 🟡 Amarillo
+            ServiceStateManager.setDegradedState(this, ServiceStateManager.DegradedReason.PERMISSION_REVOKED)
+            
+            // Detener el foreground para quitar la notificación verde
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            
+            // Mostrar notificación amarilla
+            ServiceNotificationManager(this).showStoppedNotification(
+                ServiceNotificationManager.StopReason.PERMISSION_REVOKED
+            )
+            
+            // Detener el servicio (ya no puede funcionar sin permisos)
+            stopSelf()
+        } else {
+            // Si el permiso fue restaurado y estábamos en DEGRADED, volver a RUNNING
+            val currentState = ServiceStateManager.getCurrentState(this)
+            if (currentState == ServiceStateManager.ServiceState.DEGRADED) {
+                Log.d(TAG, "✅ Permiso restaurado - volviendo a estado RUNNING")
+                ServiceStateManager.setState(this, ServiceStateManager.ServiceState.RUNNING)
+                ServiceNotificationManager(this).showRunningNotification()
+            }
+        }
+    }
+    
+    /**
+     * Registra un BroadcastReceiver para detectar cambios en el estado de energía.
+     * Detecta Power Save Mode y Doze Mode (patrón Observer).
+     */
+    private fun registerPowerStateObserver() {
+        powerStateReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                when (intent.action) {
+                    PowerManager.ACTION_POWER_SAVE_MODE_CHANGED -> {
+                        Log.d(TAG, "Cambio detectado en Power Save Mode")
+                        checkPowerState()
+                    }
+                    PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED -> {
+                        Log.d(TAG, "Cambio detectado en Doze Mode")
+                        checkPowerState()
+                    }
+                }
+            }
+        }
+        
+        try {
+            val filter = IntentFilter().apply {
+                addAction(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    addAction(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED)
+                }
+            }
+            registerReceiver(powerStateReceiver, filter)
+            Log.d(TAG, "✅ BroadcastReceiver registrado para estados de energía")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error registrando BroadcastReceiver: ${e.message}")
+        }
+    }
+    
+    /**
+     * Verifica el estado actual de energía (Power Save, Doze).
+     * Solo muestra advertencia, no detiene el servicio.
+     */
+    private fun checkPowerState() {
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        
+        val isPowerSave = powerManager.isPowerSaveMode
+        val isDoze = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            powerManager.isDeviceIdleMode
+        } else false
+        
+        if (isPowerSave || isDoze) {
+            Log.w(TAG, "⚠️ Modo ahorro detectado: PowerSave=$isPowerSave, Doze=$isDoze")
+            
+            // Solo mostrar advertencia si el servicio sigue corriendo
+            val currentState = ServiceStateManager.getCurrentState(this)
+            if (currentState == ServiceStateManager.ServiceState.RUNNING) {
+                // Actualizar notificación a amarillo pero NO detener servicio
+                ServiceNotificationManager(this).showStoppedNotification(
+                    ServiceNotificationManager.StopReason.POWER_RESTRICTED
+                )
+            }
+        } else {
+            // Si salimos del modo ahorro, restaurar notificación verde
+            val currentState = ServiceStateManager.getCurrentState(this)
+            if (currentState == ServiceStateManager.ServiceState.RUNNING) {
+                Log.d(TAG, "✅ Modo ahorro desactivado - restaurando estado normal")
+                ServiceNotificationManager(this).showRunningNotification()
+            }
+        }
+    }
+    
+    /**
+     * Registra un BroadcastReceiver para detectar cambios de conectividad.
+     * Permite reconectar MQTT inmediatamente cuando cambia la red (patrón Observer).
+     */
+    @Suppress("DEPRECATION")
+    private fun registerNetworkObserver() {
+        networkChangeReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                if (intent.action == ConnectivityManager.CONNECTIVITY_ACTION) {
+                    Log.d(TAG, "Cambio de conectividad detectado")
+                    checkNetworkState()
+                }
+            }
+        }
+        
+        try {
+            val filter = IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION)
+            registerReceiver(networkChangeReceiver, filter)
+            Log.d(TAG, "✅ BroadcastReceiver registrado para cambios de red")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error registrando BroadcastReceiver de red: ${e.message}")
+        }
+    }
+    
+    /**
+     * Verifica el estado de red y fuerza reconexión MQTT si hay conexión disponible.
+     */
+    private fun checkNetworkState() {
+        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        
+        val isConnected = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val network = cm.activeNetwork
+            val capabilities = cm.getNetworkCapabilities(network)
+            capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+        } else {
+            @Suppress("DEPRECATION")
+            cm.activeNetworkInfo?.isConnected == true
+        }
+        
+        if (isConnected) {
+            Log.d(TAG, "✅ Red disponible - solicitando reconexión MQTT")
+            // Enviar broadcast para que MqttConnectionManager reconecte
+            val reconnectIntent = Intent("com.dynamictecnologies.notificationmanager.MQTT_RECONNECT")
+            sendBroadcast(reconnectIntent)
+        } else {
+            Log.w(TAG, "⚠️ Sin conexión de red")
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -250,9 +429,25 @@ class NotificationForegroundService : Service() {
     }
     
     private fun performForceReset() {
-        Log.w(TAG, "Delegando reinicio forzado al ServiceWatchdog")
+        Log.w(TAG, "Realizando reinicio forzado del servicio")
         serviceScope.launch {
-            serviceWatchdog?.performForceReset()
+            try {
+                val componentName = ComponentName(applicationContext, NotificationListenerService::class.java)
+                packageManager.setComponentEnabledSetting(
+                    componentName,
+                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                    PackageManager.DONT_KILL_APP
+                )
+                delay(1000)
+                packageManager.setComponentEnabledSetting(
+                    componentName,
+                    PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                    PackageManager.DONT_KILL_APP
+                )
+                Log.d(TAG, "Reinicio forzado completado")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error en reinicio forzado: ${e.message}")
+            }
         }
     }
     
@@ -414,16 +609,38 @@ class NotificationForegroundService : Service() {
         super.onDestroy()
         Log.w(TAG, "Servicio en primer plano destruido")
         
-        // Detener heartbeat primero
+        // Desregistrar observer de permisos
+        permissionObserver?.let {
+            contentResolver.unregisterContentObserver(it)
+            Log.d(TAG, "ContentObserver desregistrado")
+        }
+        permissionObserver = null
+        
+        // Desregistrar receiver de estados de energía
+        powerStateReceiver?.let {
+            try {
+                unregisterReceiver(it)
+                Log.d(TAG, "BroadcastReceiver de energía desregistrado")
+            } catch (e: Exception) {
+                Log.w(TAG, "Error desregistrando BroadcastReceiver: ${e.message}")
+            }
+        }
+        powerStateReceiver = null
+        
+        // Desregistrar receiver de cambios de red
+        networkChangeReceiver?.let {
+            try {
+                unregisterReceiver(it)
+                Log.d(TAG, "BroadcastReceiver de red desregistrado")
+            } catch (e: Exception) {
+                Log.w(TAG, "Error desregistrando BroadcastReceiver de red: ${e.message}")
+            }
+        }
+        networkChangeReceiver = null
+        
+        // Detener heartbeat
         heartbeatJob?.cancel()
-        
-        // Detener el watchdog delegado
-        serviceWatchdog?.stop()
-        serviceWatchdog = null
-        
-        // Detener job de verificación periódica
-        periodicCheckJob?.cancel()
-        periodicCheckJob = null
+        heartbeatJob = null
         
         // Detener job de renovación de WakeLock
         wakeLockRenewalJob?.cancel()
@@ -447,8 +664,9 @@ class NotificationForegroundService : Service() {
         // Si el estado es STOPPED o DISABLED, el usuario detuvo intencionalmente
         // NO intentar reiniciar automáticamente
         if (currentState == ServiceStateManager.ServiceState.STOPPED || 
-            currentState == ServiceStateManager.ServiceState.DISABLED) {
-            Log.d(TAG, "Servicio detenido intencionalmente por usuario (estado: $currentState)")
+            currentState == ServiceStateManager.ServiceState.DISABLED ||
+            currentState == ServiceStateManager.ServiceState.DEGRADED) {
+            Log.d(TAG, "Servicio detenido intencionalmente o degradado (estado: $currentState)")
             
             // Limpiar flag para que watchdog no lo detecte como muerte
             val prefs = getSharedPreferences("service_state", Context.MODE_PRIVATE)
@@ -457,20 +675,16 @@ class NotificationForegroundService : Service() {
             return // Salir sin intentar reiniciar
         }
         
-        // Si llegamos aquí, el servicio murió inesperadamente (camera, memory, etc)
-        Log.w(TAG, "Servicio murió inesperadamente (camera, memory, etc)")
+        // Si llegamos aquí, el servicio murió inesperadamente
+        Log.w(TAG, "Servicio murió inesperadamente")
         
-        // Solo mostrar notificación de STOPPED si no se ha mostrado ya
-        if (ServiceStateManager.canShowStoppedNotification(this)) {
-            ServiceNotificationManager(this).showStoppedNotification()
-            ServiceStateManager.markStoppedNotificationShown(this)
-            ServiceStateManager.setState(this, ServiceStateManager.ServiceState.STOPPED)
-            Log.d(TAG, "Notificación STOPPED mostrada con opciones Reiniciar/Entendido")
-        } else {
-            Log.d(TAG, "Notificación STOPPED ya fue mostrada en esta sesión")
-        }
+        // OBSERVER: Muerte inesperada → 🔴 Rojo
+        ServiceStateManager.setState(this, ServiceStateManager.ServiceState.STOPPED)
+        ServiceNotificationManager(this).showStoppedNotification(
+            ServiceNotificationManager.StopReason.UNEXPECTED
+        )
         
-        // Intentar reinicio automático (solo para muertes inesperadas)
+        // Intentar reinicio automático
         tryAutomaticRestart()
     }
     
@@ -518,56 +732,9 @@ class NotificationForegroundService : Service() {
     }
 
     private fun checkNotificationService() {
-        try {
-            val isListenerEnabled = NotificationListenerService.isNotificationListenerEnabled(this)
-            val prefs = getSharedPreferences("notification_listener_prefs", Context.MODE_PRIVATE)
-            
-            if (!isListenerEnabled) {
-                Log.w(TAG, "Verificación programada: NotificationListenerService no está habilitado")
-                if (System.currentTimeMillis() - prefs.getLong("last_permission_request", 0) > 4 * 60 * 60 * 1000) {
-                    // Solicitar permisos cada 4 horas como máximo
-                    val intent = Intent("com.dynamictecnologies.notificationmanager.SHOW_PERMISSION_DIALOG")
-                    applicationContext.sendBroadcast(intent)
-                    prefs.edit().putLong("last_permission_request", System.currentTimeMillis()).apply()
-                }
-                return
-            }
-            
-            // Si está habilitado pero no ha recibido notificaciones en mucho tiempo
-            val lastNotificationTime = prefs.getLong("last_notification_received", 0)
-            val lastConnectionTime = prefs.getLong("last_connection_time", 0)
-            val currentTime = System.currentTimeMillis()
-            
-            if (lastNotificationTime > 0 && (currentTime - lastNotificationTime > 4 * 60 * 60 * 1000)) {
-                Log.w(TAG, "Verificación programada: No se han recibido notificaciones en más de 4 horas")
-                performForceReset()
-            } else if (lastConnectionTime > 0 && (currentTime - lastConnectionTime > 6 * 60 * 60 * 1000)) {
-                Log.w(TAG, "Verificación programada: No hay conexión en más de 6 horas")
-                // Delegar al watchdog para reinicio profundo
-                serviceScope.launch {
-                    serviceWatchdog?.performDeepReset()
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error en verificación programada: ${e.message}")
-        }
+        // Esta función ya no es necesaria - usamos ContentObserver
+        // Se mantiene por compatibilidad con ACTION_SCHEDULED_CHECK
+        checkPermissionState()
     }
 
-    private fun startPeriodicChecks() {
-        // Cancelar job existente si hay uno
-        periodicCheckJob?.cancel()
-        
-        // Usar coroutine en lugar de Timer deprecated
-        periodicCheckJob = serviceScope.launch {
-            // Esperar 30 minutos iniciales
-            delay(30 * 60 * 1000L)
-            
-            // Loop de verificación cada 3 horas
-            while (isActive) {
-                Log.d(TAG, "Realizando verificación programada del servicio...")
-                checkNotificationService()
-                delay(3 * 60 * 60 * 1000L) // Cada 3 horas
-            }
-        }
-    }
 }

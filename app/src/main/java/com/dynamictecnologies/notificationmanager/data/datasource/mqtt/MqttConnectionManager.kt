@@ -118,8 +118,8 @@ class MqttConnectionManager(
                 // Sesión persistente para no perder mensajes offline
                 isCleanSession = false
                 connectionTimeout = 60
-                // Keep-alive de 10 minutos para sobrevivir ventanas Doze (cada ~9-15 min)
-                keepAliveInterval = 600
+                // Keep-alive de 3 minutos para detectar desconexiones más rápido
+                keepAliveInterval = 180
                 // Habilitar reconexión automática del cliente Paho
                 isAutomaticReconnect = true
                 userName = this@MqttConnectionManager.username

@@ -31,7 +31,8 @@ class ServiceNotificationManager(private val context: Context) {
         UNEXPECTED, // Detenido inesperadamente (rojo)
         USER_STOP,  // Detenido por el usuario (naranja)
         ERROR,      // Detenido por un error (rojo)
-        PERMISSION_REVOKED // Permiso revocado (amarillo)
+        PERMISSION_REVOKED, // Permiso revocado (amarillo)
+        POWER_RESTRICTED    // Modo ahorro batería/Doze activo (amarillo)
     }
     
     private val notificationManager = 
@@ -156,6 +157,13 @@ class ServiceNotificationManager(private val context: Context) {
                 contentText = "El permiso de notificaciones fue revocado"
                 bigText = "El permiso de acceso a notificaciones fue revocado.\n\n" +
                           "Necesitas otorgarlo nuevamente."
+                color = Color.parseColor("#FFC107") // Amarillo/Ámbar
+            }
+            StopReason.POWER_RESTRICTED -> {
+                title = "Modo Ahorro Activo"
+                contentText = "El dispositivo está en modo ahorro de batería"
+                bigText = "El modo ahorro de batería o Doze está activo.\n\n" +
+                          "El monitoreo puede estar limitado hasta que se desactive."
                 color = Color.parseColor("#FFC107") // Amarillo/Ámbar
             }
         }
