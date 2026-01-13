@@ -202,8 +202,8 @@ class ServiceNotificationManager(private val context: Context) {
                 restartPendingIntent
             )
 
-        // Add "Entendido" action only for UNEXPECTED and ERROR reasons
-        if (reason == StopReason.UNEXPECTED || reason == StopReason.ERROR) {
+        // Add "Entendido" action for UNEXPECTED, ERROR, and PERMISSION_REVOKED reasons
+        if (reason == StopReason.UNEXPECTED || reason == StopReason.ERROR || reason == StopReason.PERMISSION_REVOKED) {
             builder.addAction(
                 R.drawable.ic_notification,
                 "Entendido",

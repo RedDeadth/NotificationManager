@@ -22,6 +22,9 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
+        // Preservar datos de la app durante tests instrumentados
+        testInstrumentationRunnerArguments["clearPackageData"] = "false"
+        
         // Leer credenciales MQTT de local.properties
         val localProperties = Properties()
         val localPropertiesFile = rootProject.file("local.properties")

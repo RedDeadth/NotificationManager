@@ -25,7 +25,11 @@ import com.dynamictecnologies.notificationmanager.service.util.ServiceDeathDetec
 
 import com.dynamictecnologies.notificationmanager.presentation.core.theme.NotificationManagerTheme
 import com.dynamictecnologies.notificationmanager.util.PermissionHelper
+import com.dynamictecnologies.notificationmanager.presentation.core.dialog.PermissionDialogContent
 import com.dynamictecnologies.notificationmanager.viewmodel.*
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import com.dynamictecnologies.notificationmanager.di.AuthModule
 import com.dynamictecnologies.notificationmanager.di.AppModule
 import com.dynamictecnologies.notificationmanager.di.BluetoothMqttModule
@@ -56,6 +60,9 @@ class MainActivity : ComponentActivity() {
     companion object {
         private const val TAG = "MainActivity"
     }
+    
+    // Estado Compose para el diálogo de permisos
+    private var showPermissionDialogState = mutableStateOf(false)
 
     // Crear authRepository compartido
     private val authRepository: AuthRepository by lazy {
@@ -276,6 +283,20 @@ class MainActivity : ComponentActivity() {
                         devicePairingViewModel = devicePairingViewModel,
                         requestBluetoothPermissions = { requestBluetoothPermissions() }
                     )
+                    
+                    // Diálogo de permisos Material3 (centralizado)
+                    if (showPermissionDialogState.value) {
+                        PermissionDialogContent(
+                            onDismiss = {
+                                showPermissionDialogState.value = false
+                                Log.d(TAG, "Usuario pospuso configuración de permisos")
+                            },
+                            onGoToSettings = {
+                                showPermissionDialogState.value = false
+                                PermissionHelper.openNotificationListenerSettings(this@MainActivity)
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -296,13 +317,20 @@ class MainActivity : ComponentActivity() {
         
         if (hasNotificationListenerPermission) {
             Log.d(TAG, "Permisos NotificationListener activos")
+            
+            // Cerrar diálogo de permisos si estaba abierto
+            showPermissionDialogState.value = false
+            
             notifyPermissionGranted()
             
             // Reiniciar servicio si no está corriendo
             startNotificationService()
         } else {
-            Log.w(TAG, "Sin permisos NotificationListener - mostrando diálogo")
-            showPermissionDialog()
+            // Solo mostrar diálogo si no está ya visible
+            if (!showPermissionDialogState.value) {
+                Log.w(TAG, "Sin permisos NotificationListener - mostrando diálogo")
+                showPermissionDialog()
+            }
         }
     }
 
@@ -402,7 +430,7 @@ class MainActivity : ComponentActivity() {
         // Esperar a que la UI se estabilice antes de verificar permisos
         Handler(Looper.getMainLooper()).postDelayed({
             val hasPermissions = NotificationListenerService.isNotificationListenerEnabled(this)
-            if (!hasPermissions) {
+            if (!hasPermissions && !showPermissionDialogState.value) {
                 Log.w("MainActivity", "Permisos de notificación no otorgados al iniciar")
                 showPermissionDialog()
             }
@@ -454,9 +482,21 @@ class MainActivity : ComponentActivity() {
      * Muestra el diálogo de permisos
      */
     private fun showPermissionDialog() {
+        // Evitar múltiples diálogos
+        if (showPermissionDialogState.value) {
+            Log.d("MainActivity", "Diálogo de permisos ya visible - ignorando")
+            return
+        }
+        
+        // Verificar si ya tiene permisos (usuario pudo otorgarlos)
+        if (NotificationListenerService.isNotificationListenerEnabled(this)) {
+            Log.d("MainActivity", "Permisos ya otorgados - no se muestra diálogo")
+            return
+        }
+        
         if (!isFinishing && !isDestroyed) {
-            Log.d("MainActivity", "Mostrando diálogo de permisos")
-            PermissionHelper.showNotificationPermissionDialog(this)
+            Log.d("MainActivity", "Mostrando diálogo de permisos (Compose)")
+            showPermissionDialogState.value = true
         } else {
             Log.w("MainActivity", "Activity terminando - no se muestra diálogo")
         }
